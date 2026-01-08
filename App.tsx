@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Radio, BookOpen, Activity, RefreshCw, Layers, Shield, Menu, X, Globe, DollarSign, Cpu, LandPlot, Rss, Settings } from 'lucide-react';
+import { AlertTriangle, Radio, BookOpen, Activity, RefreshCw, Layers, Shield, Menu, X, Globe, DollarSign, Cpu, LandPlot, Rss, Settings, ChevronUp, ChevronDown } from 'lucide-react';
 import { MOCK_EVENTS } from './constants';
 import { ViewState, MonitorEvent, AdminConfig, DataSourceStatus } from './types';
+import { CATEGORY_COLORS, CATEGORY_LABELS } from './categoryColors';
 import SituationMap from './components/SituationMap';
 import AIChat from './components/AIChat';
 import TacticalRadar from './components/TacticalRadar';
@@ -21,6 +22,8 @@ const App: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dataSourceStatuses, setDataSourceStatuses] = useState<DataSourceStatus[]>([]);
+  const [priorityPanelOpen, setPriorityPanelOpen] = useState(true);
+  const [legendPanelOpen, setLegendPanelOpen] = useState(true);
 
   // Initialize with persisted data
   useEffect(() => {
@@ -44,13 +47,21 @@ const App: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Stats for the footer
-  const stats = {
-    conflict: events.filter(e => e.category === 'CONFLICT').length,
-    tech: events.filter(e => e.category === 'TECHNOLOGY').length,
-    finance: events.filter(e => e.category === 'ECONOMIC').length,
-    gov: events.filter(e => e.category === 'GOVERNMENT').length,
-  };
+  // Load panel states from localStorage
+  useEffect(() => {
+    const savedPriorityPanelState = localStorage.getItem('priorityPanelOpen');
+    const savedLegendPanelState = localStorage.getItem('legendPanelOpen');
+    if (savedPriorityPanelState) setPriorityPanelOpen(JSON.parse(savedPriorityPanelState));
+    if (savedLegendPanelState) setLegendPanelOpen(JSON.parse(savedLegendPanelState));
+  }, []);
+
+  // Save panel states to localStorage
+  useEffect(() => {
+    localStorage.setItem('priorityPanelOpen', JSON.stringify(priorityPanelOpen));
+    localStorage.setItem('legendPanelOpen', JSON.stringify(legendPanelOpen));
+  }, [priorityPanelOpen, legendPanelOpen]);
+
+
 
   const handleRefreshData = async () => {
     setLoading(true);
@@ -110,26 +121,56 @@ const App: React.FC = () => {
         return (
           <div className="w-full h-full relative">
             <SituationMap events={events} />
-            {/* Floating Overlay Stats (Desktop Only) */}
+            {/* Priority Threats Panel - Minimizable */}
             <div className="absolute top-4 left-4 z-10 hidden md:block w-72 pointer-events-none">
-              <div className="bg-tactical-900/90 border border-tactical-700 p-2 backdrop-blur-sm pointer-events-auto">
-                <div className="text-[10px] text-tactical-500 uppercase mb-1 border-b border-tactical-700 pb-1 flex justify-between">
-                  <span>Priority Threats</span>
-                  <span className="animate-pulse text-red-500">LIVE</span>
+              <div className="bg-tactical-900/90 border border-tactical-700 backdrop-blur-sm pointer-events-auto">
+                <div className="text-[10px] text-tactical-500 uppercase p-2 pb-1 border-b border-tactical-700 flex justify-between items-center cursor-pointer"
+                  onClick={() => setPriorityPanelOpen(!priorityPanelOpen)}>
+                  <div className="flex items-center gap-2">
+                    <span>Priority Threats</span>
+                    <span className="animate-pulse text-red-500">LIVE</span>
+                    <span className="text-gray-500">
+                      ({events.filter(e => e.severity === 'HIGH' || e.severity === 'ELEVATED').length})
+                    </span>
+                  </div>
+                  {priorityPanelOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                 </div>
-                <div className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
-                  {events.filter(e => e.severity === 'HIGH' || e.severity === 'ELEVATED').slice(0, 5).map(e => (
-                    <div key={e.id} className="flex justify-between items-center text-xs border-b border-gray-800 pb-1 mb-1">
-                      <div className="flex flex-col">
-                        <span className="truncate max-w-[180px] text-gray-300 font-bold">{e.title}</span>
-                        <span className="text-[9px] text-gray-500">{e.sourceName}</span>
+                {priorityPanelOpen && (
+                  <div className="p-2 space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
+                    {events.filter(e => e.severity === 'HIGH' || e.severity === 'ELEVATED').slice(0, 5).map(e => (
+                      <div key={e.id} className="flex justify-between items-center text-xs border-b border-gray-800 pb-1 mb-1">
+                        <div className="flex flex-col">
+                          <span className="truncate max-w-[180px] text-gray-300 font-bold">{e.title}</span>
+                          <span className="text-[9px] text-gray-500">{e.sourceName}</span>
+                        </div>
+                        <span className={`${e.severity === 'HIGH' ? 'text-red-500' : 'text-orange-500'} font-bold text-[10px]`}>
+                          {e.severity}
+                        </span>
                       </div>
-                      <span className={`${e.severity === 'HIGH' ? 'text-red-500' : 'text-orange-500'} font-bold`}>
-                        {e.conflictLevel?.replace('_', ' ') || e.severity}
-                      </span>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Color Legend Panel - Minimizable */}
+            <div className="absolute top-64 left-4 z-10 hidden md:block w-72 pointer-events-none">
+              <div className="bg-tactical-900/90 border border-tactical-700 backdrop-blur-sm pointer-events-auto">
+                <div className="text-[10px] text-tactical-500 uppercase p-2 pb-1 border-b border-tactical-700 flex justify-between items-center cursor-pointer"
+                  onClick={() => setLegendPanelOpen(!legendPanelOpen)}>
+                  <span>Color Legend</span>
+                  {legendPanelOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                 </div>
+                {legendPanelOpen && (
+                  <div className="p-2 space-y-1.5">
+                    {Object.entries(CATEGORY_COLORS).map(([category, color]) => (
+                      <div key={category} className="flex items-center gap-2 text-xs">
+                        <div className="w-3 h-3 rounded-full border border-black" style={{ backgroundColor: color }}></div>
+                        <span className="text-gray-300">{CATEGORY_LABELS[category as keyof typeof CATEGORY_LABELS]}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -154,8 +195,8 @@ const App: React.FC = () => {
           >
             <Shield className="w-5 h-5 text-tactical-alert" />
             <div className="flex flex-col leading-none">
-              <h1 className="text-lg font-bold tracking-[0.1em] text-white whitespace-nowrap">ET MONITOR</h1>
-              <span className="text-[8px] text-tactical-alert tracking-widest hidden sm:block">SYSTEM: APOCALYPSE_READY</span>
+              <h1 className="text-lg font-bold tracking-[0.1em] text-white whitespace-nowrap">END TIMES MONITOR</h1>
+              <span className="text-[8px] text-tactical-alert tracking-widest hidden sm:block">GLOBAL INTELLIGENCE PLATFORM</span>
             </div>
           </div>
         </div>
@@ -243,29 +284,7 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Bottom Status Bar */}
-        <div className="absolute bottom-0 left-0 w-full h-10 bg-tactical-900 border-t border-tactical-700 flex items-center text-xs font-mono z-20 overflow-x-auto">
-          <div className="flex-1 h-full flex items-center justify-center border-r border-tactical-700 gap-2 px-2 whitespace-nowrap">
-            <Globe className="w-3 h-3 text-gray-500" />
-            <span className="text-gray-400 hidden sm:inline">WORLD</span>
-            <span className="text-tactical-500 font-bold ml-1">{stats.conflict}</span>
-          </div>
-          <div className="flex-1 h-full flex items-center justify-center border-r border-tactical-700 gap-2 px-2 whitespace-nowrap">
-            <Cpu className="w-3 h-3 text-gray-500" />
-            <span className="text-gray-400 hidden sm:inline">TECH</span>
-            <span className="text-tactical-500 font-bold ml-1">{stats.tech}</span>
-          </div>
-          <div className="flex-1 h-full flex items-center justify-center border-r border-tactical-700 gap-2 px-2 whitespace-nowrap">
-            <DollarSign className="w-3 h-3 text-gray-500" />
-            <span className="text-gray-400 hidden sm:inline">FINANCE</span>
-            <span className="text-tactical-500 font-bold ml-1">{stats.finance}</span>
-          </div>
-          <div className="flex-1 h-full flex items-center justify-center gap-2 px-2 whitespace-nowrap">
-            <LandPlot className="w-3 h-3 text-gray-500" />
-            <span className="text-gray-400 hidden sm:inline">GOV</span>
-            <span className="text-tactical-500 font-bold ml-1">{stats.gov}</span>
-          </div>
-        </div>
+
       </div>
     </div>
   );

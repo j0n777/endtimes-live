@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import { MonitorEvent, ConflictLevel } from '../types';
+import { CATEGORY_COLORS } from '../categoryColors';
 
 interface SituationMapProps {
   events: MonitorEvent[];
@@ -59,28 +60,28 @@ const SituationMap: React.FC<SituationMapProps> = ({ events }) => {
     // Check if Leaflet.markercluster is loaded globally
     const L_any = L as any;
     if (L_any.markerClusterGroup) {
-        const clusterGroup = L_any.markerClusterGroup({
-            showCoverageOnHover: false,
-            maxClusterRadius: 40,
-            spiderfyOnMaxZoom: true,
-            animate: true,
-            iconCreateFunction: function(cluster: any) {
-                const childCount = cluster.getChildCount();
-                let c = 'marker-cluster-small';
-                if (childCount > 10) c = 'marker-cluster-medium';
-                if (childCount > 20) c = 'marker-cluster-large';
+      const clusterGroup = L_any.markerClusterGroup({
+        showCoverageOnHover: false,
+        maxClusterRadius: 40,
+        spiderfyOnMaxZoom: true,
+        animate: true,
+        iconCreateFunction: function (cluster: any) {
+          const childCount = cluster.getChildCount();
+          let c = 'marker-cluster-small';
+          if (childCount > 10) c = 'marker-cluster-medium';
+          if (childCount > 20) c = 'marker-cluster-large';
 
-                return new L.DivIcon({ 
-                html: '<div><span>' + childCount + '</span></div>', 
-                className: 'marker-cluster ' + c, 
-                iconSize: new L.Point(40, 40) 
-                });
-            }
-        });
-        clusterGroupRef.current = clusterGroup;
-        map.addLayer(clusterGroup);
+          return new L.DivIcon({
+            html: '<div><span>' + childCount + '</span></div>',
+            className: 'marker-cluster ' + c,
+            iconSize: new L.Point(40, 40)
+          });
+        }
+      });
+      clusterGroupRef.current = clusterGroup;
+      map.addLayer(clusterGroup);
     } else {
-        console.warn("Leaflet MarkerCluster missing. Falling back to standard layer.");
+      console.warn("Leaflet MarkerCluster missing. Falling back to standard layer.");
     }
 
     // Create Markers
@@ -90,49 +91,37 @@ const SituationMap: React.FC<SituationMapProps> = ({ events }) => {
       // Validation to ensure lat/lng exists
       if (!event.coordinates || typeof event.coordinates.lat !== 'number') return;
 
-      let color = '#34d399'; // Default Low/Green
-      let shapeClass = 'rounded-full'; 
+      // Use category-based color (main improvement)
+      const color = CATEGORY_COLORS[event.category] || '#6b7280'; // Gray fallback
+
+      // Marker size based on severity
+      let markerSize = 3; // Default: LOW/MEDIUM
+      if (event.severity === 'ELEVATED') markerSize = 4;
+      if (event.severity === 'HIGH') markerSize = 5;
+
+      let shapeClass = 'rounded-full';
       let animation = '';
       let pulseColor = color;
-      
-      // Color Logic
-      if (event.severity === 'MEDIUM') color = '#fbbf24'; // Yellow
-      if (event.severity === 'ELEVATED') color = '#f97316'; // Orange
-      if (event.severity === 'HIGH') {
-         color = '#ef4444'; // Red
-         pulseColor = '#ef4444';
-      }
 
-      // Shape/Style Logic
-      switch(event.conflictLevel) {
+      // Special shapes for conflict levels
+      switch (event.conflictLevel) {
         case ConflictLevel.STATE_WAR:
           animation = 'animate-pulse-fast';
+          markerSize = 6; // Larger for wars
           break;
         case ConflictLevel.MILITIA_ACTION:
-          shapeClass = 'rounded-sm rotate-45'; 
-          break;
-        case ConflictLevel.MILITARY_MOVEMENT:
-          shapeClass = 'rounded-none'; 
-          color = '#3b82f6';
-          pulseColor = '#3b82f6';
-          if (event.severity === 'HIGH') color = '#ef4444';
-          break;
-        case ConflictLevel.RIOT_UNREST:
-          color = '#e11d48'; 
-          break;
-        case ConflictLevel.POLITICAL_THREAT:
-          color = '#8b5cf6'; 
+          shapeClass = 'rounded-sm rotate-45';
           break;
       }
 
       // Generate Marker HTML
       const html = `
         <div class="relative flex items-center justify-center w-8 h-8 group">
-             ${event.severity === 'HIGH' || event.conflictLevel === ConflictLevel.STATE_WAR ? 
-               `<div class="absolute w-full h-full rounded-full opacity-50 animate-ping" style="background-color: ${pulseColor}"></div>
-                <div class="absolute w-[120%] h-[120%] rounded-full opacity-20 animate-pulse" style="background-color: ${pulseColor}"></div>` 
-               : ''}
-             <div class="relative w-3 h-3 border border-black shadow-lg transition-transform group-hover:scale-150 ${shapeClass}" style="background-color: ${color}"></div>
+             ${event.severity === 'HIGH' || event.conflictLevel === ConflictLevel.STATE_WAR ?
+          `<div class="absolute w-full h-full rounded-full opacity-50 animate-ping" style="background-color: ${pulseColor}"></div>
+                <div class="absolute w-[120%] h-[120%] rounded-full opacity-20 animate-pulse" style="background-color: ${pulseColor}"></div>`
+          : ''}
+             <div class="relative border border-black shadow-lg transition-transform group-hover:scale-150 ${shapeClass}" style="width: ${markerSize * 0.25}rem; height: ${markerSize * 0.25}rem; background-color: ${color}"></div>
         </div>
       `;
 
@@ -146,7 +135,7 @@ const SituationMap: React.FC<SituationMapProps> = ({ events }) => {
       const popupContent = `
         <div style="padding: 6px; min-width: 200px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-            <strong style="font-size: 14px; color: ${color}; text-transform:uppercase;">${event.conflictLevel || 'EVENT'}</strong>
+            <strong style="font-size: 14px; color: ${color}; text-transform:uppercase;">${event.category}</strong>
             <span style="font-size:10px; background:#333; padding:1px 3px; border-radius:2px;">${event.sourceType || 'RSS'}</span>
           </div>
           <div style="color: white; font-weight: bold; font-size: 13px; margin-bottom: 2px;">${event.title}</div>
@@ -169,7 +158,7 @@ const SituationMap: React.FC<SituationMapProps> = ({ events }) => {
       // Fallback if clustering fails
       newMarkers.forEach(m => m.addTo(map));
     }
-    
+
     markersRef.current = newMarkers;
 
   }, [events]);
@@ -177,14 +166,14 @@ const SituationMap: React.FC<SituationMapProps> = ({ events }) => {
   return (
     <div className="relative w-full h-full overflow-hidden">
       <div ref={mapContainerRef} className="w-full h-full bg-[#050505] z-0" />
-      
+
       {/* Grid Overlay */}
-      <div className="absolute inset-0 pointer-events-none z-10" 
-           style={{
-             backgroundImage: 'linear-gradient(rgba(52, 211, 153, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(52, 211, 153, 0.1) 1px, transparent 1px)',
-             backgroundSize: '100px 100px',
-             opacity: 0.15
-           }}>
+      <div className="absolute inset-0 pointer-events-none z-10"
+        style={{
+          backgroundImage: 'linear-gradient(rgba(52, 211, 153, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(52, 211, 153, 0.1) 1px, transparent 1px)',
+          backgroundSize: '100px 100px',
+          opacity: 0.15
+        }}>
       </div>
     </div>
   );
