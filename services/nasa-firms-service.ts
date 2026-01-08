@@ -100,10 +100,12 @@ export const fetchNASAFIRMSEvents = async (apiKey: string): Promise<MonitorEvent
         const csvText = await response.text();
         const fires = parseCSV(csvText);
 
-        // Limit to high-confidence fires to avoid overwhelming the map
+        // Filter and sort by Fire Radiative Power (intensity)
+        // Keep only HIGH intensity fires (FRP > 50) to reduce noise
         const significantFires = fires
-            .filter(fire => fire.confidence !== 'l' && fire.frp > 20)
-            .slice(0, 200); // Limit to 200 most recent significant fires
+            .filter(fire => fire.frp > 50 && fire.confidence !== 'l') // High intensity + good confidence
+            .sort((a, b) => b.frp - a.frp) // Sort by intensity (highest first)
+            .slice(0, 100); // Top 100 most intense fires
 
         return significantFires.map(fire => {
             const dateTime = `${fire.acq_date} ${fire.acq_time}`;
@@ -113,7 +115,7 @@ export const fetchNASAFIRMSEvents = async (apiKey: string): Promise<MonitorEvent
                 id: generateId(),
                 title: `Active Fire Detected (FRP: ${fire.frp.toFixed(1)} MW)`,
                 description: `Satellite: ${fire.satellite} | Confidence: ${fire.confidence.toUpperCase()} | Brightness: ${fire.brightness}K | Time: ${fire.daynight === 'D' ? 'Day' : 'Night'}`,
-                category: EventCategory.NATURAL_DISASTER,
+                category: EventCategory.FIRES,
                 severity: determineSeverity(fire.frp, fire.confidence),
                 sourceType: 'OFFICIAL' as const,
                 sourceName: 'NASA FIRMS',

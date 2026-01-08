@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Radio, BookOpen, Activity, RefreshCw, Layers, Shield, Menu, X, Globe, DollarSign, Cpu, LandPlot, Rss, Settings, ChevronUp, ChevronDown } from 'lucide-react';
 import { MOCK_EVENTS } from './constants';
-import { ViewState, MonitorEvent, AdminConfig, DataSourceStatus } from './types';
+import { ViewState, MonitorEvent, AdminConfig, DataSourceStatus, EventCategory } from './types';
 import { CATEGORY_COLORS, CATEGORY_LABELS } from './categoryColors';
 import SituationMap from './components/SituationMap';
 import AIChat from './components/AIChat';
@@ -24,6 +24,9 @@ const App: React.FC = () => {
   const [dataSourceStatuses, setDataSourceStatuses] = useState<DataSourceStatus[]>([]);
   const [priorityPanelOpen, setPriorityPanelOpen] = useState(true);
   const [legendPanelOpen, setLegendPanelOpen] = useState(true);
+  const [visibleCategories, setVisibleCategories] = useState<Set<EventCategory>>(
+    new Set(Object.keys(CATEGORY_COLORS) as EventCategory[])
+  );
 
   // Initialize with persisted data
   useEffect(() => {
@@ -51,15 +54,37 @@ const App: React.FC = () => {
   useEffect(() => {
     const savedPriorityPanelState = localStorage.getItem('priorityPanelOpen');
     const savedLegendPanelState = localStorage.getItem('legendPanelOpen');
+    const savedVisibleCategories = localStorage.getItem('visibleCategories');
+
     if (savedPriorityPanelState) setPriorityPanelOpen(JSON.parse(savedPriorityPanelState));
     if (savedLegendPanelState) setLegendPanelOpen(JSON.parse(savedLegendPanelState));
+    if (savedVisibleCategories) {
+      setVisibleCategories(new Set(JSON.parse(savedVisibleCategories)));
+    }
   }, []);
 
-  // Save panel states to localStorage
+  // Save panel states and filters to localStorage
   useEffect(() => {
     localStorage.setItem('priorityPanelOpen', JSON.stringify(priorityPanelOpen));
     localStorage.setItem('legendPanelOpen', JSON.stringify(legendPanelOpen));
-  }, [priorityPanelOpen, legendPanelOpen]);
+    localStorage.setItem('visibleCategories', JSON.stringify(Array.from(visibleCategories)));
+  }, [priorityPanelOpen, legendPanelOpen, visibleCategories]);
+
+  // Toggle category visibility
+  const toggleCategory = (category: EventCategory) => {
+    setVisibleCategories(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(category)) {
+        newSet.delete(category);
+      } else {
+        newSet.add(category);
+      }
+      return newSet;
+    });
+  };
+
+  // Filter events by visible categories
+  const filteredEvents = events.filter(e => visibleCategories.has(e.category));
 
 
 
@@ -120,7 +145,7 @@ const App: React.FC = () => {
       default:
         return (
           <div className="w-full h-full relative">
-            <SituationMap events={events} />
+            <SituationMap events={filteredEvents} />
             {/* Priority Threats Panel - Minimizable */}
             <div className="absolute top-4 left-4 z-10 hidden md:block w-72 pointer-events-none">
               <div className="bg-tactical-900/90 border border-tactical-700 backdrop-blur-sm pointer-events-auto">
@@ -130,14 +155,14 @@ const App: React.FC = () => {
                     <span>Priority Threats</span>
                     <span className="animate-pulse text-red-500">LIVE</span>
                     <span className="text-gray-500">
-                      ({events.filter(e => e.severity === 'HIGH' || e.severity === 'ELEVATED').length})
+                      ({filteredEvents.filter(e => e.severity === 'HIGH' || e.severity === 'ELEVATED').length})
                     </span>
                   </div>
                   {priorityPanelOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                 </div>
                 {priorityPanelOpen && (
                   <div className="p-2 space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
-                    {events.filter(e => e.severity === 'HIGH' || e.severity === 'ELEVATED').slice(0, 5).map(e => (
+                    {filteredEvents.filter(e => e.severity === 'HIGH' || e.severity === 'ELEVATED').slice(0, 5).map(e => (
                       <div key={e.id} className="flex justify-between items-center text-xs border-b border-gray-800 pb-1 mb-1">
                         <div className="flex flex-col">
                           <span className="truncate max-w-[180px] text-gray-300 font-bold">{e.title}</span>
@@ -158,17 +183,35 @@ const App: React.FC = () => {
               <div className="bg-tactical-900/90 border border-tactical-700 backdrop-blur-sm pointer-events-auto">
                 <div className="text-[10px] text-tactical-500 uppercase p-2 pb-1 border-b border-tactical-700 flex justify-between items-center cursor-pointer"
                   onClick={() => setLegendPanelOpen(!legendPanelOpen)}>
-                  <span>Color Legend</span>
+                  <span>Category Filters ({visibleCategories.size}/{Object.keys(CATEGORY_COLORS).length})</span>
                   {legendPanelOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                 </div>
                 {legendPanelOpen && (
                   <div className="p-2 space-y-1.5">
-                    {Object.entries(CATEGORY_COLORS).map(([category, color]) => (
-                      <div key={category} className="flex items-center gap-2 text-xs">
-                        <div className="w-3 h-3 rounded-full border border-black" style={{ backgroundColor: color }}></div>
-                        <span className="text-gray-300">{CATEGORY_LABELS[category as keyof typeof CATEGORY_LABELS]}</span>
-                      </div>
-                    ))}
+                    {Object.entries(CATEGORY_COLORS).map(([category, color]) => {
+                      const categoryKey = category as EventCategory;
+                      const count = events.filter(e => e.category === categoryKey).length;
+                      const isVisible = visibleCategories.has(categoryKey);
+
+                      return (
+                        <div
+                          key={category}
+                          className="flex items-center gap-2 text-xs cursor-pointer hover:bg-tactical-800/50 p-1 rounded transition-colors"
+                          onClick={() => toggleCategory(categoryKey)}
+                        >
+                          <div className={`w-3 h-3 rounded-sm border flex items-center justify-center transition-all ${isVisible ? 'bg-tactical-500 border-tactical-500' : 'border-gray-600'}`}>
+                            {isVisible && <span className="text-[8px] text-black font-bold">✓</span>}
+                          </div>
+                          <div className="w-3 h-3 rounded-full border border-black shrink-0" style={{ backgroundColor: color }}></div>
+                          <span className={`flex-1 ${isVisible ? 'text-gray-300' : 'text-gray-600 line-through'}`}>
+                            {CATEGORY_LABELS[categoryKey]}
+                          </span>
+                          <span className={`text-[10px] font-mono ${isVisible ? 'text-tactical-500' : 'text-gray-600'}`}>
+                            {count}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
