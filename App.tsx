@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Radio, BookOpen, Activity, RefreshCw, Layers, Shield, Menu, X, Globe, DollarSign, Cpu, LandPlot, Rss, Settings } from 'lucide-react';
 import { MOCK_EVENTS } from './constants';
-import { ViewState, MonitorEvent, AdminConfig } from './types';
+import { ViewState, MonitorEvent, AdminConfig, DataSourceStatus } from './types';
 import SituationMap from './components/SituationMap';
 import AIChat from './components/AIChat';
 import TacticalRadar from './components/TacticalRadar';
@@ -11,6 +11,7 @@ import ProphecyIntel from './components/ProphecyIntel';
 import IntelFeed from './components/IntelFeed';
 import AdminPanel from './components/AdminPanel';
 import { fetchRealTimeEvents } from './services/geminiService';
+import { fetchAllDataSources } from './services/data-sources';
 
 const App: React.FC = () => {
   const [view, setView] = useState<ViewState>('SITUATION_MAP');
@@ -19,6 +20,7 @@ const App: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [dataSourceStatuses, setDataSourceStatuses] = useState<DataSourceStatus[]>([]);
 
   // Initialize with persisted data
   useEffect(() => {
@@ -52,37 +54,57 @@ const App: React.FC = () => {
 
   const handleRefreshData = async () => {
     setLoading(true);
-    
-    // Load config for custom channels
-    let customChannels: string[] = [];
+
+    // Load config
+    let config: AdminConfig | undefined;
     const savedConfig = localStorage.getItem('admin_config');
     if (savedConfig) {
       try {
-        const config: AdminConfig = JSON.parse(savedConfig);
-        customChannels = config.customChannels || [];
+        config = JSON.parse(savedConfig);
       } catch (e) {
         console.error("Config load error", e);
       }
     }
 
-    const realEvents = await fetchRealTimeEvents(customChannels);
-    
-    // Smart merge: Add new events, keep old ones if they are recent (avoid full wipe)
-    // For simplicity in this demo, we combine mock + new
-    let updatedEvents = [...realEvents];
-    if (updatedEvents.length === 0) updatedEvents = MOCK_EVENTS; // Fallback
+    try {
+      // Fetch from all data sources
+      const { events: dataSourceEvents, statuses } = await fetchAllDataSources(config);
+      setDataSourceStatuses(statuses);
 
-    setEvents(updatedEvents);
-    
-    // Persist to LocalStorage (Pseudo-Database)
-    localStorage.setItem('monitor_events', JSON.stringify(updatedEvents));
-    
+      // Also fetch AI-generated events if configured
+      let aiEvents: MonitorEvent[] = [];
+      if (config?.customChannels && config.customChannels.length > 0) {
+        try {
+          aiEvents = await fetchRealTimeEvents(config.customChannels);
+        } catch (error) {
+          console.error('AI events fetch failed:', error);
+        }
+      }
+
+      // Combine all events
+      let updatedEvents = [...dataSourceEvents, ...aiEvents];
+
+      // Fallback to mock if nothing loaded
+      if (updatedEvents.length === 0) {
+        updatedEvents = MOCK_EVENTS;
+      }
+
+      setEvents(updatedEvents);
+
+      // Persist to LocalStorage
+      localStorage.setItem('monitor_events', JSON.stringify(updatedEvents));
+
+    } catch (error) {
+      console.error('Data refresh error:', error);
+      // Keep existing events on error
+    }
+
     setLoading(false);
   };
 
   const NavButton = ({ target, label, icon: Icon }: { target: ViewState, label: string, icon?: any }) => (
-    <button 
-      onClick={() => { setView(target); setMobileMenuOpen(false); }} 
+    <button
+      onClick={() => { setView(target); setMobileMenuOpen(false); }}
       className={`px-4 py-2 text-xs font-bold transition-colors flex items-center gap-2
         ${view === target ? 'bg-tactical-800 text-tactical-500' : 'text-gray-400 hover:text-white'}`}
     >
@@ -92,14 +114,14 @@ const App: React.FC = () => {
   );
 
   const renderContent = () => {
-    switch(view) {
+    switch (view) {
       case 'SURVIVAL': return <SurvivalManual />;
       case 'RADIO': return <CommsPanel />;
       case 'TIMELINE': return <ProphecyIntel />;
       case 'LIVE_FEED': return <IntelFeed events={events} />;
       case 'ADMIN': return <AdminPanel />;
-      case 'SITUATION_MAP': 
-      default: 
+      case 'SITUATION_MAP':
+      default:
         return (
           <div className="w-full h-full relative">
             <SituationMap events={events} />
@@ -132,7 +154,7 @@ const App: React.FC = () => {
 
   return (
     <div className="h-screen w-screen bg-black text-gray-200 flex flex-col overflow-hidden font-mono relative">
-      
+
       {/* Header */}
       <header className="h-14 bg-tactical-900 border-b border-tactical-700 flex items-center justify-between px-4 z-20 shrink-0">
         <div className="flex items-center gap-4">
@@ -141,37 +163,53 @@ const App: React.FC = () => {
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
 
-          <div 
+          <div
             className="flex items-center gap-2 text-white cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => setView('SITUATION_MAP')}
           >
             <Shield className="w-5 h-5 text-tactical-alert" />
             <div className="flex flex-col leading-none">
-               <h1 className="text-lg font-bold tracking-[0.1em] text-white whitespace-nowrap">ET MONITOR</h1>
-               <span className="text-[8px] text-tactical-alert tracking-widest hidden sm:block">SYSTEM: APOCALYPSE_READY</span>
+              <h1 className="text-lg font-bold tracking-[0.1em] text-white whitespace-nowrap">ET MONITOR</h1>
+              <span className="text-[8px] text-tactical-alert tracking-widest hidden sm:block">SYSTEM: APOCALYPSE_READY</span>
             </div>
           </div>
         </div>
 
         {/* Main Nav (Desktop) */}
         <div className="hidden md:flex items-center gap-1">
-           <NavButton target="SITUATION_MAP" label="SITUATION" />
-           <NavButton target="LIVE_FEED" label="LIVE WIRE" />
-           <NavButton target="TIMELINE" label="PROPHECY" />
-           <NavButton target="SURVIVAL" label="PROTOCOLS" />
-           <NavButton target="RADIO" label="COMMS" />
-           <NavButton target="ADMIN" label="ADMIN" />
+          <NavButton target="SITUATION_MAP" label="SITUATION" />
+          <NavButton target="LIVE_FEED" label="LIVE WIRE" />
+          <NavButton target="TIMELINE" label="PROPHECY" />
+          <NavButton target="SURVIVAL" label="PROTOCOLS" />
+          <NavButton target="RADIO" label="COMMS" />
+          <NavButton target="ADMIN" label="ADMIN" />
         </div>
 
+        {/* Data Source Status (Desktop) */}
+        {dataSourceStatuses.length > 0 && (
+          <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-tactical-800/50 border border-tactical-700 rounded text-[10px]">
+            <div className="flex items-center gap-1">
+              <div className={`w-2 h-2 rounded-full ${dataSourceStatuses.some(s => s.status === 'active') ? 'bg-green-500 animate-pulse' : 'bg-gray-500'
+                }`} />
+              <span className="text-gray-400">
+                {dataSourceStatuses.filter(s => s.status === 'active').length}/{dataSourceStatuses.length} SOURCES
+              </span>
+            </div>
+            <span className="text-tactical-500 font-bold">
+              {dataSourceStatuses.reduce((sum, s) => sum + (s.eventCount || 0), 0)} EVENTS
+            </span>
+          </div>
+        )}
+
         <div className="flex items-center gap-2">
-          <button 
+          <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="flex items-center gap-2 px-3 py-1 bg-tactical-800 border border-tactical-700 hover:bg-tactical-700 text-xs text-white transition-colors"
           >
             <Layers className="w-3 h-3" />
             <span className="hidden sm:inline">INTEL</span>
           </button>
-          <button 
+          <button
             onClick={handleRefreshData}
             disabled={loading}
             className="flex items-center gap-2 px-3 py-1 bg-white text-black font-bold text-xs hover:bg-gray-200 transition-colors"
@@ -185,12 +223,12 @@ const App: React.FC = () => {
       {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
         <div className="absolute top-14 left-0 w-full bg-tactical-900 border-b border-tactical-700 z-50 md:hidden flex flex-col p-4 space-y-2 shadow-2xl">
-           <NavButton target="SITUATION_MAP" label="SITUATION MAP" icon={Globe} />
-           <NavButton target="LIVE_FEED" label="LIVE INTELLIGENCE WIRE" icon={Rss} />
-           <NavButton target="TIMELINE" label="PROPHETIC TIMELINE" icon={BookOpen} />
-           <NavButton target="SURVIVAL" label="SURVIVAL PROTOCOLS" icon={Shield} />
-           <NavButton target="RADIO" label="RADIO / COMMS" icon={Radio} />
-           <NavButton target="ADMIN" label="ADMINISTRATION" icon={Settings} />
+          <NavButton target="SITUATION_MAP" label="SITUATION MAP" icon={Globe} />
+          <NavButton target="LIVE_FEED" label="LIVE INTELLIGENCE WIRE" icon={Rss} />
+          <NavButton target="TIMELINE" label="PROPHETIC TIMELINE" icon={BookOpen} />
+          <NavButton target="SURVIVAL" label="SURVIVAL PROTOCOLS" icon={Shield} />
+          <NavButton target="RADIO" label="RADIO / COMMS" icon={Radio} />
+          <NavButton target="ADMIN" label="ADMINISTRATION" icon={Settings} />
         </div>
       )}
 
@@ -200,48 +238,48 @@ const App: React.FC = () => {
 
         {/* Right Sidebar (Sliding Panel) */}
         <div className={`absolute top-0 right-0 h-full w-80 sm:w-96 bg-tactical-900/95 border-l border-tactical-700 transform transition-transform duration-300 z-30 backdrop-blur-md flex flex-col ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-           <div className="p-4 border-b border-tactical-700 flex justify-between items-center bg-black/40">
-             <h2 className="text-sm font-bold tracking-widest text-white">INTELLIGENCE_LAYER</h2>
-             <button onClick={() => setSidebarOpen(false)}><X className="w-4 h-4 text-gray-500 hover:text-white" /></button>
-           </div>
-           
-           <div className="flex-1 overflow-y-auto p-4 space-y-6">
-              {/* Radar Widget */}
-              <div>
-                <h3 className="text-xs text-tactical-500 mb-2 flex items-center gap-2"><Activity className="w-3 h-3"/> THREAT RADAR</h3>
-                <TacticalRadar events={events} />
-              </div>
+          <div className="p-4 border-b border-tactical-700 flex justify-between items-center bg-black/40">
+            <h2 className="text-sm font-bold tracking-widest text-white">INTELLIGENCE_LAYER</h2>
+            <button onClick={() => setSidebarOpen(false)}><X className="w-4 h-4 text-gray-500 hover:text-white" /></button>
+          </div>
 
-              {/* AI Chat Widget */}
-              <div className="h-80">
-                 <h3 className="text-xs text-tactical-500 mb-2 flex items-center gap-2"><Cpu className="w-3 h-3"/> AI TACTICAL ADVISOR</h3>
-                 <AIChat events={events} />
-              </div>
-           </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            {/* Radar Widget */}
+            <div>
+              <h3 className="text-xs text-tactical-500 mb-2 flex items-center gap-2"><Activity className="w-3 h-3" /> THREAT RADAR</h3>
+              <TacticalRadar events={events} />
+            </div>
+
+            {/* AI Chat Widget */}
+            <div className="h-80">
+              <h3 className="text-xs text-tactical-500 mb-2 flex items-center gap-2"><Cpu className="w-3 h-3" /> AI TACTICAL ADVISOR</h3>
+              <AIChat events={events} />
+            </div>
+          </div>
         </div>
 
         {/* Bottom Status Bar */}
         <div className="absolute bottom-0 left-0 w-full h-10 bg-tactical-900 border-t border-tactical-700 flex items-center text-xs font-mono z-20 overflow-x-auto">
-           <div className="flex-1 h-full flex items-center justify-center border-r border-tactical-700 gap-2 px-2 whitespace-nowrap">
-             <Globe className="w-3 h-3 text-gray-500" />
-             <span className="text-gray-400 hidden sm:inline">WORLD</span>
-             <span className="text-tactical-500 font-bold ml-1">{stats.conflict}</span>
-           </div>
-           <div className="flex-1 h-full flex items-center justify-center border-r border-tactical-700 gap-2 px-2 whitespace-nowrap">
-             <Cpu className="w-3 h-3 text-gray-500" />
-             <span className="text-gray-400 hidden sm:inline">TECH</span>
-             <span className="text-tactical-500 font-bold ml-1">{stats.tech}</span>
-           </div>
-           <div className="flex-1 h-full flex items-center justify-center border-r border-tactical-700 gap-2 px-2 whitespace-nowrap">
-             <DollarSign className="w-3 h-3 text-gray-500" />
-             <span className="text-gray-400 hidden sm:inline">FINANCE</span>
-             <span className="text-tactical-500 font-bold ml-1">{stats.finance}</span>
-           </div>
-           <div className="flex-1 h-full flex items-center justify-center gap-2 px-2 whitespace-nowrap">
-             <LandPlot className="w-3 h-3 text-gray-500" />
-             <span className="text-gray-400 hidden sm:inline">GOV</span>
-             <span className="text-tactical-500 font-bold ml-1">{stats.gov}</span>
-           </div>
+          <div className="flex-1 h-full flex items-center justify-center border-r border-tactical-700 gap-2 px-2 whitespace-nowrap">
+            <Globe className="w-3 h-3 text-gray-500" />
+            <span className="text-gray-400 hidden sm:inline">WORLD</span>
+            <span className="text-tactical-500 font-bold ml-1">{stats.conflict}</span>
+          </div>
+          <div className="flex-1 h-full flex items-center justify-center border-r border-tactical-700 gap-2 px-2 whitespace-nowrap">
+            <Cpu className="w-3 h-3 text-gray-500" />
+            <span className="text-gray-400 hidden sm:inline">TECH</span>
+            <span className="text-tactical-500 font-bold ml-1">{stats.tech}</span>
+          </div>
+          <div className="flex-1 h-full flex items-center justify-center border-r border-tactical-700 gap-2 px-2 whitespace-nowrap">
+            <DollarSign className="w-3 h-3 text-gray-500" />
+            <span className="text-gray-400 hidden sm:inline">FINANCE</span>
+            <span className="text-tactical-500 font-bold ml-1">{stats.finance}</span>
+          </div>
+          <div className="flex-1 h-full flex items-center justify-center gap-2 px-2 whitespace-nowrap">
+            <LandPlot className="w-3 h-3 text-gray-500" />
+            <span className="text-gray-400 hidden sm:inline">GOV</span>
+            <span className="text-tactical-500 font-bold ml-1">{stats.gov}</span>
+          </div>
         </div>
       </div>
     </div>

@@ -88,6 +88,22 @@ export interface AdminConfig {
   newsApiKey?: string;      // Free tier available
   nasaApiKey?: string;      // Free
   acledApiKey?: string;     // Research (Free with approval)
+  
+  // Phase 1 Data Sources
+  gdacsEnabled?: boolean;           // Global Disaster Alert (No auth)
+  nasaEonetApiKey?: string;         // NASA Earth Observatory (Optional key)
+  acledEmail?: string;              // ACLED requires email + key
+  whoEnabled?: boolean;             // WHO Disease Outbreak (No auth)
+  gdeltEnabled?: boolean;           // GDELT Global Events (No auth)
+  nasaFirmsApiKey?: string;         // NASA Fire tracking (Required key)
+}
+
+export interface DataSourceStatus {
+  name: string;
+  status: 'active' | 'error' | 'disabled' | 'loading';
+  lastFetch?: string;
+  eventCount?: number;
+  error?: string;
 }
 
 export type ViewState = 'SITUATION_MAP' | 'SURVIVAL' | 'RADIO' | 'TIMELINE' | 'AI_INTEL' | 'LIVE_FEED' | 'ADMIN';
