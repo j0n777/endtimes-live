@@ -5,6 +5,8 @@ import { fetchACLEDEvents } from './acled-service';
 import { fetchWHOEvents } from './who-service';
 import { fetchGDELTEvents } from './gdelt-service';
 import { fetchNASAFIRMSEvents } from './nasa-firms-service';
+import { fetchTelegramChannelPosts } from './telegram-service';
+import { fetchPolymarketEvents } from './polymarket-service';
 
 // Cache structure
 interface CacheEntry {
@@ -135,6 +137,33 @@ export const fetchAllDataSources = async (
             },
             enabled: Boolean(config?.nasaFirmsApiKey),
             requiresAuth: true,
+        },
+        {
+            name: 'Telegram',
+            fetcher: async () => {
+                if (!config?.telegramBotToken || !config?.telegramChannelIds || config.telegramChannelIds.length === 0) {
+                    throw new Error('Telegram requires bot token and channel IDs');
+                }
+                const cached = getFromCache('telegram');
+                if (cached) return cached;
+                const events = await fetchTelegramChannelPosts(config.telegramBotToken, config.telegramChannelIds);
+                setCache('telegram', events);
+                return events;
+            },
+            enabled: Boolean(config?.telegramBotToken && config?.telegramChannelIds && config.telegramChannelIds.length > 0),
+            requiresAuth: true,
+        },
+        {
+            name: 'Polymarket',
+            fetcher: async () => {
+                const cached = getFromCache('polymarket');
+                if (cached) return cached;
+                const events = await fetchPolymarketEvents();
+                setCache('polymarket', events);
+                return events;
+            },
+            enabled: config?.polymarketEnabled !== false, // Enabled by default
+            requiresAuth: false,
         },
     ];
 

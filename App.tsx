@@ -67,27 +67,12 @@ const App: React.FC = () => {
     }
 
     try {
-      // Fetch from all data sources
+      // Fetch from all data sources (includes Telegram and  Polymarket now)
       const { events: dataSourceEvents, statuses } = await fetchAllDataSources(config);
       setDataSourceStatuses(statuses);
 
-      // Also fetch AI-generated events if configured
-      let aiEvents: MonitorEvent[] = [];
-      if (config?.customChannels && config.customChannels.length > 0) {
-        try {
-          aiEvents = await fetchRealTimeEvents(config.customChannels);
-        } catch (error) {
-          console.error('AI events fetch failed:', error);
-        }
-      }
-
-      // Combine all events
-      let updatedEvents = [...dataSourceEvents, ...aiEvents];
-
       // Fallback to mock if nothing loaded
-      if (updatedEvents.length === 0) {
-        updatedEvents = MOCK_EVENTS;
-      }
+      let updatedEvents = dataSourceEvents.length > 0 ? dataSourceEvents : MOCK_EVENTS;
 
       setEvents(updatedEvents);
 

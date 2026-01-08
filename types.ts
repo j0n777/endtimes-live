@@ -43,7 +43,7 @@ export interface MonitorEvent {
   location: string;
   timestamp: string; // ISO date
   coordinates: { lat: number; lng: number };
-  propheticReference?: string; 
+  propheticReference?: string;
   sourceUrl?: string;
 }
 
@@ -80,15 +80,15 @@ export interface ProphecyEvent {
 }
 
 export interface AdminConfig {
-  telegramApiId: string;
-  telegramApiHash: string;
-  telegramPhone: string;
-  customChannels: string[]; // List of channel usernames
-  // New API Keys
-  newsApiKey?: string;      // Free tier available
-  nasaApiKey?: string;      // Free
-  acledApiKey?: string;     // Research (Free with approval)
-  
+  // Telegram Bot Integration (Simplified)
+  telegramBotToken?: string;        // Bot token from @BotFather
+  telegramChannelIds: string[];     // Channel IDs to monitor (e.g., @channelname or -100123456789)
+
+  // Legacy API Keys
+  newsApiKey?: string;              // Free tier available
+  nasaApiKey?: string;              // Free
+  acledApiKey?: string;             // Research (Free with approval)
+
   // Phase 1 Data Sources
   gdacsEnabled?: boolean;           // Global Disaster Alert (No auth)
   nasaEonetApiKey?: string;         // NASA Earth Observatory (Optional key)
@@ -96,6 +96,9 @@ export interface AdminConfig {
   whoEnabled?: boolean;             // WHO Disease Outbreak (No auth)
   gdeltEnabled?: boolean;           // GDELT Global Events (No auth)
   nasaFirmsApiKey?: string;         // NASA Fire tracking (Required key)
+
+  // Polymarket Integration (Market Intelligence)
+  polymarketEnabled?: boolean;      // Enable Polymarket prediction markets monitoring
 }
 
 export interface DataSourceStatus {
