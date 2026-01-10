@@ -102,17 +102,12 @@ const SituationMap: React.FC<SituationMapProps> = ({ events }) => {
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    // Clear existing markers
-    if (clusterGroupRef.current) {
-      clusterGroupRef.current.clearLayers();
-      map.removeLayer(clusterGroupRef.current);
-      clusterGroupRef.current = null;
-    }
+    // Don't destroy cluster - reuse it for performance
 
     // Prepare Cluster Group
     // Check if Leaflet.markercluster is loaded globally
     const L_any = L as any;
-    if (L_any.markerClusterGroup) {
+    if (L_any.markerClusterGroup && !clusterGroupRef.current) {
       const clusterGroup = L_any.markerClusterGroup({
         // ⭐ PERFORMANCE: Chunked loading for large datasets
         chunkedLoading: true,
@@ -142,8 +137,13 @@ const SituationMap: React.FC<SituationMapProps> = ({ events }) => {
       });
       clusterGroupRef.current = clusterGroup;
       map.addLayer(clusterGroup);
-    } else {
+    } else if (!clusterGroupRef.current) {
       console.warn("Leaflet MarkerCluster missing. Falling back to standard layer.");
+    }
+
+    // Reuse existing cluster if available
+    if (clusterGroupRef.current) {
+      clusterGroupRef.current.clearLayers(); // Clear old markers
     }
 
     // Create Markers - ⭐ Using only VISIBLE events for performance
