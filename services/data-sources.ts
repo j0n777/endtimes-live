@@ -297,8 +297,34 @@ export const fetchAllDataSources = async (
     // Deduplicate events by similarity
     const uniqueEvents = deduplicateEvents(allEvents);
 
+    // ⭐ PROGRESSIVE LOADING: Limit initial load, prioritize by severity
+    // Sort by severity (HIGH first) then by timestamp (recent first)
+    const prioritized = uniqueEvents.sort((a, b) => {
+        const severityOrder: Record<Severity, number> = {
+            'HIGH': 0,
+            'ELEVATED': 1,
+            'MEDIUM': 2,
+            'LOW': 3
+        };
+
+        const severityDiff = severityOrder[a.severity] - severityOrder[b.severity];
+        if (severityDiff !== 0) return severityDiff;
+
+        // If same severity, sort by timestamp (newest first)
+        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+    });
+
+    // Limit to 500 most important events initially
+    // TODO: Implement lazy loading for additional events
+    const MAX_INITIAL_EVENTS = 500;
+    const limited = prioritized.slice(0, MAX_INITIAL_EVENTS);
+
+    if (prioritized.length > MAX_INITIAL_EVENTS) {
+        console.warn(`⚠️ Loaded ${MAX_INITIAL_EVENTS}/${prioritized.length} events (${prioritized.length - MAX_INITIAL_EVENTS} deferred)`);
+    }
+
     return {
-        events: uniqueEvents,
+        events: limited,
         statuses,
     };
 };

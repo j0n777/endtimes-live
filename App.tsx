@@ -28,6 +28,10 @@ const App: React.FC = () => {
     new Set(Object.keys(CATEGORY_COLORS) as EventCategory[])
   );
 
+  // ⭐ PAGINATION: Limit threats initially, load more on demand
+  const [threatsPageSize, setThreatsPageSize] = useState(10);
+  const THREATS_PER_PAGE = 10;
+
   // Initialize with persisted data
   useEffect(() => {
     const savedEvents = localStorage.getItem('monitor_events');
@@ -153,10 +157,21 @@ const App: React.FC = () => {
   const NavButton = ({ target, label, icon: Icon }: { target: ViewState, label: string, icon?: any }) => (
     <button
       onClick={() => { setView(target); setMobileMenuOpen(false); }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          setView(target);
+          setMobileMenuOpen(false);
+        }
+      }}
       className={`px-4 py-2 text-xs font-bold transition-colors flex items-center gap-2
         ${view === target ? 'bg-tactical-800 text-tactical-500' : 'text-gray-400 hover:text-white'}`}
+      aria-label={`Navigate to ${label}`}
+      aria-current={view === target ? 'page' : undefined}
+      role="button"
+      tabIndex={0}
     >
-      {Icon && <Icon className="w-4 h-4 md:hidden" />}
+      {Icon && <Icon className="w-4 h-4 md:hidden" aria-hidden="true" />}
       {label}
     </button>
   );
@@ -187,21 +202,40 @@ const App: React.FC = () => {
                   </div>
                   {priorityPanelOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                 </div>
-                {priorityPanelOpen && (
-                  <div className="p-2 space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
-                    {filteredEvents.filter(e => e.severity === 'HIGH' || e.severity === 'ELEVATED').slice(0, 5).map(e => (
-                      <div key={e.id} className="flex justify-between items-center text-xs border-b border-gray-800 pb-1 mb-1">
-                        <div className="flex flex-col">
-                          <span className="truncate max-w-[180px] text-gray-300 font-bold">{e.title}</span>
-                          <span className="text-[9px] text-gray-500">{e.sourceName}</span>
+                {priorityPanelOpen && (() => {
+                  const threats = filteredEvents.filter(e => e.severity === 'HIGH' || e.severity === 'ELEVATED');
+                  const displayed = threats.slice(0, threatsPageSize);
+                  const hasMore = threats.length > threatsPageSize;
+
+                  return (
+                    <div className="p-2 space-y-1 max-h-64 overflow-y-auto custom-scrollbar">
+                      {displayed.map(e => (
+                        <div key={e.id} className="flex justify-between items-center text-xs border-b border-gray-800 pb-1 mb-1">
+                          <div className="flex flex-col">
+                            <span className="truncate max-w-[180px] text-gray-300 font-bold">{e.title}</span>
+                            <span className="text-[9px] text-gray-500">{e.sourceName}</span>
+                          </div>
+                          <span className={`${e.severity === 'HIGH' ? 'text-red-500' : 'text-orange-500'} font-bold text-[10px]`}>
+                            {e.severity}
+                          </span>
                         </div>
-                        <span className={`${e.severity === 'HIGH' ? 'text-red-500' : 'text-orange-500'} font-bold text-[10px]`}>
-                          {e.severity}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                      {hasMore && (
+                        <button
+                          onClick={() => setThreatsPageSize(prev => prev + THREATS_PER_PAGE)}
+                          className="w-full text-center text-[10px] text-tactical-500 hover:text-white py-2 border border-tactical-700 hover:border-tactical-500 transition-colors"
+                        >
+                          Load More ({threats.length - threatsPageSize} remaining)
+                        </button>
+                      )}
+                      {displayed.length === 0 && (
+                        <div className="text-center text-gray-500 text-xs py-4">
+                          No priority threats
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
@@ -252,34 +286,48 @@ const App: React.FC = () => {
     <div className="h-screen w-screen bg-black text-gray-200 flex flex-col overflow-hidden font-mono relative">
 
       {/* Header */}
-      <header className="h-14 bg-tactical-900 border-b border-tactical-700 flex items-center justify-between px-4 z-20 shrink-0">
+      <header
+        className="h-14 bg-tactical-900 border-b border-tactical-700 flex items-center justify-between px-4 z-20 shrink-0"
+        role="banner"
+        aria-label="Main header"
+      >
         <div className="flex items-center gap-4">
           {/* Mobile Menu Toggle */}
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden text-white">
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden text-white"
+            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileMenuOpen}
+          >
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
 
-          <div
-            className="flex items-center gap-2 text-white cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={() => setView('SITUATION_MAP')}
-          >
-            <Shield className="w-5 h-5 text-tactical-alert" />
-            <div className="flex flex-col leading-none">
-              <h1 className="text-lg font-bold tracking-[0.1em] text-white whitespace-nowrap">END TIMES MONITOR</h1>
-              <span className="text-[8px] text-tactical-alert tracking-widest hidden sm:block">GLOBAL INTELLIGENCE PLATFORM</span>
+          <div className="flex items-center gap-2">
+            <div className="text-red-500 animate-pulse-fast text-xl font-bold" aria-hidden="true">◉</div>
+            <div>
+              <h1 className="font-black text-sm tracking-wider text-white">
+                END TIMES MONITOR
+              </h1>
+              <p className="text-[8px] text-gray-500 uppercase tracking-widest">
+                Global Intelligence Platform
+              </p>
             </div>
           </div>
         </div>
 
         {/* Main Nav (Desktop) */}
-        <div className="hidden md:flex items-center gap-1">
+        <nav
+          className="hidden md:flex items-center gap-1"
+          role="navigation"
+          aria-label="Primary navigation"
+        >
           <NavButton target="SITUATION_MAP" label="SITUATION" />
           <NavButton target="LIVE_FEED" label="LIVE WIRE" />
           <NavButton target="TIMELINE" label="PROPHECY" />
           <NavButton target="SURVIVAL" label="PROTOCOLS" />
           <NavButton target="RADIO" label="COMMS" />
           <NavButton target="ADMIN" label="ADMIN" />
-        </div>
+        </nav>
 
         {/* Data Source Status (Desktop) */}
         {dataSourceStatuses.length > 0 && (
