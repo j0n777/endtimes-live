@@ -13,6 +13,9 @@ const SituationMap: React.FC<SituationMapProps> = ({ events }) => {
   const clusterGroupRef = useRef<any | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
 
+  // ⭐ VIEWPORT VIRTUALIZATION: Only render visible events
+  const [visibleEvents, setVisibleEvents] = React.useState<MonitorEvent[]>(events);
+
   // 1. Initialize Map
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -36,6 +39,24 @@ const SituationMap: React.FC<SituationMapProps> = ({ events }) => {
     }).addTo(map);
 
     mapInstanceRef.current = map;
+
+    // ⭐ VIEWPORT VIRTUALIZATION: Update visible events on map move
+    const updateVisibleEvents = () => {
+      const bounds = map.getBounds();
+      const visible = events.filter(event =>
+        bounds.contains([event.coordinates.lat, event.coordinates.lng])
+      );
+      setVisibleEvents(visible);
+      console.log(`📍 Viewport: Showing ${visible.length}/${events.length} events in view`);
+    };
+
+    // Initial update
+    updateVisibleEvents();
+
+    // Update on map movement
+    map.on('moveend', updateVisibleEvents);
+    map.on('zoomend', updateVisibleEvents);
+
 
     // ⭐ MEMORY CLEANUP on unmount
     return () => {
@@ -103,10 +124,10 @@ const SituationMap: React.FC<SituationMapProps> = ({ events }) => {
       console.warn("Leaflet MarkerCluster missing. Falling back to standard layer.");
     }
 
-    // Create Markers
+    // Create Markers - ⭐ Using only VISIBLE events for performance
     const newMarkers: L.Marker[] = [];
 
-    events.forEach(event => {
+    visibleEvents.forEach(event => {
       // Validation to ensure lat/lng exists
       if (!event.coordinates || typeof event.coordinates.lat !== 'number') return;
 
@@ -180,7 +201,7 @@ const SituationMap: React.FC<SituationMapProps> = ({ events }) => {
 
     markersRef.current = newMarkers;
 
-  }, [events]);
+  }, [visibleEvents]); // Re-render when visible events change
 
   return (
     <div className="relative w-full h-full overflow-hidden">

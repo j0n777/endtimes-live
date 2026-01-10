@@ -12,6 +12,7 @@ import { fetchEmbassyWarnings } from './embassy-service';
 import { fetchNOTAMEvents } from './notam-service';
 import { fetchInternetShutdowns } from './internet-shutdown-service';
 import { fetchCyberAttacks } from './cyber-attack-service';
+import { getCuratedPOIs } from './osm-poi-service';
 
 // Cache structure
 interface CacheEntry {
@@ -228,6 +229,18 @@ export const fetchAllDataSources = async (
                 return events;
             },
             enabled: true, // Always enabled (security threats)
+            requiresAuth: false,
+        },
+        {
+            name: 'Survival POIs',
+            fetcher: async () => {
+                const cached = getFromCache('survival-pois');
+                if (cached) return cached;
+                const events = getCuratedPOIs();
+                setCache('survival-pois', events);
+                return events;
+            },
+            enabled: config?.poisEnabled !== false, // Can be toggled
             requiresAuth: false,
         },
     ];
