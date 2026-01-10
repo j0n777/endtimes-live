@@ -7,6 +7,11 @@ import { fetchGDELTEvents } from './gdelt-service';
 import { fetchNASAFIRMSEvents } from './nasa-firms-service';
 import { fetchTelegramChannelPosts } from './telegram-service';
 import { fetchPolymarketEvents } from './polymarket-service';
+import { fetchVIXEvents } from './vix-service';
+import { fetchEmbassyWarnings } from './embassy-service';
+import { fetchNOTAMEvents } from './notam-service';
+import { fetchInternetShutdowns } from './internet-shutdown-service';
+import { fetchCyberAttacks } from './cyber-attack-service';
 
 // Cache structure
 interface CacheEntry {
@@ -135,7 +140,7 @@ export const fetchAllDataSources = async (
                 setCache('nasa-firms', events);
                 return events;
             },
-            enabled: Boolean(config?.nasaFirmsApiKey),
+            enabled: Boolean(config?.nasaFirmsApiKey), // Re-enabled with intelligent filter
             requiresAuth: true,
         },
         {
@@ -163,6 +168,66 @@ export const fetchAllDataSources = async (
                 return events;
             },
             enabled: config?.polymarketEnabled !== false, // Enabled by default
+            requiresAuth: false,
+        },
+        {
+            name: 'VIX Index',
+            fetcher: async () => {
+                const cached = getFromCache('vix');
+                if (cached) return cached;
+                const events = await fetchVIXEvents();
+                setCache('vix', events);
+                return events;
+            },
+            enabled: true, // Always enabled (market fear indicator)
+            requiresAuth: false,
+        },
+        {
+            name: 'Embassy Warnings',
+            fetcher: async () => {
+                const cached = getFromCache('embassy');
+                if (cached) return cached;
+                const events = await fetchEmbassyWarnings();
+                setCache('embassy', events);
+                return events;
+            },
+            enabled: true, // Always enabled (travel advisories)
+            requiresAuth: false,
+        },
+        {
+            name: 'NOTAMs',
+            fetcher: async () => {
+                const cached = getFromCache('notams');
+                if (cached) return cached;
+                const events = await fetchNOTAMEvents();
+                setCache('notams', events);
+                return events;
+            },
+            enabled: true, // Always enabled (airspace restrictions)
+            requiresAuth: false,
+        },
+        {
+            name: 'Internet Shutdowns',
+            fetcher: async () => {
+                const cached = getFromCache('internet-shutdowns');
+                if (cached) return cached;
+                const events = await fetchInternetShutdowns();
+                setCache('internet-shutdowns', events);
+                return events;
+            },
+            enabled: true, // Always enabled (critical infrastructure)
+            requiresAuth: false,
+        },
+        {
+            name: 'Cyber Attacks',
+            fetcher: async () => {
+                const cached = getFromCache('cyber-attacks');
+                if (cached) return cached;
+                const events = await fetchCyberAttacks();
+                setCache('cyber-attacks', events);
+                return events;
+            },
+            enabled: true, // Always enabled (security threats)
             requiresAuth: false,
         },
     ];

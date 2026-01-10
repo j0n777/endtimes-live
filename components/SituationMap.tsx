@@ -23,7 +23,10 @@ const SituationMap: React.FC<SituationMapProps> = ({ events }) => {
       zoom: 2.5,
       zoomControl: false,
       attributionControl: false,
-      worldCopyJump: true
+      worldCopyJump: true,
+      // ⭐ PERFORMANCE: Use canvas rendering instead of SVG
+      preferCanvas: true,
+      renderer: L.canvas({ padding: 0.5, tolerance: 3 })
     });
 
     // Dark Tactical Tiles
@@ -34,13 +37,20 @@ const SituationMap: React.FC<SituationMapProps> = ({ events }) => {
 
     mapInstanceRef.current = map;
 
-    // Cleanup on unmount
+    // ⭐ MEMORY CLEANUP on unmount
     return () => {
       if (mapInstanceRef.current) {
+        // Remove all event listeners to prevent memory leaks
+        mapInstanceRef.current.off();
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
+      }
+      if (clusterGroupRef.current) {
+        clusterGroupRef.current.clearLayers();
         clusterGroupRef.current = null;
       }
+      // Clear markers array
+      markersRef.current = [];
     };
   }, []);
 
@@ -61,10 +71,19 @@ const SituationMap: React.FC<SituationMapProps> = ({ events }) => {
     const L_any = L as any;
     if (L_any.markerClusterGroup) {
       const clusterGroup = L_any.markerClusterGroup({
+        // ⭐ PERFORMANCE: Chunked loading for large datasets
+        chunkedLoading: true,
+        chunkInterval: 200,
+        chunkDelay: 50,
+        chunkProgress: null, // Disable progress callback
+
+        // Visual settings
         showCoverageOnHover: false,
-        maxClusterRadius: 40,
-        spiderfyOnMaxZoom: true,
-        animate: true,
+        maxClusterRadius: 50,
+        spiderfyOnMaxZoom: false, // Disable for performance
+        animate: false, // Disable animations for faster rendering
+        disableClusteringAtZoom: 16,
+
         iconCreateFunction: function (cluster: any) {
           const childCount = cluster.getChildCount();
           let c = 'marker-cluster-small';

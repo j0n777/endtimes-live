@@ -1,4 +1,5 @@
 import { MonitorEvent, EventCategory, Severity } from '../types';
+import { isRelevantWildfire } from './nasa-firms-filter';
 
 const NASA_FIRMS_BASE_URL = 'https://firms.modaps.eosdis.nasa.gov/api/area/csv';
 
@@ -100,14 +101,29 @@ export const fetchNASAFIRMSEvents = async (apiKey: string): Promise<MonitorEvent
         const csvText = await response.text();
         const fires = parseCSV(csvText);
 
-        // Filter and sort by Fire Radiative Power (intensity)
-        // Keep only HIGH intensity fires (FRP > 50) to reduce noise
-        const significantFires = fires
-            .filter(fire => fire.frp > 50 && fire.confidence !== 'l') // High intensity + good confidence
-            .sort((a, b) => b.frp - a.frp) // Sort by intensity (highest first)
-            .slice(0, 100); // Top 100 most intense fires
+        console.log(`🔥 NASA FIRMS: Received ${fires.length} total fires from API`);
 
-        return significantFires.map(fire => {
+        // INTELLIGENT WILDFIRE FILTER
+        // Uses STA mask, vegetation detection, confidence, FRP, and industrial signature detection
+        const relevantWildfires = fires
+            .filter(fire => isRelevantWildfire({
+                latitude: fire.latitude,
+                longitude: fire.longitude,
+                frp: fire.frp,
+                confidence: fire.confidence,
+                brightness: fire.brightness
+            }))
+            .sort((a, b) => b.frp - a.frp) // Sort by intensity (highest first)
+            .slice(0, 15); // Maximum 15 significant wildfires
+
+        console.log(`🔥 NASA FIRMS: Filtered to ${relevantWildfires.length} RELEVANT wildfires`);
+        console.log(`🔥 NASA FIRMS: Reduction: ${fires.length} → ${relevantWildfires.length} (${(100 - (relevantWildfires.length / fires.length * 100)).toFixed(1)}% filtered)`);
+
+        if (relevantWildfires.length === 0) {
+            console.log(`✅ NASA FIRMS: No significant wildfires detected globally`);
+        }
+
+        return relevantWildfires.map(fire => {
             const dateTime = `${fire.acq_date} ${fire.acq_time}`;
             const location = getLocationName(fire.latitude, fire.longitude);
 

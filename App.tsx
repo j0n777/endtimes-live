@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Radio, BookOpen, Activity, RefreshCw, Layers, Shield, Menu, X, Globe, DollarSign, Cpu, LandPlot, Rss, Settings, ChevronUp, ChevronDown } from 'lucide-react';
+import { AlertTriangle, Radio, BookOpen, Activity, RefreshCw, Layers, Shield, Menu, X, Globe, DollarSign, Cpu, LandPlot, Rss, Settings, ChevronUp, ChevronDown, Trash2 } from 'lucide-react';
 import { MOCK_EVENTS } from './constants';
 import { ViewState, MonitorEvent, AdminConfig, DataSourceStatus, EventCategory } from './types';
 import { CATEGORY_COLORS, CATEGORY_LABELS } from './categoryColors';
@@ -34,7 +34,17 @@ const App: React.FC = () => {
     if (savedEvents) {
       try {
         const parsed = JSON.parse(savedEvents);
-        if (parsed.length > 0) {
+
+        // Auto-invalidate cache if old NASA FIRMS data detected (wrong category)
+        const hasOldNASAData = parsed.some((e: MonitorEvent) =>
+          e.sourceName === 'NASA FIRMS' && e.category === 'NATURAL_DISASTER'
+        );
+
+        if (hasOldNASAData) {
+          console.warn('🔄 Detected old NASA FIRMS cache (NATURAL_DISASTER → FIRES). Auto-clearing...');
+          localStorage.removeItem('monitor_events');
+          setEvents(MOCK_EVENTS);
+        } else if (parsed.length > 0) {
           setEvents(parsed);
         } else {
           setEvents(MOCK_EVENTS);
@@ -121,6 +131,23 @@ const App: React.FC = () => {
     }
 
     setLoading(false);
+  };
+
+  const handleClearCache = () => {
+    if (confirm('Clear all cached data and reload? This will refresh from all sources.')) {
+      // Clear all localStorage
+      localStorage.removeItem('monitor_events');
+      localStorage.removeItem('admin_config');
+      localStorage.removeItem('priorityPanelOpen');
+      localStorage.removeItem('legendPanelOpen');
+      localStorage.removeItem('visibleCategories');
+
+      // Reset state
+      setEvents([]);
+
+      // Reload page to get fresh data
+      window.location.reload();
+    }
   };
 
   const NavButton = ({ target, label, icon: Icon }: { target: ViewState, label: string, icon?: any }) => (
@@ -277,6 +304,14 @@ const App: React.FC = () => {
           >
             <Layers className="w-3 h-3" />
             <span className="hidden sm:inline">INTEL</span>
+          </button>
+          <button
+            onClick={handleClearCache}
+            className="flex items-center gap-2 px-3 py-1 bg-red-900/50 border border-red-700 hover:bg-red-800 text-red-300 text-xs transition-colors"
+            title="Clear cache and reload fresh data"
+          >
+            <Trash2 className="w-3 h-3" />
+            <span className="hidden sm:inline">CLEAR</span>
           </button>
           <button
             onClick={handleRefreshData}
