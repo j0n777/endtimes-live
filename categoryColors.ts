@@ -5,15 +5,15 @@ import { EventCategory } from './types';
  * Used for map markers and legends
  */
 export const CATEGORY_COLORS: Record<EventCategory, string> = {
-    CONFLICT: '#ef4444',        // Red - Wars, armed conflicts
-    NATURAL_DISASTER: '#f97316', // Orange - Earthquakes, hurricanes, floods
-    FIRES: '#fbbf24',           // Yellow/Amber - Wildfires, thermal anomalies  
-    PANDEMIC: '#a855f7',        // Purple - Disease outbreaks, health emergencies
-    ECONOMIC: '#3b82f6',        // Blue - Financial crises, market crashes
-    PROPHETIC: '#eab308',       // Gold - Jerusalem/Israel, prophetic events
-    PERSECUTION: '#991b1b',     // Dark Red - Religious persecution
-    TECHNOLOGY: '#06b6d4',      // Cyan - Tech threats, cyber events
-    GOVERNMENT: '#6b7280',      // Gray - Political events
+    CONFLICT: '#dc2626',        // Red - Wars, armed conflicts (keep red)
+    NATURAL_DISASTER: '#ea580c', // Orange - Earthquakes, hurricanes (keep orange)
+    FIRES: '#d97706',           // Amber - Wildfires (keep amber)
+    PANDEMIC: '#a855f7',        // Purple - Disease outbreaks (keep purple)
+    ECONOMIC: '#2563eb',        // Blue - Financial crises (keep blue)  
+    PROPHETIC: '#d1a144',       // Biblical Gold - Jerusalem/Israel
+    PERSECUTION: '#8b4513',     // Saddle Brown - Desert earth tone
+    TECHNOLOGY: '#c19a6b',      // Desert Sand/Tan - Military sand
+    GOVERNMENT: '#9d7e4f',      // Khaki/Tan - Military desert camo
 };
 
 /**

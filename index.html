@@ -40,12 +40,12 @@
           },
           colors: {
             tactical: {
-              900: '#0a0f0d',
-              800: '#111814',
-              700: '#1a241f',
-              500: '#34d399', // Green accent
-              alert: '#ef4444', // Red
-              warn: '#f59e0b', // Amber
+              900: '#1a1614', // Desert night - almost black with brown tint
+              800: '#2d2520', // Dark desert
+              700: '#3d342d', // Medium desert brown
+              500: '#c19a6b', // Desert tan - PRIMARY (replaces green)
+              alert: '#dc2626', // Red (keep)
+              warn: '#ea580c', // Amber (keep)
             }
           },
           animation: {
@@ -106,20 +106,24 @@
       background: #050505;
     }
 
-    /* Marker Cluster Customization */
+    /* Marker Cluster Customization - Desert Theme */
     .marker-cluster-small,
     .marker-cluster-medium,
     .marker-cluster-large {
-      background-color: rgba(10, 15, 13, 0.8) !important;
-      border: 1px solid #34d399;
+      background-color: rgba(26, 22, 20, 0.9) !important;
+      /* Desert night */
+      border: 1px solid #c19a6b;
+      /* Desert tan */
       border-radius: 50%;
-      color: #34d399;
+      color: #c19a6b;
+      /* Desert tan text */
       font-family: 'Share Tech Mono', monospace;
       font-weight: bold;
     }
 
     .marker-cluster div {
-      background-color: rgba(52, 211, 153, 0.3) !important;
+      background-color: rgba(193, 154, 107, 0.3) !important;
+      /* Tan with transparency */
       color: #fff;
     }
   </style>

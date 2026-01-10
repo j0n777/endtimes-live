@@ -194,22 +194,30 @@ const SituationMap: React.FC<SituationMapProps> = ({ events }) => {
         iconAnchor: [16, 16]
       });
 
-      const popupContent = `
-        <div style="padding: 6px; min-width: 200px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-            <strong style="font-size: 14px; color: ${color}; text-transform:uppercase;">${event.category}</strong>
-            <span style="font-size:10px; background:#333; padding:1px 3px; border-radius:2px;">${event.sourceType || 'RSS'}</span>
-          </div>
-          <div style="color: white; font-weight: bold; font-size: 13px; margin-bottom: 2px;">${event.title}</div>
-          <div style="color: #9ca3af; font-size: 11px;">${event.location}</div>
-          <div style="margin-top: 6px; padding-top:4px; border-top: 1px solid #333; font-size: 10px; color: #6b7280;">
-             SOURCE: ${event.sourceName || 'Unknown'}
-          </div>
-        </div>
-      `;
 
       const marker = L.marker([event.coordinates.lat, event.coordinates.lng], { icon: divIcon });
-      marker.bindPopup(popupContent, { closeButton: false, className: 'tactical-popup' });
+
+      // ⭐ LAZY LOADING: Popup HTML created ONLY when clicked
+      marker.on('click', () => {
+        if (!marker.getPopup()) {
+          const popupContent = `
+            <div style="padding: 6px; min-width: 200px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <strong style="font-size: 14px; color: ${color}; text-transform:uppercase;">${event.category}</strong>
+                <span style="font-size:10px; background:#333; padding:1px 3px; border-radius:2px;">${event.sourceType || 'RSS'}</span>
+              </div>
+              <div style="color: white; font-weight: bold; font-size: 13px; margin-bottom: 2px;">${event.title}</div>
+              <div style="color: #9ca3af; font-size: 11px;">${event.location}</div>
+              <div style="margin-top: 6px; padding-top:4px; border-top: 1px solid #333; font-size: 10px; color: #6b7280;">
+                 SOURCE: ${event.sourceName || 'Unknown'}
+              </div>
+            </div>
+          `;
+          marker.bindPopup(popupContent, { closeButton: false, className: 'tactical-popup' });
+        }
+        marker.openPopup();
+      });
+
       newMarkers.push(marker);
     });
 
