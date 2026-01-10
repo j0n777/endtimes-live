@@ -92,7 +92,7 @@ CREATE TRIGGER update_events_updated_at
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Trigger for event_sources table
-DROP TRIGGER IF NOT EXISTS update_event_sources_updated_at ON event_sources;
+DROP TRIGGER IF EXISTS update_event_sources_updated_at ON event_sources;
 CREATE TRIGGER update_event_sources_updated_at
     BEFORE UPDATE ON event_sources
     FOR EACH ROW

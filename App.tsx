@@ -333,7 +333,7 @@ const App: React.FC = () => {
         {dataSourceStatuses.length > 0 && (
           <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-tactical-800/50 border border-tactical-700 rounded text-[10px]">
             <div className="flex items-center gap-1">
-              <div className={`w-2 h-2 rounded-full ${dataSourceStatuses.some(s => s.status === 'active') ? 'bg-green-500 animate-pulse' : 'bg-gray-500'
+              <div className={`w-2 h-2 rounded-full ${dataSourceStatuses.some(s => s.status === 'active') ? 'bg-[#c19a6b] animate-pulse' : 'bg-gray-500'
                 }`} />
               <span className="text-gray-400">
                 {dataSourceStatuses.filter(s => s.status === 'active').length}/{dataSourceStatuses.length} SOURCES

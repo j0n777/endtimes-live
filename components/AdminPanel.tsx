@@ -195,14 +195,14 @@ const AdminPanel: React.FC = () => {
         {/* Phase 1 Data Sources Section */}
         <div className="bg-tactical-900 border border-tactical-700 p-6 rounded-lg mb-8">
           <div className="flex items-center gap-2 mb-6">
-            <Database className="w-5 h-5 text-green-400" />
+            <Database className="w-5 h-5 text-[#c19a6b]" />
             <h2 className="text-lg font-bold text-white">PHASE 1 DATA SOURCES</h2>
           </div>
 
-          <div className="bg-green-900/10 border border-green-900/30 p-4 rounded mb-6 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-green-400 mt-0.5 shrink-0" />
+          <div className="bg-[#c19a6b]/10 border border-[#c19a6b]/30 p-4 rounded mb-6 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-[#c19a6b] mt-0.5 shrink-0" />
             <div className="text-xs text-gray-300">
-              <strong className="text-green-400 block mb-1">PRIORITY INTEGRATIONS:</strong>
+              <strong className="text-[#c19a6b] block mb-1">PRIORITY INTEGRATIONS:</strong>
               These are the Phase 1 critical data sources that dramatically expand event coverage. Toggle sources on/off or add API keys for authenticated access.
             </div>
           </div>
@@ -221,7 +221,7 @@ const AdminPanel: React.FC = () => {
                   onChange={e => setConfig({ ...config, gdacsEnabled: e.target.checked })}
                   className="sr-only peer"
                 />
-                <div className="w-full h-full bg-gray-700 peer-checked:bg-green-600 rounded-full transition-colors cursor-pointer"></div>
+                <div className="w-full h-full bg-gray-700 peer-checked:bg-[#c19a6b] rounded-full transition-colors cursor-pointer"></div>
                 <div className="absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform peer-checked:translate-x-6"></div>
               </label>
             </div>
@@ -239,7 +239,7 @@ const AdminPanel: React.FC = () => {
                   onChange={e => setConfig({ ...config, whoEnabled: e.target.checked })}
                   className="sr-only peer"
                 />
-                <div className="w-full h-full bg-gray-700 peer-checked:bg-green-600 rounded-full transition-colors cursor-pointer"></div>
+                <div className="w-full h-full bg-gray-700 peer-checked:bg-[#c19a6b] rounded-full transition-colors cursor-pointer"></div>
                 <div className="absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform peer-checked:translate-x-6"></div>
               </label>
             </div>
@@ -257,7 +257,7 @@ const AdminPanel: React.FC = () => {
                   onChange={e => setConfig({ ...config, gdeltEnabled: e.target.checked })}
                   className="sr-only peer"
                 />
-                <div className="w-full h-full bg-gray-700 peer-checked:bg-green-600 rounded-full transition-colors cursor-pointer"></div>
+                <div className="w-full h-full bg-gray-700 peer-checked:bg-[#c19a6b] rounded-full transition-colors cursor-pointer"></div>
                 <div className="absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform peer-checked:translate-x-6"></div>
               </label>
             </div>
@@ -365,7 +365,7 @@ const AdminPanel: React.FC = () => {
           <span className="text-tactical-500 font-bold animate-pulse">{saveStatus}</span>
           <button
             onClick={handleSave}
-            className="flex items-center gap-2 bg-tactical-500 hover:bg-green-600 text-black px-6 py-3 rounded font-bold transition-colors"
+            className="flex items-center gap-2 bg-tactical-500 hover:bg-[#9d7e4f] text-black px-6 py-3 rounded font-bold transition-colors"
           >
             <Save className="w-5 h-5" />
             SAVE CONFIGURATION

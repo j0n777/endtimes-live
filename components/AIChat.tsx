@@ -27,20 +27,20 @@ const AIChat: React.FC<AIChatProps> = ({ events }) => {
         <Cpu className="text-tactical-500 w-5 h-5" />
         <h3 className="font-mono text-tactical-500 font-bold">INTELLIGENCE_CORE_V3 (GEMINI)</h3>
       </div>
-      
+
       <div className="flex-1 p-4 overflow-y-auto space-y-4 font-mono text-sm">
         <div className="bg-tactical-800/50 p-3 rounded border-l-2 border-tactical-500">
           <p className="text-gray-400">System online. Uplink established. Ready for eschatological analysis queries.</p>
         </div>
 
         {response && (
-           <div className="bg-tactical-800 p-4 rounded border border-tactical-500/50">
-             <div className="flex items-center gap-2 mb-2 text-tactical-500">
-               <Cpu className="w-4 h-4" />
-               <span className="text-xs font-bold">ANALYSIS_RESULT</span>
-             </div>
-             <p className="text-gray-200 whitespace-pre-wrap leading-relaxed">{response}</p>
-           </div>
+          <div className="bg-tactical-800 p-4 rounded border border-tactical-500/50">
+            <div className="flex items-center gap-2 mb-2 text-tactical-500">
+              <Cpu className="w-4 h-4" />
+              <span className="text-xs font-bold">ANALYSIS_RESULT</span>
+            </div>
+            <p className="text-gray-200 whitespace-pre-wrap leading-relaxed">{response}</p>
+          </div>
         )}
 
         {loading && (
@@ -53,20 +53,20 @@ const AIChat: React.FC<AIChatProps> = ({ events }) => {
 
       <div className="p-3 bg-tactical-800 border-t border-tactical-500/30">
         <div className="flex gap-2">
-          <input 
-            type="text" 
+          <input
+            type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAnalysis()}
             placeholder="Enter query (e.g., 'Implications of Israel border conflict?')"
-            className="flex-1 bg-black border border-gray-700 text-green-500 p-2 font-mono text-sm focus:outline-none focus:border-tactical-500 placeholder-gray-700"
+            className="flex-1 bg-black border border-gray-700 text-[#c19a6b] p-2 font-mono text-sm focus:outline-none focus:border-tactical-500 placeholder-gray-700"
           />
-          <button 
+          <button
             onClick={handleAnalysis}
             disabled={loading}
-            className="bg-tactical-500 hover:bg-green-600 text-black px-4 py-2 font-bold font-mono transition-colors disabled:opacity-50 flex items-center justify-center"
+            className="bg-tactical-500 hover:bg-[#9d7e4f] text-black px-4 py-2 font-bold font-mono transition-colors disabled:opacity-50 flex items-center justify-center"
           >
-            {loading ? <Loader className="w-5 h-5 animate-spin"/> : <Send className="w-5 h-5" />}
+            {loading ? <Loader className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
           </button>
         </div>
       </div>

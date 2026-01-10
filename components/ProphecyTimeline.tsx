@@ -14,20 +14,20 @@ const data = [
 const ProphecyTimeline: React.FC = () => {
   return (
     <div className="h-64 w-full bg-tactical-800 border border-tactical-700 rounded-lg p-4">
-       <h3 className="text-sm font-mono text-tactical-500 mb-4 border-b border-tactical-700 pb-2">
-         ESCHATOLOGICAL_TENSION_INDEX (ETI)
-       </h3>
-       <ResponsiveContainer width="100%" height="100%">
+      <h3 className="text-sm font-mono text-tactical-500 mb-4 border-b border-tactical-700 pb-2">
+        ESCHATOLOGICAL_TENSION_INDEX (ETI)
+      </h3>
+      <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-          <XAxis dataKey="name" stroke="#9ca3af" fontSize={12} tick={{fontFamily: 'monospace'}} />
-          <YAxis stroke="#9ca3af" fontSize={12} tick={{fontFamily: 'monospace'}} />
-          <Tooltip 
-            contentStyle={{ backgroundColor: '#0a0f0d', borderColor: '#34d399', color: '#fff' }}
-            itemStyle={{ color: '#34d399', fontFamily: 'monospace' }}
+          <XAxis dataKey="name" stroke="#9ca3af" fontSize={12} tick={{ fontFamily: 'monospace' }} />
+          <YAxis stroke="#9ca3af" fontSize={12} tick={{ fontFamily: 'monospace' }} />
+          <Tooltip
+            contentStyle={{ backgroundColor: '#0a0f0d', borderColor: '#c19a6b', color: '#fff' }}
+            itemStyle={{ color: '#c19a6b', fontFamily: 'monospace' }}
           />
-          <Line type="monotone" dataKey="tension" stroke="#ef4444" strokeWidth={2} dot={{r: 4, fill: '#ef4444'}} name="Global Tension" />
-          <Line type="monotone" dataKey="signs" stroke="#34d399" strokeWidth={2} dot={{r: 4, fill: '#34d399'}} name="Prophetic Signs" />
+          <Line type="monotone" dataKey="tension" stroke="#ef4444" strokeWidth={2} dot={{ r: 4, fill: '#ef4444' }} name="Global Tension" />
+          <Line type="monotone" dataKey="signs" stroke="#c19a6b" strokeWidth={2} dot={{ r: 4, fill: '#c19a6b' }} name="Prophetic Signs" />
         </LineChart>
       </ResponsiveContainer>
     </div>
