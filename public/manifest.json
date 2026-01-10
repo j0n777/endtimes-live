@@ -1,0 +1,56 @@
+{
+    "name": "End Times Monitor - Global Intelligence Platform",
+    "short_name": "ET Monitor",
+    "description": "Real-time global threat intelligence and situational awareness platform",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#050505",
+    "theme_color": "#0a0f0d",
+    "orientation": "any",
+    "icons": [
+        {
+            "src": "/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": [
+        "news",
+        "security",
+        "intelligence"
+    ],
+    "screenshots": [
+        {
+            "src": "/screenshot1.png",
+            "sizes": "1280x720",
+            "type": "image/png",
+            "label": "Global threat map view"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Situation Map",
+            "short_name": "Map",
+            "description": "View global situation map",
+            "url": "/",
+            "icons": [
+                {
+                    "src": "/icon-192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        }
+    ],
+    "related_applications": [],
+    "prefer_related_applications": false,
+    "scope": "/",
+    "lang": "en-US",
+    "dir": "ltr"
+}

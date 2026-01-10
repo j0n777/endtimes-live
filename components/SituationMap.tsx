@@ -29,7 +29,13 @@ const SituationMap: React.FC<SituationMapProps> = ({ events }) => {
       worldCopyJump: true,
       // ⭐ PERFORMANCE: Use canvas rendering instead of SVG
       preferCanvas: true,
-      renderer: L.canvas({ padding: 0.5, tolerance: 3 })
+      renderer: L.canvas({ padding: 0.5, tolerance: 3 }),
+      // ⭐ ZOOM LIMITS: Prevent excessive zoom out
+      minZoom: 2,    // Prevent zooming out beyond world view
+      maxZoom: 18,   // Allow street-level zoom
+      // ⭐ MAX BOUNDS: Keep map centered on Earth
+      maxBounds: [[-90, -180], [90, 180]],
+      maxBoundsViscosity: 0.8 // Bounce back when reaching edge
     });
 
     // Dark Tactical Tiles
@@ -38,25 +44,8 @@ const SituationMap: React.FC<SituationMapProps> = ({ events }) => {
       maxZoom: 19
     }).addTo(map);
 
+
     mapInstanceRef.current = map;
-
-    // ⭐ VIEWPORT VIRTUALIZATION: Update visible events on map move
-    const updateVisibleEvents = () => {
-      const bounds = map.getBounds();
-      const visible = events.filter(event =>
-        bounds.contains([event.coordinates.lat, event.coordinates.lng])
-      );
-      setVisibleEvents(visible);
-      console.log(`📍 Viewport: Showing ${visible.length}/${events.length} events in view`);
-    };
-
-    // Initial update
-    updateVisibleEvents();
-
-    // Update on map movement
-    map.on('moveend', updateVisibleEvents);
-    map.on('zoomend', updateVisibleEvents);
-
 
     // ⭐ MEMORY CLEANUP on unmount
     return () => {
@@ -74,6 +63,39 @@ const SituationMap: React.FC<SituationMapProps> = ({ events }) => {
       markersRef.current = [];
     };
   }, []);
+
+  // ⭐ VIEWPORT VIRTUALIZATION: Update visible events when events or map changes
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || events.length === 0) {
+      // If no map or no events, show all events
+      setVisibleEvents(events);
+      return;
+    }
+
+    const updateVisibleEvents = () => {
+      const bounds = map.getBounds();
+      const visible = events.filter(event =>
+        event.coordinates &&
+        bounds.contains([event.coordinates.lat, event.coordinates.lng])
+      );
+      setVisibleEvents(visible);
+      console.log(`📍 Viewport: Showing ${visible.length}/${events.length} events`);
+    };
+
+    // Initial update
+    updateVisibleEvents();
+
+    // Update on map movement
+    map.on('moveend', updateVisibleEvents);
+    map.on('zoomend', updateVisibleEvents);
+
+    return () => {
+      map.off('moveend', updateVisibleEvents);
+      map.off('zoomend', updateVisibleEvents);
+    };
+  }, [events]); // Re-run when events change
+
 
   // 2. Handle Markers & Clustering
   useEffect(() => {
