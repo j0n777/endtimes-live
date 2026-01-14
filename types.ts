@@ -3,12 +3,22 @@ export type Severity = 'HIGH' | 'ELEVATED' | 'MEDIUM' | 'LOW';
 export enum EventCategory {
   CONFLICT = 'CONFLICT',
   NATURAL_DISASTER = 'NATURAL_DISASTER',
-  PERSECUTION = 'PERSECUTION',
+  FIRES = 'FIRES',
+  EPIDEMIC = 'EPIDEMIC',
+  PANDEMIC = 'PANDEMIC', // Legacy: use EPIDEMIC
   ECONOMIC = 'ECONOMIC',
   PROPHETIC = 'PROPHETIC',
-  PANDEMIC = 'PANDEMIC',
-  GOVERNMENT = 'GOVERNMENT',
-  TECHNOLOGY = 'TECHNOLOGY'
+  PERSECUTION = 'PERSECUTION',
+  POLITICAL = 'POLITICAL',
+  GOVERNMENT = 'GOVERNMENT', // Legacy: use POLITICAL
+  HUMANITARIAN = 'HUMANITARIAN',
+  CYBER = 'CYBER',
+  TECHNOLOGY = 'TECHNOLOGY', // Legacy: use CYBER
+  AVIATION = 'AVIATION',
+  MARITIME = 'MARITIME',
+  INFRASTRUCTURE = 'INFRASTRUCTURE',
+  ENVIRONMENTAL = 'ENVIRONMENTAL',
+  OTHER = 'OTHER'
 }
 
 // New Granular Classification
@@ -31,6 +41,12 @@ export enum SourceType {
   AI_INFERRED = 'AI_ANALYSIS'
 }
 
+// Weather Alert Geometry for polygon rendering on map
+export interface WeatherAlertGeometry {
+  type: 'Polygon' | 'MultiPolygon';
+  coordinates: number[][][]; // GeoJSON format
+}
+
 export interface MonitorEvent {
   id: string;
   title: string;
@@ -45,15 +61,32 @@ export interface MonitorEvent {
   coordinates: { lat: number; lng: number };
   propheticReference?: string;
   sourceUrl?: string;
+  // Weather Alert specific fields
+  alertGeometry?: WeatherAlertGeometry; // Polygon area for weather alerts
+  eventType?: string; // Specific event type (e.g., "Tornado Warning")
+  urgency?: string; // "Immediate", "Expected", "Future"
+  parameters?: {
+    windSpeed?: number; // km/h
+    rainfall?: number;  // mm
+  };
 }
+
+export type IARURegion = 'IARU_R1' | 'IARU_R2' | 'IARU_R3' | 'GLOBAL';
+export type Continent = 'NORTH_AMERICA' | 'SOUTH_AMERICA' | 'EUROPE' | 'ASIA' | 'AFRICA' | 'OCEANIA' | 'ANTARCTICA' | 'GLOBAL';
+export type RadioLicense = 'AMATEUR' | 'GMRS' | 'PMR446' | 'MARINE' | 'AVIATION' | 'CB' | 'WEATHER' | 'RAILROAD' | 'BROADCAST' | 'MONITORING' | 'NONE';
 
 export interface RadioChannel {
   id: string;
   name: string;
   frequency: string;
-  mode: 'FM' | 'AM' | 'USB' | 'LSB' | 'DIGITAL';
-  band: 'HF' | 'VHF' | 'UHF';
+  mode: 'FM' | 'AM' | 'USB' | 'LSB' | 'DIGITAL' | 'DSC';
+  band: 'HF' | 'VHF' | 'UHF' | 'MF';
   description: string;
+  region: IARURegion;
+  continent: Continent;
+  license: RadioLicense;
+  network?: string; // Optional: e.g., "TAPRN", "SHARES", "HAMNET"
+  restrictions?: string; // Optional: licensing requirements details
   notes?: string;
 }
 
@@ -99,6 +132,11 @@ export interface AdminConfig {
 
   // Polymarket Integration (Market Intelligence)
   polymarketEnabled?: boolean;      // Enable Polymarket prediction markets monitoring
+
+  // Weather Alerts (Severe Weather Monitoring)
+  nwsEnabled?: boolean;             // NWS Weather Alerts (No auth, US only)
+  weatherbitApiKey?: string;        // Weatherbit API (Global coverage)
+  weatherbitEnabled?: boolean;      // Enable Weatherbit alerts
 }
 
 export interface DataSourceStatus {

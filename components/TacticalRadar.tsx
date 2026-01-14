@@ -8,6 +8,7 @@ interface TacticalRadarProps {
 
 const TacticalRadar: React.FC<TacticalRadarProps> = ({ events }) => {
   const svgRef = useRef<SVGSVGElement>(null);
+  const timerRef = useRef<d3.Timer | null>(null); // ⭐ CRITICAL FIX: Track timer
 
   useEffect(() => {
     if (!svgRef.current) return;
@@ -37,8 +38,12 @@ const TacticalRadar: React.FC<TacticalRadarProps> = ({ events }) => {
     g.append("line").attr("x1", 0).attr("y1", -radius).attr("x2", 0).attr("y2", radius).attr("stroke", "#c19a6b").attr("opacity", 0.3);
     g.append("line").attr("x1", -radius).attr("y1", 0).attr("x2", radius).attr("y2", 0).attr("stroke", "#c19a6b").attr("opacity", 0.3);
 
-    // Scanner Sweep
-    const scanner = g.append("line")
+    // Scanner Sweep (CSS Animation handled via class on GROUP)
+    // We use a group centered at 0,0 to ensure perfect rotation origin
+    const scannerGroup = g.append("g")
+      .attr("class", "animate-[spin_4s_linear_infinite]"); // Use Tailwind JIT directly to be safe
+
+    scannerGroup.append("line")
       .attr("x1", 0)
       .attr("y1", 0)
       .attr("x2", 0)
@@ -47,22 +52,13 @@ const TacticalRadar: React.FC<TacticalRadarProps> = ({ events }) => {
       .attr("stroke-width", 2)
       .attr("stroke-opacity", 0.8);
 
-    // Animate Scanner using D3 timer
-    d3.timer((elapsed) => {
-      const angle = (elapsed / 20) % 360;
-      scanner.attr("transform", `rotate(${angle})`);
-    });
+    // NO JS TIMER - Pure CSS Animation (Zero CPU)
 
-    // Plot Events (Mock mapping: Lat/Lng to Angle/Radius)
-    // Longitude (-180 to 180) maps to Angle (0 to 360)
-    // Latitude (-90 to 90) maps to Radius (Center to Edge) - Just for visual distribution
-    events.forEach(event => {
-      // Simple projection for radar visualization
+    // Plot Events (Limit to 100 for radar performance)
+    const limitedEvents = events.slice(0, 100);
+    limitedEvents.forEach(event => {
       const angleDeg = (event.coordinates.lng + 180) % 360;
-      const angleRad = (angleDeg - 90) * (Math.PI / 180); // -90 to start at top
-
-      // Map latitude to radius distance (not accurate geologically, but good for distribution)
-      // Equator is center, poles are outer, or vice versa. Let's make random-ish distribution based on lat for visual flair
+      const angleRad = (angleDeg - 90) * (Math.PI / 180);
       const dist = radius * (0.3 + (Math.abs(event.coordinates.lat) / 90) * 0.7);
 
       const x = Math.cos(angleRad) * dist;
@@ -73,22 +69,12 @@ const TacticalRadar: React.FC<TacticalRadarProps> = ({ events }) => {
       g.append("circle")
         .attr("cx", x)
         .attr("cy", y)
-        .attr("r", 4)
+        .attr("r", 3)
         .attr("fill", color)
-        .attr("class", event.severity === 'HIGH' ? "animate-pulse" : "");
-
-      // Label for High severity
-      if (event.severity === 'HIGH') {
-        g.append("text")
-          .attr("x", x + 8)
-          .attr("y", y + 4)
-          .text(event.id.toUpperCase())
-          .attr("fill", color)
-          .attr("font-size", "10px")
-          .attr("font-family", "monospace");
-      }
+        .attr("opacity", 0.8);
     });
 
+    // No cleanup needed for CSS animations
   }, [events]);
 
   return (
@@ -102,4 +88,4 @@ const TacticalRadar: React.FC<TacticalRadarProps> = ({ events }) => {
   );
 };
 
-export default TacticalRadar;
+export default React.memo(TacticalRadar);

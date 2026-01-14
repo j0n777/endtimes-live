@@ -95,16 +95,20 @@ export const fetchNASAEONETEvents = async (apiKey?: string): Promise<MonitorEven
 
         const data: EONETResponse = await response.json();
 
-        return data.events.map(event => {
+        console.log(`🌌 NASA EONET: Received ${data.events.length} total events`);
+
+        // Map all events first to determine severity
+        const allEvents = data.events.map(event => {
             const coords = extractCoordinates(event.geometry);
             const sourceUrl = event.sources[0]?.url || event.link || '';
+            const severity = determineSeverity(event);
 
             return {
                 id: generateId(),
                 title: event.title,
                 description: event.description || event.categories.map(c => c.title).join(', '),
                 category: mapEONETCategory(event.categories),
-                severity: determineSeverity(event),
+                severity,
                 sourceType: 'OFFICIAL' as const,
                 sourceName: 'NASA EONET',
                 location: event.title.split(',').pop()?.trim() || 'Global',
@@ -113,6 +117,25 @@ export const fetchNASAEONETEvents = async (apiKey?: string): Promise<MonitorEven
                 sourceUrl,
             };
         });
+
+        // Filter for HIGH and ELEVATED severity only
+        const filteredEvents = allEvents.filter(e =>
+            e.severity === 'HIGH' || e.severity === 'ELEVATED'
+        );
+
+        console.log(`🌌 NASA EONET: Filtered to ${filteredEvents.length} significant events (HIGH/ELEVATED)`);
+
+        // Limit to top 25
+        const limitedEvents = filteredEvents
+            .sort((a, b) => {
+                const severityOrder: Record<string, number> = { 'HIGH': 0, 'ELEVATED': 1, 'MEDIUM': 2, 'LOW': 3 };
+                return severityOrder[a.severity] - severityOrder[b.severity];
+            })
+            .slice(0, 25);
+
+        console.log(`🌌 NASA EONET: Limited to top ${limitedEvents.length} most severe`);
+
+        return limitedEvents;
     } catch (error) {
         console.error('NASA EONET fetch error:', error);
         throw error;

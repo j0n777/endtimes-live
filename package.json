@@ -6,21 +6,32 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:collectors": "tsx test-collectors.ts",
+    "test:individual": "tsx test-individual-collectors.ts",
+    "test:new": "tsx test-new-collectors.ts",
+    "test:v2": "tsx test-new-collectors-v2.ts"
   },
   "dependencies": {
     "@google/genai": "^1.34.0",
     "@supabase/supabase-js": "^2.90.1",
     "d3": "^7.9.0",
+    "date-fns": "^4.1.0",
     "leaflet": "1.9.4",
+    "leaflet.markercluster": "^1.5.3",
     "lucide-react": "^0.562.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "recharts": "^3.6.0"
+    "recharts": "^3.6.0",
+    "rss-parser": "^3.13.0"
   },
   "devDependencies": {
+    "@types/leaflet.markercluster": "^1.5.6",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "dotenv": "^17.2.3",
+    "jsdom": "^27.0.1",
+    "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }

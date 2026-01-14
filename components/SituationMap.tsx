@@ -1,7 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import 'leaflet.markercluster';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { MonitorEvent, ConflictLevel } from '../types';
 import { CATEGORY_COLORS } from '../categoryColors';
+import { getIconHtml } from '../utils/icons';
 
 interface SituationMapProps {
   events: MonitorEvent[];
@@ -12,9 +17,7 @@ const SituationMap: React.FC<SituationMapProps> = ({ events }) => {
   const mapInstanceRef = useRef<L.Map | null>(null);
   const clusterGroupRef = useRef<any | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
-
-  // ⭐ VIEWPORT VIRTUALIZATION: Only render visible events
-  const [visibleEvents, setVisibleEvents] = React.useState<MonitorEvent[]>(events);
+  const vectorLayersRef = useRef<L.Layer[]>([]);
 
   // 1. Initialize Map
   useEffect(() => {
@@ -33,9 +36,10 @@ const SituationMap: React.FC<SituationMapProps> = ({ events }) => {
       // ⭐ ZOOM LIMITS: Prevent excessive zoom out
       minZoom: 2,    // Prevent zooming out beyond world view
       maxZoom: 18,   // Allow street-level zoom
-      // ⭐ MAX BOUNDS: Keep map centered on Earth
-      maxBounds: [[-90, -180], [90, 180]],
-      maxBoundsViscosity: 0.8 // Bounce back when reaching edge
+      // ⭐ MAX BOUNDS: Lock Latitude (Y) but allow infinite Longitude (X)
+      // +/- 85 degrees is the limit for Web Mercator projection
+      maxBounds: [[-85, -Infinity], [85, Infinity]],
+      maxBoundsViscosity: 1.0
     });
 
     // Dark Tactical Tiles
@@ -44,12 +48,44 @@ const SituationMap: React.FC<SituationMapProps> = ({ events }) => {
       maxZoom: 19
     }).addTo(map);
 
-
     mapInstanceRef.current = map;
+
+    // ⭐ DAY/NIGHT TERMINATOR
+    import('../utils/sunTerminator').then(({ getTerminatorLatLngs }) => {
+      const updateTerminator = () => {
+        if (!mapInstanceRef.current) return;
+
+        const latLngs = getTerminatorLatLngs(new Date());
+
+        // Find existing terminator layer or create new
+        if ((window as any).terminatorLayer) {
+          (window as any).terminatorLayer.setLatLngs(latLngs);
+        } else {
+          (window as any).terminatorLayer = L.polygon(latLngs, {
+            color: '#000',
+            opacity: 0.1,
+            fillColor: '#000',
+            fillOpacity: 0.45, // Night darkness level
+            weight: 0,
+            interactive: false // Click-through
+          }).addTo(mapInstanceRef.current);
+
+          // Push to back so markers sit on top
+          (window as any).terminatorLayer.bringToBack();
+        }
+      };
+
+      updateTerminator();
+    });
 
     // ⭐ MEMORY CLEANUP on unmount
     return () => {
       if (mapInstanceRef.current) {
+        if ((window as any).terminatorLayer) {
+          (window as any).terminatorLayer.remove();
+          (window as any).terminatorLayer = null;
+        }
+
         // Remove all event listeners to prevent memory leaks
         mapInstanceRef.current.off();
         mapInstanceRef.current.remove();
@@ -59,67 +95,57 @@ const SituationMap: React.FC<SituationMapProps> = ({ events }) => {
         clusterGroupRef.current.clearLayers();
         clusterGroupRef.current = null;
       }
-      // Clear markers array
       markersRef.current = [];
     };
   }, []);
-
-  // ⭐ VIEWPORT VIRTUALIZATION: Update visible events when events or map changes
-  useEffect(() => {
-    const map = mapInstanceRef.current;
-    if (!map || events.length === 0) {
-      // If no map or no events, show all events
-      setVisibleEvents(events);
-      return;
-    }
-
-    const updateVisibleEvents = () => {
-      const bounds = map.getBounds();
-      const visible = events.filter(event =>
-        event.coordinates &&
-        bounds.contains([event.coordinates.lat, event.coordinates.lng])
-      );
-      setVisibleEvents(visible);
-      console.log(`📍 Viewport: Showing ${visible.length}/${events.length} events`);
-    };
-
-    // Initial update
-    updateVisibleEvents();
-
-    // Update on map movement
-    map.on('moveend', updateVisibleEvents);
-    map.on('zoomend', updateVisibleEvents);
-
-    return () => {
-      map.off('moveend', updateVisibleEvents);
-      map.off('zoomend', updateVisibleEvents);
-    };
-  }, [events]); // Re-run when events change
-
 
   // 2. Handle Markers & Clustering
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    // Don't destroy cluster - reuse it for performance
+    // Helper: Format titles (Polymarket slug fix)
+    const formatTitle = (title: string) => {
+      if (title.includes('-') && !title.includes(' ')) {
+        return title.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+      }
+      return title;
+    };
 
-    // Prepare Cluster Group
+    // Helper for Popup Content
+    const createPopupContent = (event: MonitorEvent, color: string) => `
+      <div style="padding: 6px; min-width: 240px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <strong style="font-size: 14px; color: ${color}; text-transform:uppercase;">${event.category}</strong>
+          <span style="font-size:10px; background:#333; padding:1px 3px; border-radius:2px;">${event.sourceType || 'RSS'}</span>
+        </div>
+        <div style="color: white; font-weight: bold; font-size: 14px; margin-bottom: 4px; line-height: 1.2;">
+          ${formatTitle(event.title)}
+        </div>
+        ${event.description ? `<div style="color: #d1d5db; font-size: 11px; margin-bottom: 6px; max-height: 100px; overflow-y:auto;">${event.description.substring(0, 150)}${event.description.length > 150 ? '...' : ''}</div>` : ''}
+        <div style="color: #9ca3af; font-size: 11px;">${event.location || ''}</div>
+        
+        <div style="margin-top: 8px; padding-top:6px; border-top: 1px solid #333; font-size: 10px; color: #6b7280; display:flex; justify-content:space-between; align-items:center;">
+           <span>SOURCE: ${event.sourceName || 'Unknown'}</span>
+           ${event.sourceUrl ? `<a href="${event.sourceUrl}" target="_blank" style="color: ${color}; text-decoration:none; font-weight:bold;">OPEN SOURCE >></a>` : ''}
+        </div>
+      </div>
+    `;
+
     // Check if Leaflet.markercluster is loaded globally
     const L_any = L as any;
     if (L_any.markerClusterGroup && !clusterGroupRef.current) {
       const clusterGroup = L_any.markerClusterGroup({
-        // ⭐ PERFORMANCE: Chunked loading for large datasets
         chunkedLoading: true,
         chunkInterval: 200,
         chunkDelay: 50,
-        chunkProgress: null, // Disable progress callback
+        chunkProgress: null,
 
         // Visual settings
         showCoverageOnHover: false,
         maxClusterRadius: 50,
-        spiderfyOnMaxZoom: false, // Disable for performance
-        animate: false, // Disable animations for faster rendering
+        spiderfyOnMaxZoom: true,
+        animate: false, // ⚡ PERFORMANCE: Disable animations to prevent lag on zoom
         disableClusteringAtZoom: 16,
 
         iconCreateFunction: function (cluster: any) {
@@ -143,95 +169,114 @@ const SituationMap: React.FC<SituationMapProps> = ({ events }) => {
 
     // Reuse existing cluster if available
     if (clusterGroupRef.current) {
-      clusterGroupRef.current.clearLayers(); // Clear old markers
+      clusterGroupRef.current.clearLayers();
     }
 
-    // Create Markers - ⭐ Using only VISIBLE events for performance
+    // Clear existing vector layers
+    if (vectorLayersRef.current) {
+      vectorLayersRef.current.forEach(layer => map.removeLayer(layer));
+      vectorLayersRef.current = [];
+    }
+
     const newMarkers: L.Marker[] = [];
+    const newVectors: L.Layer[] = [];
 
-    visibleEvents.forEach(event => {
-      // Validation to ensure lat/lng exists
-      if (!event.coordinates || typeof event.coordinates.lat !== 'number') return;
+    // Identify Top 5 Recent Events for GLOW effect
+    const sortedEvents = [...events].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    const recentEventIds = new Set(sortedEvents.slice(0, 5).map(e => e.id));
 
-      // Use category-based color (main improvement)
-      const color = CATEGORY_COLORS[event.category] || '#6b7280'; // Gray fallback
+    // Use events directly. MarkerCluster handles optimization.
+    events.forEach(event => {
+      const color = CATEGORY_COLORS[event.category] || '#9ca3af';
 
-      // Marker size based on severity
-      let markerSize = 3; // Default: LOW/MEDIUM
-      if (event.severity === 'ELEVATED') markerSize = 4;
-      if (event.severity === 'HIGH') markerSize = 5;
+      // 1. Handle AREA events (Polygons)
+      if (event.alertGeometry) {
+        const polygon = L.geoJSON(event.alertGeometry as any, {
+          style: {
+            color: color,
+            weight: 1,
+            fillColor: color,
+            fillOpacity: 0.35, // "Marcador de texto" feel
+            stroke: true
+          }
+        });
 
-      let shapeClass = 'rounded-full';
-      let animation = '';
-      let pulseColor = color;
+        const popupContent = createPopupContent(event, color);
+        polygon.bindPopup(popupContent, { closeButton: false, className: 'tactical-popup' });
 
-      // Special shapes for conflict levels
-      switch (event.conflictLevel) {
-        case ConflictLevel.STATE_WAR:
-          animation = 'animate-pulse-fast';
-          markerSize = 6; // Larger for wars
-          break;
-        case ConflictLevel.MILITIA_ACTION:
-          shapeClass = 'rounded-sm rotate-45';
-          break;
+        newVectors.push(polygon);
       }
 
-      // Generate Marker HTML
-      const html = `
-        <div class="relative flex items-center justify-center w-8 h-8 group">
-             ${event.severity === 'HIGH' || event.conflictLevel === ConflictLevel.STATE_WAR ?
-          `<div class="absolute w-full h-full rounded-full opacity-50 animate-ping" style="background-color: ${pulseColor}"></div>
-                <div class="absolute w-[120%] h-[120%] rounded-full opacity-20 animate-pulse" style="background-color: ${pulseColor}"></div>`
-          : ''}
-             <div class="relative border border-black shadow-lg transition-transform group-hover:scale-150 ${shapeClass}" style="width: ${markerSize * 0.25}rem; height: ${markerSize * 0.25}rem; background-color: ${color}"></div>
-        </div>
-      `;
+      const lat = event.coordinates.lat;
+      const lng = event.coordinates.lng;
 
-      const divIcon = L.divIcon({
-        className: 'bg-transparent',
-        html: html,
-        iconSize: [32, 32],
-        iconAnchor: [16, 16]
-      });
+      // FILTER: Skip Null Island events
+      if (Math.abs(lat) < 0.1 && Math.abs(lng) < 0.1) return;
 
+      // 2. Handle POINT events (Markers)
+      // PERFORMANCE: Use CircleMarkers (Canvas) for lower severity events
+      const isCritical = event.severity === 'CRITICAL' || event.severity === 'HIGH' || event.category === 'PROPHETIC' || event.category === 'PERSECUTION';
+      const isWar = event.conflictLevel === ConflictLevel.STATE_WAR || event.conflictLevel === ConflictLevel.CIVIL_WAR;
 
-      const marker = L.marker([event.coordinates.lat, event.coordinates.lng], { icon: divIcon });
+      let marker: L.Marker | L.CircleMarker;
 
-      // ⭐ LAZY LOADING: Popup HTML created ONLY when clicked
-      marker.on('click', () => {
-        if (!marker.getPopup()) {
-          const popupContent = `
-            <div style="padding: 6px; min-width: 200px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <strong style="font-size: 14px; color: ${color}; text-transform:uppercase;">${event.category}</strong>
-                <span style="font-size:10px; background:#333; padding:1px 3px; border-radius:2px;">${event.sourceType || 'RSS'}</span>
-              </div>
-              <div style="color: white; font-weight: bold; font-size: 13px; margin-bottom: 2px;">${event.title}</div>
-              <div style="color: #9ca3af; font-size: 11px;">${event.location}</div>
-              <div style="margin-top: 6px; padding-top:4px; border-top: 1px solid #333; font-size: 10px; color: #6b7280;">
-                 SOURCE: ${event.sourceName || 'Unknown'}
-              </div>
-            </div>
-          `;
-          marker.bindPopup(popupContent, { closeButton: false, className: 'tactical-popup' });
+      if (isCritical || isWar) {
+        // Heavy DOM Marker for Critical items
+        const html = getIconHtml(event.category, event.severity, isWar);
+        const divIcon = L.divIcon({
+          className: 'bg-transparent',
+          html: html,
+          iconSize: [isWar ? 42 : 36, isWar ? 42 : 36],
+          iconAnchor: [isWar ? 21 : 18, isWar ? 21 : 18]
+        });
+
+        // Check for Recent Glow
+        if (recentEventIds.has(event.id)) {
+          divIcon.options.className += ' recent-event-glow';
         }
-        marker.openPopup();
+
+        // JITTER: Add tiny deterministic offset to overlapping points only for DOM markers
+        // to prevent perfect stacking where z-index fights
+        const jitterFactor = 0.00015;
+        let idSum = 0;
+        for (let i = 0; i < event.id.length; i++) idSum += event.id.charCodeAt(i);
+        const offsetLat = ((idSum % 20) - 10) * jitterFactor;
+        const offsetLng = ((idSum % 20) - 10) * jitterFactor;
+
+        marker = L.marker([lat + offsetLat, lng + offsetLng], { icon: divIcon });
+      } else {
+        // Lightweight Canvas Marker for others
+        marker = L.circleMarker([lat, lng], {
+          radius: 6,
+          fillColor: color,
+          color: '#000',
+          weight: 1,
+          opacity: 0.8,
+          fillOpacity: 0.8
+        });
+      }
+
+      // Bind popup
+      marker.bindPopup(createPopupContent(event, color), {
+        closeButton: false,
+        className: 'tactical-popup',
+        autoPan: true
       });
 
-      newMarkers.push(marker);
+      newMarkers.push(marker as any);
     });
 
-    // Add Markers to Layer
     if (clusterGroupRef.current) {
       clusterGroupRef.current.addLayers(newMarkers);
     } else {
-      // Fallback if clustering fails
       newMarkers.forEach(m => m.addTo(map));
     }
 
-    markersRef.current = newMarkers;
+    newVectors.forEach(v => v.addTo(map));
+    vectorLayersRef.current = newVectors;
+    markersRef.current = newMarkers as any;
 
-  }, [visibleEvents]); // Re-render when visible events change
+  }, [events]); // Only re-render when events list changes
 
   return (
     <div className="relative w-full h-full overflow-hidden">
@@ -249,4 +294,4 @@ const SituationMap: React.FC<SituationMapProps> = ({ events }) => {
   );
 };
 
-export default SituationMap;
+export default React.memo(SituationMap);

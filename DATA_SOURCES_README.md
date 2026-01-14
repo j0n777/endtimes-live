@@ -50,6 +50,25 @@ Phase 1 data sources have been successfully implemented, dramatically expanding 
 - **Expected Events**: 200-400 active fires
 - **Setup**: Register at https://firms.modaps.eosdis.nasa.gov/api/
 
+### 7. **Weather Alerts** - Severe Weather Monitoring
+- **Status**: ✅ Implemented
+- **Authentication**: NWS (None required), Weatherbit (Optional API key)
+- **Coverage**: 
+  - **NWS**: USA only - Tornados, High Winds (>100km/h), Flash Floods, Severe Thunderstorms
+  - **Weatherbit**: Global coverage
+- **URLs**: 
+  - NWS: https://api.weather.gov/alerts/active
+  - Weatherbit: https://api.weatherbit.io/v2.0/alerts
+- **Expected Events**: 10-50 severe weather alerts (varies by season)
+- **Setup**: 
+  - NWS: No registration needed (free)
+  - Weatherbit: Register at https://www.weatherbit.io/api (500 calls/day free)
+- **Features**:
+  - **Polygon visualization** of affected regions on map
+  - Color-coded by severity (Red=Extreme/High, Orange=Severe/Elevated, Yellow=Moderate)
+  - Filters for tornados, winds >100km/h, heavy rain/flash floods
+  - Real-time GeoJSON geometry for precision mapping
+
 ## 🚀 Getting Started
 
 ### Configuration Steps
@@ -139,14 +158,15 @@ App.tsx                       # Updated to use new data sources
 - Categories: Limited coverage
 
 ### After Phase 1
-- Sources: 7 (6 real APIs + AI)
-- Events: 500-800+ real world events
+- Sources: 8 (7 real APIs + AI)
+- Events: 500-900+ real world events
 - Categories: Comprehensive coverage
   - ✅ Natural Disasters (earthquakes, floods, storms, volcanoes)
   - ✅ Fires (wildfires, thermal anomalies)
   - ✅ Conflicts (battles, violence, protests)
   - ✅ Health (disease outbreaks, pandemics)
   - ✅ Global Events (news, political developments)
+  - ✅ **Severe Weather** (tornados, high winds, flash floods)
 
 ## 🐛 Troubleshooting
 

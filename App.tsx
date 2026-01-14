@@ -4,21 +4,28 @@ import { MOCK_EVENTS } from './constants';
 import { ViewState, MonitorEvent, AdminConfig, DataSourceStatus, EventCategory } from './types';
 import { CATEGORY_COLORS, CATEGORY_LABELS } from './categoryColors';
 import SituationMap from './components/SituationMap';
-import AIChat from './components/AIChat';
+// import AIChat from './components/AIChat';
 import TacticalRadar from './components/TacticalRadar';
 import SurvivalManual from './components/SurvivalManual';
 import CommsPanel from './components/CommsPanel';
 import ProphecyIntel from './components/ProphecyIntel';
 import IntelFeed from './components/IntelFeed';
-import AdminPanel from './components/AdminPanel';
-import { fetchRealTimeEvents } from './services/geminiService';
-import { fetchAllDataSources } from './services/data-sources';
+import { LiveThreatFeed } from './components/LiveThreatFeed';
+// import AdminPanel from './components/AdminPanel';
+// REMOVED: Direct API calls - import { fetchRealTimeEvents } from './services/geminiService';
+// REMOVED: Direct API calls - import { fetchAllDataSources } from './services/data-sources';
+import { loadAllEvents, getCollectorStatuses, triggerDataCollection } from './services/frontendDataService';
+import Clock from './components/Clock';
+import { BottomFilterBar } from './components/BottomFilterBar';
 
 const App: React.FC = () => {
   const [view, setView] = useState<ViewState>('SITUATION_MAP');
   const [events, setEvents] = useState<MonitorEvent[]>([]);
   const [loading, setLoading] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
+  // Disabled global clock state to prevent re-renders
+  // const [currentTime, setCurrentTime] = useState(new Date());
+  // Time filter state (hours) - Default 24 hours as requested
+  const [timeFilter, setTimeFilter] = useState<number>(24);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dataSourceStatuses, setDataSourceStatuses] = useState<DataSourceStatus[]>([]);
@@ -32,36 +39,50 @@ const App: React.FC = () => {
   const [threatsPageSize, setThreatsPageSize] = useState(10);
   const THREATS_PER_PAGE = 10;
 
-  // Initialize with persisted data
+  // Initialize by loading from Cache first, then Supabase (Stale-While-Revalidate)
   useEffect(() => {
-    const savedEvents = localStorage.getItem('monitor_events');
-    if (savedEvents) {
+    // Timer removed from here to prevent App re-renders. Use <Clock /> component instead.
+
+    const loadInitialData = async () => {
+      // 2. Instant Load from LocalStorage (Optimistic UI)
+      const cached = localStorage.getItem('monitor_events');
+      let loadedFromCache = false;
+
+      if (cached) {
+        try {
+          const parsedCache = JSON.parse(cached);
+          if (Array.isArray(parsedCache) && parsedCache.length > 0) {
+            console.log(`💾 Instant Load: ${parsedCache.length} events from Cache`);
+            setEvents(parsedCache);
+            setLoading(false); // Unblock UI immediately
+            loadedFromCache = true;
+          }
+        } catch (e) { console.warn('Cache parse error', e); }
+      }
+
+      // 3. Fetch Fresh Data in Background
       try {
-        const parsed = JSON.parse(savedEvents);
+        console.log('🔄 Fetching fresh events from Supabase...');
+        const supabaseEvents = await loadAllEvents();
 
-        // Auto-invalidate cache if old NASA FIRMS data detected (wrong category)
-        const hasOldNASAData = parsed.some((e: MonitorEvent) =>
-          e.sourceName === 'NASA FIRMS' && e.category === 'NATURAL_DISASTER'
-        );
-
-        if (hasOldNASAData) {
-          console.warn('🔄 Detected old NASA FIRMS cache (NATURAL_DISASTER → FIRES). Auto-clearing...');
-          localStorage.removeItem('monitor_events');
-          setEvents(MOCK_EVENTS);
-        } else if (parsed.length > 0) {
-          setEvents(parsed);
-        } else {
+        if (supabaseEvents.length > 0) {
+          console.log(`✅ Loaded ${supabaseEvents.length} fresh events`);
+          setEvents(supabaseEvents);
+          localStorage.setItem('monitor_events', JSON.stringify(supabaseEvents));
+        } else if (!loadedFromCache) {
+          console.log('⚠️ No fresh data and no cache, using Mock');
           setEvents(MOCK_EVENTS);
         }
-      } catch (e) {
-        setEvents(MOCK_EVENTS);
+      } catch (error) {
+        console.error('Data refresh error:', error);
+        if (!loadedFromCache) setEvents(MOCK_EVENTS);
+      } finally {
+        setLoading(false); // Ensure loading is off
       }
-    } else {
-      setEvents(MOCK_EVENTS);
-    }
+    };
 
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
+    loadInitialData();
+    // return () => clearInterval(timer);
   }, []);
 
   // Load panel states from localStorage
@@ -97,41 +118,78 @@ const App: React.FC = () => {
     });
   };
 
-  // Filter events by visible categories
-  const filteredEvents = events.filter(e => visibleCategories.has(e.category));
+  // Filter events by visible categories and TIME
+  const filteredEvents = React.useMemo(() => {
+    const now = Date.now();
+    const cutoff = now - (timeFilter * 3600000);
+
+    return events.filter(e => {
+      if (!visibleCategories.has(e.category)) return false;
+
+      // Prophecy Persistence: Always show Prophetic events regardless of time filter
+      if (e.category === EventCategory.PROPHETIC) return true;
+
+      const eventTime = new Date(e.timestamp).getTime();
+      return eventTime > cutoff;
+    });
+  }, [events, visibleCategories, timeFilter]);
+
+  // Calculate counts for BottomBar
+  const eventCounts = React.useMemo(() => {
+    const counts: Record<EventCategory, number> = {} as any;
+    Object.values(EventCategory).forEach(c => counts[c] = 0);
+    events.forEach(e => {
+      // Handle legacy/fallback if needed, or just count
+      if (counts[e.category] !== undefined) counts[e.category]++;
+    });
+    return counts;
+  }, [events]);
 
 
 
   const handleRefreshData = async () => {
     setLoading(true);
 
-    // Load config
-    let config: AdminConfig | undefined;
-    const savedConfig = localStorage.getItem('admin_config');
-    if (savedConfig) {
-      try {
-        config = JSON.parse(savedConfig);
-      } catch (e) {
-        console.error("Config load error", e);
-      }
-    }
-
     try {
-      // Fetch from all data sources (includes Telegram and  Polymarket now)
-      const { events: dataSourceEvents, statuses } = await fetchAllDataSources(config);
-      setDataSourceStatuses(statuses);
+      // NEW: Load events from Supabase (backend cache)
+      // NO direct API calls - data collected by backend collectors
+      const supabaseEvents = await loadAllEvents();
+
+      // Also load collector statuses
+      const statuses = await getCollectorStatuses();
+      setDataSourceStatuses(statuses.map((s: any) => ({
+        source: s.collector_name,
+        status: s.circuit_open ? 'error' : (s.enabled ? 'success' : 'disabled'),
+        lastUpdate: s.last_success_at ? new Date(s.last_success_at).toISOString() : undefined,
+        eventCount: s.total_events_collected || 0,
+        error: s.last_error_message
+      })));
 
       // Fallback to mock if nothing loaded
-      let updatedEvents = dataSourceEvents.length > 0 ? dataSourceEvents : MOCK_EVENTS;
+      let updatedEvents = supabaseEvents.length > 0 ? supabaseEvents : MOCK_EVENTS;
 
       setEvents(updatedEvents);
 
-      // Persist to LocalStorage
+      // Persist to LocalStorage as offline cache
       localStorage.setItem('monitor_events', JSON.stringify(updatedEvents));
+
+      // Try to trigger manual collection (Edge Function if available)
+      await triggerDataCollection();
 
     } catch (error) {
       console.error('Data refresh error:', error);
-      // Keep existing events on error
+
+      // Fallback to LocalStorage if offline
+      const cached = localStorage.getItem('monitor_events');
+      if (cached) {
+        try {
+          setEvents(JSON.parse(cached));
+        } catch (e) {
+          setEvents(MOCK_EVENTS);
+        }
+      } else {
+        setEvents(MOCK_EVENTS);
+      }
     }
 
     setLoading(false);
@@ -182,101 +240,43 @@ const App: React.FC = () => {
       case 'RADIO': return <CommsPanel />;
       case 'TIMELINE': return <ProphecyIntel />;
       case 'LIVE_FEED': return <IntelFeed events={events} />;
-      case 'ADMIN': return <AdminPanel />;
+      // case 'ADMIN': return <AdminPanel />;
       case 'SITUATION_MAP':
       default:
         return (
           <div className="w-full h-full relative">
+            {/* Filter coordinates (0,0) handled inside SituationMap with scatter */}
             <SituationMap events={filteredEvents} />
-            {/* Priority Threats Panel - Minimizable */}
-            <div className="absolute top-4 left-4 z-10 hidden md:block w-72 pointer-events-none">
-              <div className="bg-tactical-900/90 border border-tactical-700 backdrop-blur-sm pointer-events-auto">
-                <div className="text-[10px] text-tactical-500 uppercase p-2 pb-1 border-b border-tactical-700 flex justify-between items-center cursor-pointer"
-                  onClick={() => setPriorityPanelOpen(!priorityPanelOpen)}>
-                  <div className="flex items-center gap-2">
-                    <span>Priority Threats</span>
-                    <span className="animate-pulse text-red-500">LIVE</span>
-                    <span className="text-gray-500">
-                      ({filteredEvents.filter(e => e.severity === 'HIGH' || e.severity === 'ELEVATED').length})
-                    </span>
-                  </div>
-                  {priorityPanelOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                </div>
-                {priorityPanelOpen && (() => {
-                  const threats = filteredEvents.filter(e => e.severity === 'HIGH' || e.severity === 'ELEVATED');
-                  const displayed = threats.slice(0, threatsPageSize);
-                  const hasMore = threats.length > threatsPageSize;
 
-                  return (
-                    <div className="p-2 space-y-1 max-h-64 overflow-y-auto custom-scrollbar">
-                      {displayed.map(e => (
-                        <div key={e.id} className="flex justify-between items-center text-xs border-b border-gray-800 pb-1 mb-1">
-                          <div className="flex flex-col">
-                            <span className="truncate max-w-[180px] text-gray-300 font-bold">{e.title}</span>
-                            <span className="text-[9px] text-gray-500">{e.sourceName}</span>
-                          </div>
-                          <span className={`${e.severity === 'HIGH' ? 'text-red-500' : 'text-orange-500'} font-bold text-[10px]`}>
-                            {e.severity}
-                          </span>
-                        </div>
-                      ))}
-                      {hasMore && (
-                        <button
-                          onClick={() => setThreatsPageSize(prev => prev + THREATS_PER_PAGE)}
-                          className="w-full text-center text-[10px] text-tactical-500 hover:text-white py-2 border border-tactical-700 hover:border-tactical-500 transition-colors"
-                        >
-                          Load More ({threats.length - threatsPageSize} remaining)
-                        </button>
-                      )}
-                      {displayed.length === 0 && (
-                        <div className="text-center text-gray-500 text-xs py-4">
-                          No priority threats
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
+            {/* Time Filter Controls */}
+            <div className="absolute top-4 right-4 z-20 flex gap-1 bg-black/80 p-1 border border-tactical-700 rounded backdrop-blur-sm">
+              {[6, 24, 72, 168, 720].map(h => (
+                <button
+                  key={h}
+                  onClick={() => setTimeFilter(h)}
+                  className={`px-3 py-1 text-[10px] font-mono border border-transparent hover:border-tactical-500 transition-all
+                     ${timeFilter === h
+                      ? 'bg-tactical-500/20 text-tactical-400 border-tactical-500 shadow-[0_0_10px_rgba(255,100,0,0.3)]'
+                      : 'text-gray-500 hover:text-gray-300'}`}
+                >
+                  {h === 720 ? 'ALL' : h === 168 ? '7D' : h === 6 ? '6H' : h + 'H'}
+                </button>
+              ))}
             </div>
 
-            {/* Color Legend Panel - Minimizable */}
-            <div className="absolute top-64 left-4 z-10 hidden md:block w-72 pointer-events-none">
-              <div className="bg-tactical-900/90 border border-tactical-700 backdrop-blur-sm pointer-events-auto">
-                <div className="text-[10px] text-tactical-500 uppercase p-2 pb-1 border-b border-tactical-700 flex justify-between items-center cursor-pointer"
-                  onClick={() => setLegendPanelOpen(!legendPanelOpen)}>
-                  <span>Category Filters ({visibleCategories.size}/{Object.keys(CATEGORY_COLORS).length})</span>
-                  {legendPanelOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                </div>
-                {legendPanelOpen && (
-                  <div className="p-2 space-y-1.5">
-                    {Object.entries(CATEGORY_COLORS).map(([category, color]) => {
-                      const categoryKey = category as EventCategory;
-                      const count = events.filter(e => e.category === categoryKey).length;
-                      const isVisible = visibleCategories.has(categoryKey);
+            {/* Priority Threats Panel - REPLACED BY LIVE FEED */}
+            {filteredEvents.length > 0 && (
+              <LiveThreatFeed events={filteredEvents} />
+            )}
 
-                      return (
-                        <div
-                          key={category}
-                          className="flex items-center gap-2 text-xs cursor-pointer hover:bg-tactical-800/50 p-1 rounded transition-colors"
-                          onClick={() => toggleCategory(categoryKey)}
-                        >
-                          <div className={`w-3 h-3 rounded-sm border flex items-center justify-center transition-all ${isVisible ? 'bg-tactical-500 border-tactical-500' : 'border-gray-600'}`}>
-                            {isVisible && <span className="text-[8px] text-black font-bold">✓</span>}
-                          </div>
-                          <div className="w-3 h-3 rounded-full border border-black shrink-0" style={{ backgroundColor: color }}></div>
-                          <span className={`flex-1 ${isVisible ? 'text-gray-300' : 'text-gray-600 line-through'}`}>
-                            {CATEGORY_LABELS[categoryKey]}
-                          </span>
-                          <span className={`text-[10px] font-mono ${isVisible ? 'text-tactical-500' : 'text-gray-600'}`}>
-                            {count}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
+            {/* Color Legend Panel - REPLACED BY BOTTOM BAR */}
+            {/* Kept minimal structure if needed for layout, but removing the panel itself */}
+
+            <BottomFilterBar
+              selectedCategories={visibleCategories}
+              onToggleCategory={toggleCategory}
+              eventCounts={eventCounts}
+            />
           </div>
         );
     }
@@ -311,6 +311,11 @@ const App: React.FC = () => {
               <p className="text-[8px] text-gray-500 uppercase tracking-widest">
                 Global Intelligence Platform
               </p>
+
+            </div>
+            {/* Isolated Clock Component */}
+            <div className="hidden lg:block ml-4 border-l border-tactical-800 pl-4">
+              <Clock />
             </div>
           </div>
         </div>
@@ -326,7 +331,7 @@ const App: React.FC = () => {
           <NavButton target="TIMELINE" label="PROPHECY" />
           <NavButton target="SURVIVAL" label="PROTOCOLS" />
           <NavButton target="RADIO" label="COMMS" />
-          <NavButton target="ADMIN" label="ADMIN" />
+          {/* <NavButton target="ADMIN" label="ADMIN" /> */}
         </nav>
 
         {/* Data Source Status (Desktop) */}
@@ -340,7 +345,7 @@ const App: React.FC = () => {
               </span>
             </div>
             <span className="text-tactical-500 font-bold">
-              {dataSourceStatuses.reduce((sum, s) => sum + (s.eventCount || 0), 0)} EVENTS
+              {filteredEvents.length} / {events.length} VISIBLE
             </span>
           </div>
         )}
@@ -380,7 +385,7 @@ const App: React.FC = () => {
           <NavButton target="TIMELINE" label="PROPHETIC TIMELINE" icon={BookOpen} />
           <NavButton target="SURVIVAL" label="SURVIVAL PROTOCOLS" icon={Shield} />
           <NavButton target="RADIO" label="RADIO / COMMS" icon={Radio} />
-          <NavButton target="ADMIN" label="ADMINISTRATION" icon={Settings} />
+          {/* <NavButton target="ADMIN" label="ADMINISTRATION" icon={Settings} /> */}
         </div>
       )}
 
@@ -403,10 +408,10 @@ const App: React.FC = () => {
             </div>
 
             {/* AI Chat Widget */}
-            <div className="h-80">
+            {/* <div className="h-80">
               <h3 className="text-xs text-tactical-500 mb-2 flex items-center gap-2"><Cpu className="w-3 h-3" /> AI TACTICAL ADVISOR</h3>
               <AIChat events={events} />
-            </div>
+            </div> */}
           </div>
         </div>
 

@@ -8,12 +8,9 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;600;800&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-  <!-- Marker Cluster Assets -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
-  <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;600;800&display=swap"
+    rel="stylesheet">
 
   <!-- PWA Manifest -->
   <link rel="manifest" href="/manifest.json">
@@ -88,18 +85,32 @@
       width: 4px;
     }
 
-    /* Leaflet Popup Customization */
+    /* Leaflet Popup Customization override */
     .leaflet-popup-content-wrapper {
-      background: #111814;
-      color: #e5e7eb;
-      border: 1px solid #34d399;
-      border-radius: 4px;
-      font-family: 'Share Tech Mono', monospace;
+      background: rgba(5, 5, 5, 0.95) !important;
+      color: #e5e7eb !important;
+      border: 1px solid #c19a6b !important;
+      border-radius: 2px !important;
+      font-family: 'Share Tech Mono', monospace !important;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.8) !important;
+      backdrop-filter: blur(8px);
+    }
+
+    /* Recent Event Glow (Subtle, slow pulse) */
+    @keyframes glow-pulse {
+      0% { filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0)); }
+      50% { filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8)); }
+      100% { filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0)); }
+    }
+
+    .recent-event-glow {
+      animation: glow-pulse 3s infinite ease-in-out;
+      z-index: 900 !important; 
     }
 
     .leaflet-popup-tip {
-      background: #111814;
-      border: 1px solid #34d399;
+      background: #050505 !important;
+      border: 1px solid #c19a6b !important;
     }
 
     .leaflet-container {

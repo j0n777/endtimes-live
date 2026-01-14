@@ -101,7 +101,27 @@ export const fetchGDACSEvents = async (): Promise<MonitorEvent[]> => {
         const xmlText = await response.text();
         const gdacsEvents = parseGDACSXML(xmlText);
 
-        return gdacsEvents.map(event => ({
+        console.log(`🌍 GDACS: Received ${gdacsEvents.length} total events`);
+
+        // Filter: Only Orange and Red alerts (HIGH/ELEVATED severity)
+        const filteredEvents = gdacsEvents.filter(event => {
+            const sev = event.severity.toLowerCase();
+            return sev.includes('red') || sev.includes('orange');
+        });
+
+        console.log(`🌍 GDACS: Filtered to ${filteredEvents.length} significant alerts (Red/Orange only)`);
+
+        // Limit to top 20 most severe
+        const limitedEvents = filteredEvents
+            .sort((a, b) => {
+                const severityOrder: Record<string, number> = { 'red': 0, 'orange': 1, 'green': 2 };
+                return severityOrder[a.severity.toLowerCase()] - severityOrder[b.severity.toLowerCase()];
+            })
+            .slice(0, 20);
+
+        console.log(`🌍 GDACS: Limited to top ${limitedEvents.length} most severe`);
+
+        return limitedEvents.map(event => ({
             id: generateId(),
             title: event.title,
             description: event.description,

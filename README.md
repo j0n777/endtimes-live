@@ -285,11 +285,53 @@ End-Times-Monitor/
 
 ## 🔐 Security & Privacy
 
+### Database Security (Supabase RLS)
+
+This application implements **Row Level Security (RLS)** to protect sensitive data:
+
+#### **Public Access (Anonymous Users)**
+- ✅ Can read recent events (last 30 days)
+- ✅ Can view high-priority events (priority ≤ 3)
+- ✅ Can use rate-limited RPC functions
+- ❌ **Cannot** insert, update, or delete events
+- ❌ **Cannot** access collector configurations
+- ❌ **Cannot** access rate limiting logs
+
+#### **Service Role Access (Backend/Collectors)**
+- ✅ Full CRUD access to all tables
+- ✅ Can bypass RLS for administrative operations
+- ⚠️ **Never expose service key in frontend code**
+
+#### **Security Features**
+- 🛡️ **Row Level Security** on all tables
+- 🔒 **Granular policies** for each user role
+- 🚦 **Rate limiting** on public API functions
+- 📝 **Security audit logging** for sensitive operations
+- 🔑 **Key separation** (anon vs service_role)
+
+#### **Documentation**
+- **[SECURITY_ANALYSIS_RLS.md](SECURITY_ANALYSIS_RLS.md)** - Complete security analysis
+- **[RLS_IMPLEMENTATION_GUIDE.md](RLS_IMPLEMENTATION_GUIDE.md)** - Implementation guide
+- **[supabase/migrations/005_rls_security.sql](supabase/migrations/005_rls_security.sql)** - RLS policies
+
+### Application Security
+
 - **All API keys stored locally** - Browser localStorage only
-- **No backend server** - Pure client-side application
+- **No backend server** - Pure client-side application (frontend)
 - **No user tracking** - No analytics or external tracking
 - **Open source** - Transparent code
+- **Environment variables** - Sensitive keys never hardcoded
 - **CORS considerations** - Some APIs may require CORS proxy in production
+
+### Best Practices
+
+1. **Never commit `.env.local`** - Contains sensitive keys
+2. **Use anon key in frontend** - Limited by RLS policies
+3. **Use service key in backend only** - Full database access
+4. **Enable rate limiting** - In Supabase Dashboard
+5. **Monitor audit logs** - Track suspicious activity
+
+
 
 ---
 

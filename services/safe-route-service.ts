@@ -11,7 +11,7 @@ export interface RouteResult {
     geometry: [number, number][]; // lat,lng coordinates
     safe: boolean;
     dangerZonesCrossed: string[];
-  safet score: number; // 0-100, higher is safer
+    safetyScore: number; // 0-100, higher is safer
 }
 
 /**

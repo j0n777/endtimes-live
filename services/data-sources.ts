@@ -1,4 +1,4 @@
-import { MonitorEvent, AdminConfig, DataSourceStatus } from '../types';
+import { MonitorEvent, AdminConfig, DataSourceStatus, Severity } from '../types';
 import { fetchGDACSEvents } from './gdacs-service';
 import { fetchNASAEONETEvents } from './nasa-eonet-service';
 import { fetchACLEDEvents } from './acled-service';
@@ -13,6 +13,7 @@ import { fetchNOTAMEvents } from './notam-service';
 import { fetchInternetShutdowns } from './internet-shutdown-service';
 import { fetchCyberAttacks } from './cyber-attack-service';
 import { getCuratedPOIs } from './osm-poi-service';
+import { fetchWeatherAlerts } from './weather-alerts-service';
 
 // Cache structure
 interface CacheEntry {
@@ -20,8 +21,56 @@ interface CacheEntry {
     timestamp: number;
 }
 
-const cache: Record<string, CacheEntry> = {};
+
+const CACHE_KEY_PREFIX = 'monitor_cache_';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Helper to get from LocalStorage
+const getFromCache = (key: string): MonitorEvent[] | null => {
+    try {
+        const item = localStorage.getItem(CACHE_KEY_PREFIX + key);
+        if (!item) return null;
+
+        const entry: CacheEntry = JSON.parse(item);
+        const now = Date.now();
+
+        if (now - entry.timestamp > CACHE_DURATION) {
+            localStorage.removeItem(CACHE_KEY_PREFIX + key);
+            return null;
+        }
+
+        return entry.data;
+    } catch (e) {
+        console.warn('Cache read error', e);
+        return null;
+    }
+};
+
+// Helper to set to LocalStorage
+const setCache = (key: string, data: MonitorEvent[]): void => {
+    try {
+        const entry: CacheEntry = {
+            data,
+            timestamp: Date.now(),
+        };
+        localStorage.setItem(CACHE_KEY_PREFIX + key, JSON.stringify(entry));
+    } catch (e) {
+        console.warn('Cache write error - storage likely full', e);
+        // If quota exceeded, try clearing old items or just fail silently for this session
+    }
+};
+
+/**
+ * Clear all caches (useful for forcing refresh)
+ */
+export const clearDataSourceCache = (): void => {
+    // Clear only our keys
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith(CACHE_KEY_PREFIX)) {
+            localStorage.removeItem(key);
+        }
+    });
+};
 
 type DataSourceFetcher = () => Promise<MonitorEvent[]>;
 
@@ -31,26 +80,6 @@ interface DataSource {
     enabled: boolean;
     requiresAuth: boolean;
 }
-
-const getFromCache = (key: string): MonitorEvent[] | null => {
-    const entry = cache[key];
-    if (!entry) return null;
-
-    const now = Date.now();
-    if (now - entry.timestamp > CACHE_DURATION) {
-        delete cache[key];
-        return null;
-    }
-
-    return entry.data;
-};
-
-const setCache = (key: string, data: MonitorEvent[]): void => {
-    cache[key] = {
-        data,
-        timestamp: Date.now(),
-    };
-};
 
 /**
  * Fetch events from all configured data sources
@@ -243,6 +272,22 @@ export const fetchAllDataSources = async (
             enabled: config?.poisEnabled !== false, // Can be toggled
             requiresAuth: false,
         },
+        {
+            name: 'Weather Alerts',
+            fetcher: async () => {
+                const cached = getFromCache('weather-alerts');
+                if (cached) return cached;
+                const events = await fetchWeatherAlerts({
+                    nwsEnabled: config?.nwsEnabled,
+                    weatherbitApiKey: config?.weatherbitApiKey,
+                    weatherbitEnabled: config?.weatherbitEnabled
+                });
+                setCache('weather-alerts', events);
+                return events;
+            },
+            enabled: config?.nwsEnabled !== false || config?.weatherbitEnabled === true, // NWS enabled by default
+            requiresAuth: false, // NWS doesn't require auth, Weatherbit is optional
+        },
     ];
 
     // Fetch from all enabled sources
@@ -271,6 +316,10 @@ export const fetchAllDataSources = async (
 
     const allEvents: MonitorEvent[] = [];
 
+    // Map to preserve order and name for statuses
+    const activeSources = sources.filter(s => s.enabled);
+
+    // Fix: Correctly map results to sources status
     results.forEach((result, index) => {
         if (result.status === 'fulfilled') {
             const { source, events } = result.value;
@@ -283,9 +332,14 @@ export const fetchAllDataSources = async (
                 eventCount: events.length,
             });
         } else {
-            const sourceName = sources.filter(s => s.enabled)[index]?.name || 'Unknown';
+            // Try to identify the source that failed (approximate by index in the pushed array)
+            // This index matches the pushed Promise order
+            // Note: Promise.allSettled preserves order of the input array.
+            // Our input array `eventPromises` corresponds 1:1 with `activeSources`.
+            const failedSource = activeSources[index];
+
             statuses.push({
-                name: sourceName,
+                name: failedSource.name,
                 status: 'error',
                 lastFetch: new Date().toISOString(),
                 eventCount: 0,
@@ -314,9 +368,8 @@ export const fetchAllDataSources = async (
         return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
     });
 
-    // Limit to 500 most important events initially
-    // TODO: Implement lazy loading for additional events
-    const MAX_INITIAL_EVENTS = 500;
+    // Limit to 2000 most important events initially
+    const MAX_INITIAL_EVENTS = 2000;
     const limited = prioritized.slice(0, MAX_INITIAL_EVENTS);
 
     if (prioritized.length > MAX_INITIAL_EVENTS) {
@@ -350,24 +403,28 @@ const deduplicateEvents = (events: MonitorEvent[]): MonitorEvent[] => {
 };
 
 /**
- * Clear all caches (useful for forcing refresh)
- */
-export const clearDataSourceCache = (): void => {
-    Object.keys(cache).forEach(key => delete cache[key]);
-};
-
-/**
  * Get cache status
  */
 export const getCacheStatus = (): Record<string, { age: number; count: number }> => {
     const now = Date.now();
     const status: Record<string, { age: number; count: number }> = {};
 
-    Object.entries(cache).forEach(([key, entry]) => {
-        status[key] = {
-            age: Math.floor((now - entry.timestamp) / 1000), // seconds
-            count: entry.data.length,
-        };
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith(CACHE_KEY_PREFIX)) {
+            try {
+                const item = localStorage.getItem(key);
+                if (item) {
+                    const entry: CacheEntry = JSON.parse(item);
+                    const sourceName = key.replace(CACHE_KEY_PREFIX, '');
+                    status[sourceName] = {
+                        age: Math.floor((now - entry.timestamp) / 1000), // seconds
+                        count: entry.data.length,
+                    };
+                }
+            } catch (e) {
+                // Ignore malformed
+            }
+        }
     });
 
     return status;
