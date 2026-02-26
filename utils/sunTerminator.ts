@@ -55,7 +55,7 @@ export function getTerminatorLatLngs(date: Date = new Date()): [number, number][
     // Close the polygon to cover the night side
     // We need to determine if the sun is north or south to close via North or South pole
     const sunIsNorth = sunEqPos.lat > 0;
-    const latLimit = sunIsNorth ? -90 : 90;
+    const latLimit = sunIsNorth ? 90 : -90; // Inverted logic based on user feedback
 
     // Add closure points
     latLngs.push([latLimit, 180]);

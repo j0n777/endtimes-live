@@ -1,0 +1,51 @@
+services:
+  endtimesmonitor:
+    build:
+      context: .
+      target: serve
+    container_name: endtimesmonitor
+    restart: unless-stopped
+    networks:
+      - root_default
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.endtimes.rule=Host(`endtimes.live`)"
+      - "traefik.http.routers.endtimes.entrypoints=websecure"
+      - "traefik.http.routers.endtimes.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.endtimes.loadbalancer.server.port=80"
+      # Security Middlewares (updated 2026-02-21)
+      - "traefik.http.routers.endtimes.middlewares=endtimes-headers"
+      - "traefik.http.middlewares.endtimes-headers.headers.browserXSSFilter=true"
+      - "traefik.http.middlewares.endtimes-headers.headers.contentTypeNosniff=true"
+      - "traefik.http.middlewares.endtimes-headers.headers.forceSTSHeader=true"
+      - "traefik.http.middlewares.endtimes-headers.headers.STSSeconds=31536000"
+      - "traefik.http.middlewares.endtimes-headers.headers.STSIncludeSubdomains=true"
+      - "traefik.http.middlewares.endtimes-headers.headers.frameDeny=true"
+      - "traefik.http.middlewares.endtimes-headers.headers.referrerPolicy=strict-origin-when-cross-origin"
+    volumes:
+      - shared_data:/usr/share/nginx/html/data
+
+  worker:
+    build:
+      context: .
+      target: worker
+    container_name: endtimes_worker
+    restart: unless-stopped
+    networks:
+      - root_default
+    volumes:
+      - shared_data:/app/public/data
+    environment:
+      - NODE_ENV=production
+    env_file: .env
+    # Env vars for collectors are loaded from .env file automatically by docker-compose if present, 
+    # but we should explicitly pass them if .env is not in the same dir as compose or if we want to be explicit.
+    # docker-compose automatically picks up .env in the same folder.
+
+
+networks:
+  root_default:
+    external: true
+
+volumes:
+  shared_data:

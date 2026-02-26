@@ -2,8 +2,8 @@ import { BaseCollector, CollectorConfig } from './BaseCollector';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { MonitorEvent, EventCategory, Severity } from '../../types';
 
-// NWS API User Agent is required and must be specific
-const USER_AGENT = '(end-times-monitor, user@localhost)';
+// NWS API User Agent is required and must be specific (Project + Email)
+const USER_AGENT = '(EndTimesMonitor, contato@jonataribas.com)';
 
 interface NWSAlert {
     properties: {
@@ -40,8 +40,8 @@ export class WeatherNWSCollector extends BaseCollector {
 
     protected async fetchData(): Promise<MonitorEvent[]> {
         // Fetch active alerts
-        // Limit to severe+ to avoid spam
-        const url = 'https://api.weather.gov/alerts/active?severity=Extreme,Severe&limit=50';
+        // Limit to severe+ to avoid spam, but adding Moderate so the user can see data
+        const url = 'https://api.weather.gov/alerts/active?severity=Extreme,Severe,Moderate&limit=50';
 
         const response = await fetch(url, {
             headers: {

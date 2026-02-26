@@ -298,6 +298,7 @@ export abstract class BaseCollector {
                     lng: event.coordinates.lng,
                     category: event.category,
                     severity: event.severity === 'CRITICAL' ? 'HIGH' : event.severity,
+                    priority: event.priority || (event.severity === 'HIGH' || event.severity === 'CRITICAL' ? 1 : 3), // Default priority if missing
                     title: event.title,
                     description: event.description || '',
                     location: event.location || '',
@@ -310,7 +311,6 @@ export abstract class BaseCollector {
                     metadata: {
                         conflictLevel: event.conflictLevel || null,
                     },
-                    alert_geometry: alertGeometry // Using DB column name (snake_case)
                 };
             });
 

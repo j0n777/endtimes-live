@@ -1,0 +1,146 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Scrollbar for tactical feel */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0f0d;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1a241f;
+  border: 1px solid #000;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #34d399;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+/* Leaflet Popup Customization override */
+.leaflet-popup-content-wrapper {
+  background: rgba(5, 5, 5, 0.95) !important;
+  color: #e5e7eb !important;
+  border: 1px solid #c19a6b !important;
+  border-radius: 2px !important;
+  font-family: 'Share Tech Mono', monospace !important;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.8) !important;
+  backdrop-filter: blur(8px);
+}
+
+/* Recent Event Glow (Subtle, slow pulse) */
+@keyframes glow-pulse {
+  0% {
+    filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+  }
+
+  50% {
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8));
+  }
+
+  100% {
+    filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+  }
+}
+
+.recent-event-glow {
+  animation: glow-pulse 3s infinite ease-in-out;
+  z-index: 900 !important;
+}
+
+.leaflet-popup-tip {
+  background: #050505 !important;
+  border: 1px solid #c19a6b !important;
+}
+
+.leaflet-container {
+  background: #050505;
+}
+
+/* Marker Cluster Customization - Desert/Tactical Theme */
+.tactical-cluster {
+  background-color: transparent !important;
+  border: none !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tactical-cluster div {
+  position: relative;
+  background-color: rgba(5, 5, 5, 0.8) !important;
+  color: #c19a6b !important;
+  border: 1px solid #c19a6b;
+  border-radius: 0;
+  /* Make it a harsh tactical box */
+  clip-path: polygon(15% 0, 85% 0, 100% 15%, 100% 85%, 85% 100%, 15% 100%, 0 85%, 0 15%);
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-family: 'Share Tech Mono', monospace;
+  box-shadow: inset 0 0 10px rgba(193, 154, 107, 0.2);
+  transition: all 0.3s ease;
+  z-index: 2;
+}
+
+.tactical-cluster div span {
+  display: block;
+}
+
+.tactical-cluster:hover div {
+  background-color: rgba(193, 154, 107, 0.2) !important;
+  color: #fff !important;
+  box-shadow: inset 0 0 15px rgba(193, 154, 107, 0.8);
+  transform: scale(1.1);
+  border: 1px solid #fff;
+}
+
+/* Radar Pulse Background */
+.tactical-cluster::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  border: 1px solid rgba(193, 154, 107, 0.8);
+  border-radius: 0;
+  clip-path: polygon(15% 0, 85% 0, 100% 15%, 100% 85%, 85% 100%, 15% 100%, 0 85%, 0 15%);
+  transform: translate(-50%, -50%);
+  animation: radar-pulse 2s infinite ease-out;
+  z-index: 1;
+}
+
+.marker-cluster-large::before {
+  animation-duration: 1.5s;
+}
+
+.marker-cluster-small::before {
+  animation-duration: 2.5s;
+}
+
+@keyframes radar-pulse {
+  0% {
+    width: 60%;
+    height: 60%;
+    opacity: 1;
+    border-color: rgba(193, 154, 107, 1);
+  }
+
+  100% {
+    width: 180%;
+    height: 180%;
+    opacity: 0;
+    border-color: rgba(193, 154, 107, 0);
+  }
+}

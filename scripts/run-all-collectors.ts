@@ -29,37 +29,49 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 // 2. Initialize Supabase
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// 3. Run Collectors
-async function run() {
+// 3. Run Scheduler
+async function runScheduler() {
     console.log('-------------------------------------------');
-    console.log('📡 Starting Global Intelligence Collection');
+    console.log('📡 Starting Global Intelligence Scheduler');
+    console.log('   Mode: Staggered (15m cycle)');
     console.log('-------------------------------------------');
 
     const orchestrator = new CollectorOrchestrator(supabase);
 
-    // Force a "circuit breaker reset" on critical collectors just in case
+    // Initial Circuit Breaker Reset
     await orchestrator.resetCircuitBreaker('POLYMARKET');
     await orchestrator.resetCircuitBreaker('GDELT');
-    await orchestrator.resetCircuitBreaker('TELEGRAM');
+    
+    // Main Loop
+    while (true) {
+        try {
+            const now = new Date();
+            const minute = now.getMinutes();
+            const second = now.getSeconds();
+            
+            console.log(`\n⏰ Tick: ${now.toISOString()} (Min: ${minute})`);
 
-    // Run All
-    console.log('⚡ Executing runAllCollectors()...');
-    const result = await orchestrator.runAllCollectors();
+            // 1. Run Staggered Logic (every minute check)
+            // The orchestrator handles the "is it time?" logic based on 15m modulo
+            await orchestrator.runStaggeredCycle(minute % 15);
 
-    console.log('-------------------------------------------');
-    console.log('🏁 Final Results:');
-    console.log(JSON.stringify(result, null, 2));
-    console.log('-------------------------------------------');
+            // 2. Run High-Frequency Critical Alerts (every 5 mins regardless of region?)
+            // For now, let's stick to the Staggered groups which include them.
+            
+            // Wait for next minute boundary to align somewhat
+            // Sleep 60s
+            console.log('💤 Sleeping 60s...');
+            await new Promise(r => setTimeout(r, 60000));
 
-    if (result.failed > 0) {
-        console.warn(`⚠️ Warning: ${result.failed} collectors failed.`);
-        process.exit(0); // Exit success anyway to not break pipelines
-    } else {
-        console.log('✅ All systems nominal.');
+        } catch (err) {
+            console.error('❌ Scheduler Error:', err);
+            // Wait a bit before retrying to avoid tight loop on error
+            await new Promise(r => setTimeout(r, 10000));
+        }
     }
 }
 
-run().catch(err => {
+runScheduler().catch(err => {
     console.error('❌ Critical Failure:', err);
     process.exit(1);
 });

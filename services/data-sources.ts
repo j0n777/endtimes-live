@@ -14,6 +14,8 @@ import { fetchInternetShutdowns } from './internet-shutdown-service';
 import { fetchCyberAttacks } from './cyber-attack-service';
 import { getCuratedPOIs } from './osm-poi-service';
 import { fetchWeatherAlerts } from './weather-alerts-service';
+import { fetchTwitterEvents } from './twitter-service';
+import { fetchAviationEvents } from './aviation-service';
 
 // Cache structure
 interface CacheEntry {
@@ -198,6 +200,30 @@ export const fetchAllDataSources = async (
                 return events;
             },
             enabled: config?.polymarketEnabled !== false, // Enabled by default
+            requiresAuth: false,
+        },
+        {
+            name: 'X (Twitter) OSINT',
+            fetcher: async () => {
+                const cached = getFromCache('x-twitter');
+                if (cached) return cached;
+                const events = await fetchTwitterEvents(config?.twitterKeywords);
+                setCache('x-twitter', events);
+                return events;
+            },
+            enabled: config?.twitterEnabled !== false, // Enabled by default
+            requiresAuth: false,
+        },
+        {
+            name: 'Military Aviation',
+            fetcher: async () => {
+                const cached = getFromCache('aviation-military');
+                if (cached) return cached;
+                const events = await fetchAviationEvents();
+                setCache('aviation-military', events);
+                return events;
+            },
+            enabled: config?.aviationEnabled !== false, // Enabled by default
             requiresAuth: false,
         },
         {

@@ -1,23 +1,44 @@
+import axios from 'axios';
 import { GoogleGenAI } from '@google/genai';
 import { LocationData, GeocodingRequest, GeocodingResult } from '../types/StandardizedEvent';
 
 /**
  * AI-Powered Geocoding Service
- * Uses Gemini AI to extract precise coordinates from text descriptions
+ * Uses Gemini AI and Z.ai (GLM) to extract precise coordinates from text descriptions
  * Falls back to free geocoding APIs when AI is unavailable
  */
 
+const GEMINI_MODELS = [
+    'gemini-2.5-flash-lite',
+    'gemini-2.5-flash',
+    'gemini-3-flash-preview',
+    'gemini-2.0-flash'
+];
+
+const ZAI_MODELS = [
+    'GLM-4.7-Flash',
+    'GLM-4.5-Flash'
+];
+
+// Rate limiting state
+let lastZaiRequestTime = 0;
+const ZAI_BASE_URL = 'https://api.z.ai/api/paas/v4/chat/completions';
+
 export class GeocodingService {
     private gemini: GoogleGenAI | null = null;
-    private model: any;
+    private zaiKey: string | null = null;
 
     constructor() {
-        const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.API_KEY;
-        if (apiKey) {
-            this.gemini = new GoogleGenAI({ apiKey });
-            this.model = this.gemini.models;
+        const geminiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.API_KEY;
+        if (geminiKey) {
+            this.gemini = new GoogleGenAI({ apiKey: geminiKey });
         } else {
-            console.warn('⚠️ Gemini API key not found, geocoding will use fallback methods');
+            console.warn('⚠️ Gemini API key not found');
+        }
+
+        this.zaiKey = process.env.ZAI_API_KEY;
+        if (!this.zaiKey) {
+            console.warn('⚠️ Z.ai API key not found');
         }
     }
 
@@ -28,18 +49,37 @@ export class GeocodingService {
         const startTime = Date.now();
 
         try {
-            // Try AI-powered geocoding first (most accurate)
+            // 1. Try Gemini Models first
             if (this.gemini && request.priority !== 'low') {
-                const aiResult = await this.geocodeWithAI(request);
-                if (aiResult.success) {
-                    return {
-                        ...aiResult,
-                        processingTime: Date.now() - startTime
-                    };
+                for (const modelName of GEMINI_MODELS) {
+                    try {
+                        const aiResult = await this.geocodeWithGemini(request, modelName);
+                        if (aiResult.success) {
+                            return { ...aiResult, processingTime: Date.now() - startTime };
+                        }
+                    } catch (e: any) {
+                        console.warn(`Gemini (${modelName}) failed, trying next...`);
+                        if (e?.message?.includes('429')) continue;
+                    }
                 }
             }
 
-            // Fallback to free geocoding APIs
+            // 2. Try Z.ai Models as Fallback
+            if (this.zaiKey && request.priority !== 'low') {
+                for (const modelName of ZAI_MODELS) {
+                    try {
+                        const zaiResult = await this.geocodeWithZai(request, modelName);
+                        if (zaiResult.success) {
+                            return { ...zaiResult, processingTime: Date.now() - startTime };
+                        }
+                    } catch (e) {
+                        console.warn(`Z.ai (${modelName}) failed, trying next...`);
+                    }
+                }
+            }
+
+            // 3. Last Resort: Nominatim
+            console.log('Falling back to Nominatim for:', request.text);
             const fallbackResult = await this.geocodeWithNominatim(request);
             return {
                 ...fallbackResult,
@@ -47,7 +87,7 @@ export class GeocodingService {
             };
 
         } catch (error) {
-            console.error('Geocoding error:', error);
+            console.error('Final Geocoding failure chain:', error);
             return {
                 success: false,
                 error: error instanceof Error ? error.message : 'Unknown error',
@@ -58,54 +98,88 @@ export class GeocodingService {
 
     /**
      * AI-powered geocoding using Gemini
-     * Extracts precise location from complex text descriptions
      */
-    private async geocodeWithAI(request: GeocodingRequest): Promise<GeocodingResult> {
-        if (!this.model) {
-            return { success: false, error: 'AI model not initialized' };
-        }
+    private async geocodeWithGemini(request: GeocodingRequest, modelName: string): Promise<GeocodingResult> {
+        if (!this.gemini) return { success: false, error: 'Gemini not initialized' };
 
         const prompt = this.buildGeocodingPrompt(request);
 
+        // Usage for @google/genai SDK
+        const result = await (this.gemini as any).models.generateContent({
+            model: modelName,
+            contents: [{ role: 'user', parts: [{ text: prompt }] }]
+        });
+
+        const text = result.text || '';
+
+        const parsed = this.parseAIResponse(text);
+        return this.processAIResult(parsed, request, `gemini:${modelName}`);
+    }
+
+    /**
+     * AI-powered geocoding using Z.ai (GLM)
+     * Implements mandatory 30s delay between requests
+     */
+    private async geocodeWithZai(request: GeocodingRequest, modelName: string): Promise<GeocodingResult> {
+        if (!this.zaiKey) return { success: false, error: 'Z.ai key missing' };
+
+        // Mandatory 30s Delay
+        const now = Date.now();
+        const timeSinceLast = now - lastZaiRequestTime;
+        if (timeSinceLast < 30000) {
+            const waitTime = 30000 - timeSinceLast;
+            console.log(`🕒 Z.ai Rate Limit Cooling: Waiting ${Math.ceil(waitTime / 1000)}s...`);
+            await this.sleep(waitTime);
+        }
+
         try {
-            const result = await this.model.generateContent({
-                model: 'gemini-3-flash-preview',
-                contents: prompt
+            lastZaiRequestTime = Date.now();
+            const response = await axios.post(ZAI_BASE_URL, {
+                model: modelName,
+                messages: [
+                    { role: 'user', content: this.buildGeocodingPrompt(request) }
+                ],
+                temperature: 0.1
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${this.zaiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 60000 // Increased timeout further for GLM-4.5
             });
 
-            const text = result.text || '';
-
-            // Parse AI response (expecting JSON)
-            const parsed = this.parseAIResponse(text);
-
-            if (parsed && parsed.lat && parsed.lng) {
-                const location: LocationData = {
-                    lat: parsed.lat,
-                    lng: parsed.lng,
-                    accuracy: parsed.accuracy || 'city',
-                    address: parsed.address,
-                    street: parsed.street,
-                    city: parsed.city,
-                    region: parsed.region,
-                    country: parsed.country || request.context?.country || 'Unknown',
-                    countryCode: parsed.countryCode || 'XX',
-                    geocodedBy: 'ai',
-                    geocodingConfidence: parsed.confidence || 0.8,
-                    originalLocationText: request.text
-                };
-
-                // Validate coordinates
-                if (this.isValidCoordinate(location.lat, location.lng)) {
-                    return { success: true, location };
-                }
-            }
-
-            return { success: false, error: 'AI returned invalid coordinates' };
-
-        } catch (error) {
-            console.error('AI geocoding error:', error);
-            return { success: false, error: 'AI geocoding failed' };
+            const content = response.data.choices?.[0]?.message?.content || '';
+            const parsed = this.parseAIResponse(content);
+            return this.processAIResult(parsed, request, `zai:${modelName}`);
+        } catch (error: any) {
+            console.error(`Z.ai error (${modelName}):`, error?.response?.data || error.message);
+            return { success: false, error: 'Z.ai request failed' };
         }
+    }
+
+    private processAIResult(parsed: any, request: GeocodingRequest, provider: string): GeocodingResult {
+        if (parsed && parsed.lat && parsed.lng) {
+            const location: LocationData = {
+                lat: parsed.lat,
+                lng: parsed.lng,
+                accuracy: parsed.accuracy || 'city',
+                address: parsed.address,
+                street: parsed.street,
+                city: parsed.city,
+                region: parsed.region,
+                country: parsed.country || request.context?.country || 'Unknown',
+                countryCode: parsed.countryCode || 'XX',
+                geocodedBy: 'ai',
+                geocodingConfidence: parsed.confidence || 0.8,
+                originalLocationText: request.text
+            };
+
+            if (this.isValidCoordinate(location.lat, location.lng)) {
+                console.log(`✅ Geocoded by ${provider}: ${location.city || location.country}`);
+                return { success: true, location };
+            }
+        }
+        return { success: false, error: 'AI returned invalid coordinates' };
     }
 
     /**

@@ -15,14 +15,14 @@ export const fetchRealTimeEvents = async (customChannels: string[] = []): Promis
   }
 
   const feedsList = RSS_SOURCES.join(", ");
-  const telegramTargeting = customChannels.length > 0 
-    ? `CRITICAL INSTRUCTION: Prioritize scanning these specific Telegram Channels via their public web views (site:t.me/s/): ${customChannels.map(c => '@'+c).join(', ')}.`
+  const telegramTargeting = customChannels.length > 0
+    ? `CRITICAL INSTRUCTION: Prioritize scanning these specific Telegram Channels via their public web views (site:t.me/s/): ${customChannels.map(c => '@' + c).join(', ')}.`
     : '';
 
   // Enhanced OSINT Prompt targeting specific blindspots
   const prompt = `
     ACT AS: Global Intelligence Analyst & OSINT Aggregator.
-    MISSION: Perform a Deep Sector Scan for real-time conflicts and threats.
+    MISSION: Perform a Deep Sector Scan for real-time conflicts, disasters, economic crises, and other major global events.
     
     TARGET FEEDS (Simulate fetching latest headlines from):
     ${feedsList}
@@ -30,32 +30,40 @@ export const fetchRealTimeEvents = async (customChannels: string[] = []): Promis
     ${telegramTargeting}
 
     MANDATORY SECTOR SCANS:
-    1. ARCTIC / NORTH ATLANTIC: Greenland security, Russian activity, Thule Air Base threats.
-    2. INDO-PACIFIC: Taiwan Strait incursions, South China Sea naval disputes.
-    3. HIMALAYAS: India-China border skirmishes (Ladakh/Arunachal).
-    4. MIDDLE EAST: Active kinetic engagements (Israel/Gaza/Lebanon/Yemen).
-    5. EASTERN EUROPE: Ukraine frontline shifts.
+    1. GEOPOLITICAL: High-tension borders, active kinetic engagements, major political shifts.
+    2. NATURAL DISASTERS: Severe weather, earthquakes, wildfires, floods.
+    3. ECONOMIC: Severe market crashes, hyperinflation, major supply chain disruptions.
+    4. HEALTH/PANDEMIC: Disease outbreaks, severe health emergencies.
+    5. CYBER/INFRASTRUCTURE: Major cyber attacks, critical infrastructure failures.
 
     OUTPUT REQUIREMENT:
     - Return exactly 25 distinct, high-priority events.
     - Prioritize events from the last 24 hours.
     - If specific "breaking" news isn't found for a sector, find the most recent significant incident (last 7 days).
 
-    CLASSIFICATION RULES:
-    - STATE_WAR: Sovereign nations fighting.
-    - CIVIL_WAR: Internal conflict.
-    - MILITIA_ACTION: Non-state actors (terror/insurgency).
-    - BORDER_SKIRMISH: Localized border violence.
-    - MILITARY_MOVEMENT: Drills, deployments, logistics.
-    - POLITICAL_THREAT: Rhetoric, sanctions, espionage.
-    - RIOT_UNREST: Protests.
+    CLASSIFICATION RULES (Assign the most accurate Category):
+    - CONFLICT: Wars, skirmishes, riots, military movements, terror attacks.
+    - NATURAL_DISASTER: Earthquakes, storms, floods, extreme weather.
+    - FIRES: Major wildfires or urban infernos.
+    - EPIDEMIC: Disease outbreaks, health emergencies.
+    - ECONOMIC: Market crashes, inflation spikes, severe supply issues.
+    - PROPHETIC: Events with direct religious/prophetic significance.
+    - PERSECUTION: Targeted religious or political persecution.
+    - POLITICAL: Major elections, political instability, crippling sanctions.
+    - HUMANITARIAN: Famine, mass displacement, aid crises.
+    - CYBER: Large-scale hacks, internet blackouts.
+    - AVIATION: Plane crashes, major airspace closures.
+    - MARITIME: Ship blockades, piracy, maritime accidents.
+    - INFRASTRUCTURE: Power grid failures, dam collapses.
+    - ENVIRONMENTAL: Severe pollution events, ecological disasters.
+    - OTHER: Events that do not fit above.
 
     STRICT JSON OUTPUT FORMAT:
     [
       {
         "title": "Headline",
         "description": "Who, what, where.",
-        "category": "CONFLICT",
+        "category": "EVENT_CATEGORY_NAME",
         "severity": "HIGH",
         "conflictLevel": "STATE_WAR",
         "sourceType": "RSS",
@@ -99,7 +107,7 @@ export const fetchRealTimeEvents = async (customChannels: string[] = []): Promis
     });
 
     const data = JSON.parse(response.text || '[]');
-    
+
     return data.map((item: any) => ({
       id: generateId(),
       title: item.title,
@@ -123,7 +131,7 @@ export const fetchRealTimeEvents = async (customChannels: string[] = []): Promis
 export const analyzeSituation = async (events: MonitorEvent[], userQuery: string): Promise<string> => {
   if (!apiKey) return "SYSTEM ERROR: API KEY NOT DETECTED. UNABLE TO ACCESS NEURAL CORE.";
 
-  const eventContext = events.slice(0, 15).map(e => 
+  const eventContext = events.slice(0, 15).map(e =>
     `[${e.sourceType}] ${e.conflictLevel}: ${e.title} (${e.location})`
   ).join('\n');
 

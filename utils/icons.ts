@@ -26,37 +26,47 @@ const ICONS: Record<EventCategory, string> = {
 };
 
 export const getIconHtml = (category: EventCategory, severity: Severity, isWar: boolean): string => {
+  // SPECIAL HANDLING FOR TRANSPORT (Planes/Ships) - No bubble background, just the icon
+  if (category === 'TRANSPORT') {
+    // We assume rotation is handled by CSS class or style injected in the DivIcon options in Map
+    // But here we return a clean SVG
+    return `
+      <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #60a5fa; filter: drop-shadow(0 0 4px #3b82f6);">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 12h20"/><path d="M13 2l9 10-9 10"/><path d="M11 2v20"/>
+        </svg>
+      </div>
+    `;
+  }
+
   const color = CATEGORY_COLORS[category] || '#9ca3af';
   // Fallback to OTHER or PROPHETIC if missing
   const iconSvg = ICONS[category] || ICONS[EventCategory.OTHER];
 
   // Size Logic
-  let size = 28; // Slightly larger base
-  if (severity === 'HIGH') size = 36;
-  if (severity === 'ELEVATED') size = 32;
-  if (isWar) size = 42;
+  let size = 32; // Standard size
+  if (severity === 'HIGH') size = 40;
+  if (severity === 'ELEVATED') size = 36;
+  if (isWar) size = 48;
 
   // Animation Logic
   let animation = '';
   if (isWar) animation = 'animate-pulse';
 
-  // Outer glow for high severity
-  const glow = (severity === 'HIGH' || isWar) ? `box-shadow: 0 0 15px ${color}80;` : `box-shadow: 0 0 10px ${color}40;`;
-
-  // Background: Same color as icon but with 50% opacity (Hex + 80 = ~50%)
-  // If color is #RRGGBB, appending 80 makes it #RRGGBB80 (Level 4 alpha)
-  // We want a "lighter" tone feeling, but on dark map, pure color at 50% is good.
-  // To make the background "lighter" than the stroke, we rely on the opacity. 
-  // If the user wants a technically lighter color mixed with white, we'd need color manipulation.
-  // However, "fundo com a mesma cor ... transparency 50%" usually implies just opacity.
-
+  // NEW DESIGN: "Pinless" - Just the icon with strong contrast shadow, no background bubble.
+  // This reduces the "clumped" look and feels more modern/tactical.
+  
+  // Dynamic color for stroke and fill opacity
+  const strokeColor = color;
+  const filter = `drop-shadow(0 0 3px #000) drop-shadow(0 0 8px ${color})`; // Double shadow for readability
+  
   return `
     <div class="relative flex items-center justify-center ${animation}" style="width: ${size}px; height: ${size}px;">
-      ${isWar ? `<div class="absolute inset-0 rounded-full opacity-40 animate-ping" style="background-color: ${color}"></div>` : ''}
+      ${isWar ? `<div class="absolute inset-0 rounded-full opacity-30 animate-ping" style="background-color: ${color}; transform: scale(0.8);"></div>` : ''}
       
-      <div class="relative z-10 flex items-center justify-center rounded-full border" 
-           style="width: 100%; height: 100%; background-color: ${color}80; color: #ffffff; ${glow} border-color: ${color}; border-width: 2px;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="${size * 0.6}" height="${size * 0.6}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 0 2px rgba(0,0,0,0.5));">
+      <div class="relative z-10 flex items-center justify-center" 
+           style="width: 100%; height: 100%; color: ${strokeColor}; filter: ${filter};">
+        <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           ${iconSvg}
         </svg>
       </div>

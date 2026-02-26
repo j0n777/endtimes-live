@@ -20,8 +20,14 @@ const AdminPanel: React.FC = () => {
     nasaFirmsApiKey: '',
     // Polymarket
     polymarketEnabled: true,
+    // X/Twitter
+    twitterEnabled: true,
+    twitterKeywords: [],
+    // Aviation
+    aviationEnabled: true,
   });
   const [newChannel, setNewChannel] = useState('');
+  const [newKeyword, setNewKeyword] = useState('');
   const [saveStatus, setSaveStatus] = useState<string>('');
 
   useEffect(() => {
@@ -55,6 +61,23 @@ const AdminPanel: React.FC = () => {
     setConfig(prev => ({
       ...prev,
       telegramChannelIds: prev.telegramChannelIds.filter(c => c !== channel)
+    }));
+  };
+
+  const addKeyword = () => {
+    if (newKeyword && !config.twitterKeywords?.includes(newKeyword)) {
+      setConfig(prev => ({
+        ...prev,
+        twitterKeywords: [...(prev.twitterKeywords || []), newKeyword.trim()]
+      }));
+      setNewKeyword('');
+    }
+  };
+
+  const removeKeyword = (keyword: string) => {
+    setConfig(prev => ({
+      ...prev,
+      twitterKeywords: (prev.twitterKeywords || []).filter(k => k !== keyword)
     }));
   };
 
@@ -361,16 +384,106 @@ const AdminPanel: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex justify-between items-center">
-          <span className="text-tactical-500 font-bold animate-pulse">{saveStatus}</span>
-          <button
-            onClick={handleSave}
-            className="flex items-center gap-2 bg-tactical-500 hover:bg-[#9d7e4f] text-black px-6 py-3 rounded font-bold transition-colors"
-          >
-            <Save className="w-5 h-5" />
-            SAVE CONFIGURATION
-          </button>
+        {/* X/Twitter Intelligence Section */}
+        <div className="bg-tactical-900 border border-tactical-700 p-6 rounded-lg mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <Globe className="w-5 h-5 text-[#1DA1F2]" />
+              <h2 className="text-lg font-bold text-white">X/TWITTER OSINT</h2>
+            </div>
+            <label className="relative inline-block w-12 h-6">
+              <input
+                type="checkbox"
+                checked={config.twitterEnabled !== false}
+                onChange={e => setConfig({ ...config, twitterEnabled: e.target.checked })}
+                className="sr-only peer"
+              />
+              <div className="w-full h-full bg-gray-700 peer-checked:bg-[#1DA1F2] rounded-full transition-colors cursor-pointer"></div>
+              <div className="absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform peer-checked:translate-x-6"></div>
+            </label>
+          </div>
+
+          <div className="bg-[#1DA1F2]/10 border border-[#1DA1F2]/30 p-4 rounded mb-6 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-[#1DA1F2] mt-0.5 shrink-0" />
+            <div className="text-xs text-gray-300">
+              <strong className="text-[#1DA1F2] block mb-1">MONITORAMENTO DE PALAVRAS-CHAVE:</strong>
+              Coleta inteligência de fontes abertas no X buscando por termos críticos. Usa instâncias Nitter para contornar limites de API. (Funciona melhor com menos de 5 keywords).
+            </div>
+          </div>
+
+          <div className="border-t border-tactical-800 pt-4">
+            <h3 className="text-sm font-bold text-[#1DA1F2] mb-4">KEYWORDS ALVO</h3>
+
+            <div className="flex gap-2 mb-4">
+              <input
+                type="text"
+                value={newKeyword}
+                onChange={e => setNewKeyword(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addKeyword()}
+                className="flex-1 bg-black border border-tactical-700 p-2 text-sm text-white focus:border-[#1DA1F2] outline-none rounded"
+                placeholder="Exemplo: EMERGENCY, WAR, NUCLEAR"
+              />
+              <button onClick={addKeyword} className="bg-tactical-800 hover:bg-tactical-700 border border-tactical-700 text-white p-2 rounded">
+                <Plus className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto custom-scrollbar p-1">
+              {(config.twitterKeywords || []).map(keyword => (
+                <div key={keyword} className="flex items-center gap-2 bg-tactical-800/50 px-3 py-1.5 rounded-full border border-[#1DA1F2]/30">
+                  <span className="text-xs text-gray-200 font-bold">{keyword.toUpperCase()}</span>
+                  <button onClick={() => removeKeyword(keyword)} className="text-gray-500 hover:text-red-400">
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+              {(!config.twitterKeywords || config.twitterKeywords.length === 0) && (
+                <div className="text-xs text-gray-600 italic py-2 w-full">
+                  Usando keywords padrão de fábrica: BREAKING, ALERT, URGENT, WAR, STRIKE...
+                </div>
+              )}
+            </div>
+          </div>
         </div>
+      </div>
+
+      {/* Military Aviation Section */}
+      <div className="bg-tactical-900 border border-tactical-700 p-6 rounded-lg mb-8">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <Globe className="w-5 h-5 text-green-400" />
+            <h2 className="text-lg font-bold text-white">MILITARY AVIATION TRACKING</h2>
+          </div>
+          <label className="relative inline-block w-12 h-6">
+            <input
+              type="checkbox"
+              checked={config.aviationEnabled !== false}
+              onChange={e => setConfig({ ...config, aviationEnabled: e.target.checked })}
+              className="sr-only peer"
+            />
+            <div className="w-full h-full bg-gray-700 peer-checked:bg-green-500 rounded-full transition-colors cursor-pointer"></div>
+            <div className="absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform peer-checked:translate-x-6"></div>
+          </label>
+        </div>
+
+        <div className="bg-green-900/10 border border-green-900/30 p-4 rounded mb-6 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-green-400 mt-0.5 shrink-0" />
+          <div className="text-xs text-gray-300">
+            <strong className="text-green-400 block mb-1">MONITORAMENTO AÉREO GLOBAL:</strong>
+            Rastreia voos militares ativos (USAF, NATO, RAF), drones táticos (Global Hawk), e aeronaves comerciais transmitindo códigos de emergência (7700, 7600, 7500) usando dados da rede OpenSky.
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-between items-center">
+        <span className="text-tactical-500 font-bold animate-pulse">{saveStatus}</span>
+        <button
+          onClick={handleSave}
+          className="flex items-center gap-2 bg-tactical-500 hover:bg-[#9d7e4f] text-black px-6 py-3 rounded font-bold transition-colors"
+        >
+          <Save className="w-5 h-5" />
+          SAVE CONFIGURATION
+        </button>
       </div>
     </div>
   );

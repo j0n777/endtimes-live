@@ -3,6 +3,7 @@
 // Used for highlighting conflict zones on the map
 
 export const getCountryBoundingBox = (countryName: string): any | null => {
+    if (!countryName) return null;
     const name = countryName.toLowerCase();
 
     // Simplified Bounding Boxes (approximate)

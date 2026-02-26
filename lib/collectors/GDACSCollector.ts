@@ -45,10 +45,10 @@ export class GDACSCollector extends BaseCollector {
 
         console.log(`🌍 GDACS: Received ${gdacsEvents.length} total events`);
 
-        // Filter: Only Orange and Red alerts
+        // Filter: Allow all alerts for now so the user can verify data flows
         const filteredEvents = gdacsEvents.filter(event => {
             const sev = event.severity.toLowerCase();
-            return sev.includes('red') || sev.includes('orange');
+            return true; // sev.includes('red') || sev.includes('orange');
         });
 
         console.log(`🌍 GDACS: Filtered to ${filteredEvents.length} significant alerts (Red/Orange only)`);

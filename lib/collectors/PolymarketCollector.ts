@@ -79,14 +79,30 @@ export class PolymarketCollector extends BaseCollector {
             .sort((a: any, b: any) => (b.volume || 0) - (a.volume || 0))
             .slice(0, 25);
 
-        return limited.map((event: any) => {
+        // Process in parallel for geocoding
+        const monitorEvents = await Promise.all(limited.map(async (event: any) => {
             const category = this.categorizeMarket(event);
             const severity = this.determineSeverity(event);
-            const location = this.extractLocation(event.question || event.slug || '');
+
+            // --- GEOLOCATION STRATEGY ---
+            // 1. Try static extraction first (Fast, cheap)
+            let location = this.extractLocation(event.question || event.slug || '');
+
+            // 2. If 'Global' and high volume, try AI Geocoding (Smarter)
+            // But respect rate limits. Only for High/Critical severity.
+            // Note: We are using a separate service, assume it handles caching/rate-limiting internally or we catch errors.
+            /* 
+            // Commented out to avoid rate limit spam unless we have a robust queue
+            // For now, improved static extraction + user feedback is safer.
+            if (location.name === 'Global' && (severity === 'CRITICAL' || severity === 'HIGH')) {
+               // ... await geocoder ...
+            } 
+            */
 
             // --- PROBABILITY PARSING ---
             let probability = 0;
-            let probString = '';
+            let probString = ''; // Legacy
+            let narrativeHeadline = event.question; // Default
 
             try {
                 // Parse outcomes (usually ["Yes", "No"])
@@ -101,19 +117,37 @@ export class PolymarketCollector extends BaseCollector {
                 if (yesIndex !== undefined && yesIndex !== -1 && prices?.[yesIndex]) {
                     probability = parseFloat(prices[yesIndex]) * 100;
                     probString = `(${probability.toFixed(0)}%) `;
+
+                    // --- NARRATIVE HEADLINE ---
+                    // "Will X happen?" -> "X has 55% chance of happening"
+                    // Simple heuristic: Remove "Will " and add " - 55% Chance"
+                    let q = event.question.trim();
+                    if (q.endsWith('?')) q = q.slice(0, -1);
+
+                    if (q.toLowerCase().startsWith('will ')) {
+                        q = q.substring(5); // Remove "Will "
+                        q = q.charAt(0).toUpperCase() + q.slice(1); // Capitalize
+                        narrativeHeadline = `${q} - ${probability.toFixed(0)}% Chance`;
+                    } else {
+                        narrativeHeadline = `${q} - ${probability.toFixed(0)}% Chance`;
+                    }
                 }
             } catch (e) {
                 // console.warn('Failed to parse Polymarket odds', e);
             }
 
-            // --- TITLE FORMATTING ---
-            let cleanTitle = event.question || event.slug || 'Unknown Market';
-            // Enhance title with Probability
-            const finalTitle = `${probString}${cleanTitle}`;
+            // --- TIMESTAMP HONESTY ---
+            // Use creation date if available, or fallback to current time BUT
+            // preferably use the `startDate` provided by API to show when this market became relevant.
+            // If API doesn't return `creationDate`, we must be careful.
+            // Let's use `updatedAt` if available, else current.
+            // Note: The screenshot shows standard timestamps. 
+            // Better to use `startDate` (market open) or `creationDate`.
+            const honestTimestamp = event.creationDate || event.startDate || new Date().toISOString();
 
             return {
                 id: event.id,
-                title: finalTitle,
+                title: narrativeHeadline, // New Intelligence Headline
                 description: this.buildDescription(event, probability),
                 category,
                 severity,
@@ -121,10 +155,12 @@ export class PolymarketCollector extends BaseCollector {
                 sourceName: 'Polymarket',
                 location: location.name,
                 coordinates: location.coords,
-                timestamp: new Date().toISOString(),
+                timestamp: honestTimestamp, // Honest timestamp
                 sourceUrl: `https://polymarket.com/event/${event.slug || event.id}`
             };
-        });
+        }));
+
+        return monitorEvents;
     }
 
     private categorizeMarket(event: PolymarketEvent): EventCategory {
@@ -213,8 +249,8 @@ export class PolymarketCollector extends BaseCollector {
             };
         }
 
-        // Country mappings
-        const countries: Record<string, { lat: number; lng: number }> = {
+        // Expanded country/region mappings
+        const locations: Record<string, { lat: number; lng: number }> = {
             'ukraine': { lat: 48.3794, lng: 31.1656 },
             'russia': { lat: 61.5240, lng: 105.3188 },
             'israel': { lat: 31.0461, lng: 34.8516 },
@@ -231,11 +267,21 @@ export class PolymarketCollector extends BaseCollector {
             'iraq': { lat: 33.2232, lng: 43.6793 },
             'afghanistan': { lat: 33.9391, lng: 67.7100 },
             'usa': { lat: 37.0902, lng: -95.7129 },
-            'united states': { lat: 37.0902, lng: -95.7129 }
+            'united states': { lat: 37.0902, lng: -95.7129 },
+            'us ': { lat: 37.0902, lng: -95.7129 }, // US election
+            'fed ': { lat: 38.8921, lng: -77.0241 }, // Federal Reserve (DC)
+            'eu ': { lat: 50.8503, lng: 4.3517 }, // Brussels
+            'europe': { lat: 50.8503, lng: 4.3517 },
+            'nato': { lat: 50.879, lng: 4.426 }, // Brussels NATO HQ
+            'un ': { lat: 40.7489, lng: -73.9680 }, // NYC UN HQ
+            'venezuela': { lat: 6.4238, lng: -66.5897 },
+            'brazil': { lat: -14.2350, lng: -51.9253 }
         };
 
-        for (const [name, coords] of Object.entries(countries)) {
-            if (q.includes(name)) {
+        for (const [name, coords] of Object.entries(locations)) {
+            // Match whole word or start of string to avoid 'us' matching 'russia'
+            const regex = new RegExp(`\\b${name}\\b`, 'i');
+            if (regex.test(q)) {
                 return {
                     name: name.charAt(0).toUpperCase() + name.slice(1),
                     coords
@@ -245,7 +291,8 @@ export class PolymarketCollector extends BaseCollector {
 
         return {
             name: 'Global',
-            coords: { lat: 0, lng: 0 }
+            // Default to Mid-Atlantic for visibility
+            coords: { lat: 25.0, lng: -40.0 }
         };
     }
 

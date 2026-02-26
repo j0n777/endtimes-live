@@ -10,166 +10,192 @@ import {
 } from '../prophecyIndex';
 import { BookOpen, CheckCircle, Clock, CircleDashed, AlertTriangle, ChevronDown, ChevronRight, Filter, ShieldAlert } from 'lucide-react';
 
+// ... imports
+import { SEOHead } from './SEOHead';
+
 const ProphecyIntel: React.FC = () => {
+  // ... existing state ... 
   const [selectedCategory, setSelectedCategory] = useState<ProphecyCategory | 'ALL'>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<'ALL' | 'FULFILLED' | 'IN_PROGRESS' | 'PENDING'>('ALL');
   const [expandedProphecy, setExpandedProphecy] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [showIslamicSection, setShowIslamicSection] = useState(true);
 
-  // Filter Biblical Prophecies
-  const filteredBiblical = BIBLICAL_PROPHECIES.filter(prophecy => {
-    if (selectedCategory !== 'ALL' && prophecy.category !== selectedCategory) return false;
-    if (selectedStatus !== 'ALL' && prophecy.status !== selectedStatus) return false;
-    return true;
-  });
+  // DEEP LINKING: Check URL for prophecy ID
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const prophecyId = params.get('prophecy');
+    if (prophecyId) {
+      setExpandedProphecy(prophecyId);
+      // Scroll to element if possible (would need refs, deferring for now)
+    }
+  }, []);
 
-  // Filter Islamic Prophecies (only show if category is ALL or ISLAM_WARNING)
-  const showIslamic = (selectedCategory === 'ALL' || selectedCategory === 'ISLAM_WARNING') &&
-    (selectedStatus === 'ALL' || selectedStatus === 'PENDING' || selectedStatus === 'IN_PROGRESS'); // Most Islamic represent pending deceptions or in-progress setups
+  // SEO SCHEMA: Generate ClaimReview for expanded prophecy
+  const activeProphecy = React.useMemo(() => {
+    if (!expandedProphecy) return null;
+    return [...BIBLICAL_PROPHECIES, ...ISLAMIC_PROPHECIES].find(p => p.id === expandedProphecy);
+  }, [expandedProphecy]);
 
-  const filteredIslamic = showIslamic ? ISLAMIC_PROPHECIES : [];
+  const prophecySchema = React.useMemo(() => {
+    if (!activeProphecy) return null;
+    return {
+      "@context": "https://schema.org",
+      "@type": "ClaimReview",
+      "datePublished": "2024-01-01",
+      "url": `https://endtimes.live/?prophecy=${activeProphecy.id}`,
+      "itemReviewed": {
+        "@type": "Claim",
+        "author": {
+          "@type": "Person",
+          "name": "Biblical Prophet"
+        },
+        "datePublished": "0033",
+        "appearance": {
+          "@type": "CreativeWork",
+          "name": activeProphecy.scripture
+        }
+      },
+      "reviewRating": {
+        "@type": "Rating",
+        "ratingValue": activeProphecy.status === 'FULFILLED' ? 5 : (activeProphecy.status === 'IN_PROGRESS' ? 3 : 1),
+        "bestRating": 5,
+        "worstRating": 1,
+        "alternateName": activeProphecy.status
+      },
+      "author": {
+        "@type": "Organization",
+        "name": "End Times Monitor"
+      }
+    };
+  }, [activeProphecy]);
 
+  // --- FILTERING LOGIC ---
+  const filteredBiblical = React.useMemo(() => {
+    return BIBLICAL_PROPHECIES.filter(p => {
+      const matchCat = selectedCategory === 'ALL' || p.category === selectedCategory;
+      const matchStatus = selectedStatus === 'ALL' || p.status === selectedStatus;
+      return matchCat && matchStatus;
+    });
+  }, [selectedCategory, selectedStatus]);
+
+  const filteredIslamic = React.useMemo(() => {
+    // Only show if category is ALL or explicitly ISLAM_WARNING
+    if (selectedCategory !== 'ALL' && selectedCategory !== 'ISLAM_WARNING') return [];
+
+    // Islamic prophecies don't strictly follow Biblical status, but we can filter if needed.
+    // For now, assume they are mostly "IN_PROGRESS" or "PENDING" equivalents for warning purposes.
+    return ISLAMIC_PROPHECIES.filter(p => {
+      const matchStatus = selectedStatus === 'ALL' || p.status === selectedStatus;
+      return matchStatus;
+    });
+  }, [selectedCategory, selectedStatus]);
+
+  // --- RENDER HELPERS ---
   const getStatusColor = (status: string) => {
-    if (status === 'FULFILLED') return 'text-green-500 border-green-500';
-    if (status === 'IN_PROGRESS') return 'text-tactical-warn border-tactical-warn';
-    return 'text-gray-600 border-gray-600';
+    switch (status) {
+      case 'FULFILLED': return 'text-green-500 border-green-500/50 bg-green-900/10';
+      case 'IN_PROGRESS': return 'text-yellow-500 border-yellow-500/50 bg-yellow-900/10';
+      case 'PENDING': return 'text-gray-500 border-gray-600 bg-gray-800/20';
+      default: return 'text-gray-500 border-gray-600';
+    }
   };
 
-  const getWarningColor = (level?: string) => {
-    if (level === 'CRITICAL') return 'text-red-500 border-red-500';
-    if (level === 'HIGH') return 'text-orange-500 border-orange-500';
-    if (level === 'MEDIUM') return 'text-yellow-500 border-yellow-500';
-    return 'text-gray-500 border-gray-500';
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'FULFILLED': return <CheckCircle className="w-4 h-4" />;
+      case 'IN_PROGRESS': return <CircleDashed className="w-4 h-4 animate-spin-slow" />; // Ensure animate-spin-slow exists or use animate-spin
+      case 'PENDING': return <Clock className="w-4 h-4" />;
+      default: return <Clock className="w-4 h-4" />;
+    }
   };
 
-  const getIcon = (status: string) => {
-    if (status === 'FULFILLED') return <CheckCircle className="w-5 h-5" />;
-    if (status === 'IN_PROGRESS') return <Clock className="w-5 h-5" />;
-    return <CircleDashed className="w-5 h-5" />;
-  };
-
-  const toggleProphecy = (id: string) => {
-    setExpandedProphecy(expandedProphecy === id ? null : id);
-  };
-
-  const renderProphecyCard = (prophecy: ExtendedProphecyEvent, isIslamic: boolean = false) => {
+  const renderProphecyCard = (prophecy: ExtendedProphecyEvent, isIslamic: boolean) => {
     const isExpanded = expandedProphecy === prophecy.id;
+    const colorClass = isIslamic ? 'border-red-900/50 bg-red-950/20' : 'border-tactical-700 bg-tactical-900/40';
+    const accentColor = isIslamic ? 'text-red-500' : 'text-tactical-500';
 
     return (
-      <div key={prophecy.id} className="relative pl-8 md:pl-12 mb-6">
-        {/* Node on timeline */}
-        <div className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-[#050505] border-2 ${isIslamic ? 'border-red-600' : getStatusColor(prophecy.status)} flex items-center justify-center z-10`}>
-          <div className={`w-1.5 h-1.5 rounded-full ${prophecy.status === 'PENDING' ? 'bg-transparent' : 'bg-current'}`}></div>
+      <div
+        key={prophecy.id}
+        id={prophecy.id}
+        className={`mb-6 ml-8 relative border rounded-lg p-4 transition-all duration-300 ${colorClass} ${isExpanded ? 'shadow-[0_0_15px_rgba(0,0,0,0.5)] border-l-4 border-l-' + (isIslamic ? 'red-500' : 'tactical-500') : 'hover:border-opacity-100 border-opacity-50'}`}
+      >
+        {/* Timeline Dot */}
+        <div className={`absolute -left-[45px] top-6 w-5 h-5 rounded-full border-4 border-[#050505] flex items-center justify-center
+            ${prophecy.status === 'FULFILLED' ? 'bg-green-500' :
+            prophecy.status === 'IN_PROGRESS' ? 'bg-yellow-500' :
+              'bg-gray-600'}
+        `}>
         </div>
 
-        {/* Connecting Line */}
-        <div className="absolute left-[-2px] top-4 bottom-[-24px] w-0.5 bg-tactical-800 last:bg-transparent"></div>
-
-        {/* Content Card */}
-        <div className={`bg-tactical-900 border ${isIslamic ? 'border-red-900/50 bg-red-950/10' : 'border-tactical-800'} p-4 md:p-5 rounded hover:border-tactical-600 transition-colors group`}>
-          <div className="flex justify-between items-start mb-2 gap-2 flex-wrap">
-            <div className="flex items-center gap-2 flex-1">
-              <span className={`p-1 rounded bg-black/50 ${isIslamic ? 'text-red-500 border-red-500' : getStatusColor(prophecy.status)}`}>
-                {isIslamic ? <AlertTriangle className="w-5 h-5" /> : getIcon(prophecy.status)}
+        {/* Header Clickable */}
+        <div
+          className="cursor-pointer flex items-start justify-between gap-4"
+          onClick={() => setExpandedProphecy(isExpanded ? null : prophecy.id)}
+        >
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border ${getStatusColor(prophecy.status)}`}>
+                {prophecy.status.replace('_', ' ')}
               </span>
-              <h3 className={`text-base md:text-lg font-bold ${isIslamic ? 'text-red-100' : 'text-gray-100'}`}>{prophecy.title}</h3>
+              {isIslamic && <span className="text-[10px] font-bold uppercase text-red-500 border border-red-500/30 px-2 py-0.5 rounded">WARNING</span>}
+            </div>
+            <h3 className={`text-lg font-bold ${isIslamic ? 'text-red-100' : 'text-gray-100'}`}>{prophecy.title}</h3>
+            <div className={`text-sm font-serif italic opacity-80 mt-1 ${accentColor}`}>"{prophecy.scripture}"</div>
+          </div>
+          <div>
+            {isExpanded ? <ChevronDown className={`w-5 h-5 ${accentColor}`} /> : <ChevronRight className="w-5 h-5 text-gray-500" />}
+          </div>
+        </div>
+
+        {/* Expanded Content */}
+        {isExpanded && (
+          <div className="mt-4 pt-4 border-t border-gray-800 animate-fadeIn">
+            <p className="text-gray-300 leading-relaxed text-sm mb-4">{prophecy.description}</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-black/30 p-3 rounded">
+                <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Key Indicators</h4>
+                <ul className="space-y-1">
+                  {prophecy.relatedEvents?.map((ev, i) => (
+                    <li key={i} className="text-xs text-gray-400 flex items-start gap-2">
+                      <CircleDashed className="w-3 h-3 mt-0.5 shrink-0 opacity-50" />
+                      {ev}
+                    </li>
+                  )) || <li className="text-xs text-gray-600">No specific indicators listed.</li>}
+                </ul>
+              </div>
+
               {isIslamic && (
-                <span className="px-2 py-0.5 bg-red-900/50 border border-red-700 text-red-400 text-[10px] font-bold rounded animate-pulse">
-                  DECEPTION ALERT
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {prophecy.warningLevel && (
-                <span className={`px-2 py-1 text-[10px] font-mono rounded border ${getWarningColor(prophecy.warningLevel)} bg-black/50`}>
-                  {prophecy.warningLevel}
-                </span>
-              )}
-              <span className="text-xs font-mono px-2 py-1 rounded bg-black text-gray-500 border border-tactical-800">
-                {prophecy.scripture}
-              </span>
-            </div>
-          </div>
-
-          <p className="text-gray-400 text-sm leading-relaxed mb-3">
-            {prophecy.description}
-          </p>
-
-          {/* Expand/Collapse Button */}
-          {(prophecy.modernEvidence?.length || prophecy.monitoringTips?.length) && (
-            <button
-              onClick={() => toggleProphecy(prophecy.id)}
-              className={`flex items-center gap-2 text-xs ${isIslamic ? 'text-red-400 hover:text-red-300' : 'text-tactical-500 hover:text-white'} transition-colors mb-3`}
-            >
-              {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-              {isExpanded ? 'Hide Intel' : 'View Intel & Evidence'}
-            </button>
-          )}
-
-          {/* Expanded Details */}
-          {isExpanded && (
-            <div className={`mt-4 space-y-4 border-t ${isIslamic ? 'border-red-900/30' : 'border-tactical-800'} pt-4`}>
-              {/* Modern Evidence */}
-              {prophecy.modernEvidence && prophecy.modernEvidence.length > 0 && (
-                <div>
-                  <h4 className={`text-xs uppercase mb-2 flex items-center gap-2 ${isIslamic ? 'text-red-400' : 'text-tactical-500'}`}>
-                    <CheckCircle className="w-3 h-3" />
-                    Modern Evidence:
-                  </h4>
-                  <ul className="space-y-1">
-                    {prophecy.modernEvidence.map((evidence, idx) => (
-                      <li key={idx} className="text-xs text-gray-400 flex items-start gap-2">
-                        <span className={`${isIslamic ? 'text-red-500' : 'text-tactical-500'} mt-0.5`}>▸</span>
-                        <span>{evidence}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Monitoring Tips */}
-              {prophecy.monitoringTips && prophecy.monitoringTips.length > 0 && (
-                <div>
-                  <h4 className="text-xs text-yellow-500 uppercase mb-2 flex items-center gap-2">
-                    <AlertTriangle className="w-3 h-3" />
-                    Monitoring Focus:
-                  </h4>
-                  <ul className="space-y-1">
-                    {prophecy.monitoringTips.map((tip, idx) => (
-                      <li key={idx} className="text-xs text-gray-400 flex items-start gap-2">
-                        <span className="text-yellow-500 mt-0.5">⚠</span>
-                        <span>{tip}</span>
-                      </li>
-                    ))}
-                  </ul>
+                <div className="bg-red-950/30 p-3 rounded border border-red-900/30">
+                  <h4 className="text-xs font-bold text-red-500 uppercase mb-2 flex items-center gap-2"><AlertTriangle className="w-3 h-3" /> Deception Point</h4>
+                  <p className="text-xs text-red-200/70 leading-relaxed">
+                    This prophecy mirrors Biblical end-time events but inverts the roles (e.g., the Mahdi sharing characteristics with the Biblical Antichrist).
+                  </p>
                 </div>
               )}
             </div>
-          )}
-
-          {/* Footer */}
-          <div className="flex items-center justify-between text-[10px] text-gray-600 uppercase tracking-wider mt-3">
-            <div className="flex items-center gap-3">
-              <span className="px-2 py-0.5 bg-tactical-800 rounded">
-                {CATEGORY_LABELS[prophecy.category] || prophecy.category}
-              </span>
-              <span>STATUS: {STATUS_LABELS[prophecy.status] || prophecy.status.replace('_', ' ')}</span>
-            </div>
-            {(prophecy.status === 'IN_PROGRESS' || isIslamic) && (
-              <span className={`${isIslamic ? 'text-red-500' : 'text-tactical-warn'} animate-pulse`}>
-                ACTIVE MONITORING
-              </span>
-            )}
           </div>
-        </div>
+        )}
       </div>
     );
   };
 
   return (
     <div className="h-full bg-[#050505] text-gray-200 font-mono p-4 md:p-6 overflow-y-auto custom-scrollbar">
+      {/* Inject Dynamic SEO if Prophecy Selected */}
+      {activeProphecy && (
+        <SEOHead
+          title={`Prophecy: ${activeProphecy.title}`}
+          description={`${activeProphecy.scripture} - ${activeProphecy.description}`}
+          schema={prophecySchema}
+          type="article"
+        />
+      )}
+
       <div className="max-w-6xl mx-auto">
+        {/* ... rest of render ... */}
         {/* Header */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 border-b border-tactical-700 pb-4 gap-4">
           <div className="flex items-center gap-3">
@@ -219,8 +245,8 @@ const ProphecyIntel: React.FC = () => {
                   <button
                     onClick={() => setSelectedCategory('ALL')}
                     className={`px-3 py-1 text-xs rounded transition-colors ${selectedCategory === 'ALL'
-                        ? 'bg-tactical-500 text-black font-bold'
-                        : 'bg-tactical-800 text-gray-400 hover:bg-tactical-700'
+                      ? 'bg-tactical-500 text-black font-bold'
+                      : 'bg-tactical-800 text-gray-400 hover:bg-tactical-700'
                       }`}
                   >
                     ALL ({PROPHECY_STATS.total})
@@ -235,8 +261,8 @@ const ProphecyIntel: React.FC = () => {
                         key={cat}
                         onClick={() => setSelectedCategory(cat as any)}
                         className={`px-3 py-1 text-xs rounded transition-colors ${selectedCategory === cat
-                            ? 'bg-tactical-500 text-black font-bold'
-                            : 'bg-tactical-800 text-gray-400 hover:bg-tactical-700'
+                          ? 'bg-tactical-500 text-black font-bold'
+                          : 'bg-tactical-800 text-gray-400 hover:bg-tactical-700'
                           }`}
                       >
                         {CATEGORY_LABELS[cat]}
@@ -253,8 +279,8 @@ const ProphecyIntel: React.FC = () => {
                   <button
                     onClick={() => setSelectedStatus('ALL')}
                     className={`px-3 py-1 text-xs rounded transition-colors ${selectedStatus === 'ALL'
-                        ? 'bg-tactical-500 text-black font-bold'
-                        : 'bg-tactical-800 text-gray-400 hover:bg-tactical-700'
+                      ? 'bg-tactical-500 text-black font-bold'
+                      : 'bg-tactical-800 text-gray-400 hover:bg-tactical-700'
                       }`}
                   >
                     ALL
@@ -262,8 +288,8 @@ const ProphecyIntel: React.FC = () => {
                   <button
                     onClick={() => setSelectedStatus('FULFILLED')}
                     className={`px-3 py-1 text-xs rounded transition-colors ${selectedStatus === 'FULFILLED'
-                        ? 'bg-green-600 text-white font-bold'
-                        : 'bg-green-900/30 text-green-400 hover:bg-green-900/50'
+                      ? 'bg-green-600 text-white font-bold'
+                      : 'bg-green-900/30 text-green-400 hover:bg-green-900/50'
                       }`}
                   >
                     STATUS_LABELS.FULFILLED
@@ -271,8 +297,8 @@ const ProphecyIntel: React.FC = () => {
                   <button
                     onClick={() => setSelectedStatus('IN_PROGRESS')}
                     className={`px-3 py-1 text-xs rounded transition-colors ${selectedStatus === 'IN_PROGRESS'
-                        ? 'bg-yellow-600 text-black font-bold'
-                        : 'bg-yellow-900/30 text-yellow-400 hover:bg-yellow-900/50'
+                      ? 'bg-yellow-600 text-black font-bold'
+                      : 'bg-yellow-900/30 text-yellow-400 hover:bg-yellow-900/50'
                       }`}
                   >
                     STATUS_LABELS.IN_PROGRESS
@@ -280,8 +306,8 @@ const ProphecyIntel: React.FC = () => {
                   <button
                     onClick={() => setSelectedStatus('PENDING')}
                     className={`px-3 py-1 text-xs rounded transition-colors ${selectedStatus === 'PENDING'
-                        ? 'bg-gray-600 text-white font-bold'
-                        : 'bg-gray-900/30 text-gray-400 hover:bg-gray-900/50'
+                      ? 'bg-gray-600 text-white font-bold'
+                      : 'bg-gray-900/30 text-gray-400 hover:bg-gray-900/50'
                       }`}
                   >
                     STATUS_LABELS.PENDING

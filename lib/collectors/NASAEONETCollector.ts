@@ -86,7 +86,10 @@ export class NASAEONETCollector extends BaseCollector {
                 location: this.getLocationName(coords.lat, coords.lng),
                 coordinates: coords,
                 timestamp: latestGeometry.date || new Date().toISOString(),
-                sourceUrl: event.sources[0]?.url || event.link,
+                // Fix: Avoid linking to .tcw/.json/download files directly
+                sourceUrl: (event.link && !event.link.includes('download'))
+                    ? event.link
+                    : `https://eonet.gsfc.nasa.gov/`,
             };
         });
 

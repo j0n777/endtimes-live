@@ -4,11 +4,14 @@ import { MonitorEvent, EventCategory, Severity } from '../../types';
 
 // Using a reliable Nitter instance for RSS
 const NITTER_HOST = 'https://nitter.privacydev.net';
+// Default OSINT Accounts for tactical breaking news
 const ACCOUNTS = [
     'sentdefender',
     'Faytuks',
     'WarMonitors',
-    'OSINTtechnical'
+    'OSINTtechnical',
+    'disclosetv',
+    'Maks_NAFO_FELLA'
 ];
 
 /**
@@ -17,16 +20,21 @@ const ACCOUNTS = [
  * Data: Breaking news, OSINT from X/Twitter
  */
 export class TwitterCollector extends BaseCollector {
-    constructor(supabase: SupabaseClient) {
+    private keywords: string[];
+
+    constructor(supabase: SupabaseClient, keywords?: string[]) {
         const config: CollectorConfig = {
             name: 'TWITTER',
-            cacheDurationSeconds: 300,
+            cacheDurationSeconds: 180,
             rateLimitPerMinute: 10,
             maxRetries: 2,
             circuitBreakerThreshold: 3,
             circuitBreakerTimeout: 1800
         };
         super(config, supabase);
+        this.keywords = keywords && keywords.length > 0
+            ? keywords.map(k => k.toLowerCase())
+            : ['breaking', 'alert', 'urgent', 'war', 'strike', 'ww3', 'nuclear'];
     }
 
     protected async fetchData(): Promise<MonitorEvent[]> {
@@ -61,7 +69,9 @@ export class TwitterCollector extends BaseCollector {
                     location: 'Global', // Would need complex geocoding
                     coordinates: { lat: 0, lng: 0 },
                     timestamp: new Date(item.pubDate).toISOString(),
-                    sourceUrl: item.link
+                    sourceUrl: item.link,
+                    mediaUrl: item.mediaUrl,
+                    mediaType: item.mediaUrl ? 'image' : undefined
                 })));
 
                 // Nice delay
@@ -90,10 +100,16 @@ export class TwitterCollector extends BaseCollector {
         const items: any[] = [];
 
         itemElements.forEach(el => {
+            const description = el.querySelector('description')?.textContent || '';
+            const imgMatch = description.match(/<img[^>]+src="([^">]+)"/);
+            const mediaUrl = imgMatch ? imgMatch[1] : undefined;
+
             items.push({
                 title: el.querySelector('title')?.textContent || '',
                 link: el.querySelector('link')?.textContent || '',
-                pubDate: el.querySelector('pubDate')?.textContent || new Date().toISOString()
+                pubDate: el.querySelector('pubDate')?.textContent || new Date().toISOString(),
+                description,
+                mediaUrl
             });
         });
 
@@ -102,7 +118,7 @@ export class TwitterCollector extends BaseCollector {
 
     private isRelevant(text: string): boolean {
         const t = text.toLowerCase();
-        return t.includes('breaking') || t.includes('alert') || t.includes('urgent') || t.includes('war') || t.includes('strike');
+        return this.keywords.some(k => t.includes(k));
     }
 
     private determineSeverity(text: string): Severity {

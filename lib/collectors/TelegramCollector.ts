@@ -1,9 +1,9 @@
+
 import { BaseCollector, CollectorConfig } from './BaseCollector';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { MonitorEvent, EventCategory, Severity } from '../../types';
 import { getGeocodingService } from '../services/GeocodingService';
 
-// Priority channels for intelligence
 // Priority channels for intelligence
 const DEFAULT_CHANNELS = [
     'geopolitics_live',
@@ -13,10 +13,6 @@ const DEFAULT_CHANNELS = [
     'insiderpaper'
 ];
 
-const TARGET_CHANNELS = process.env.TELEGRAM_CHANNELS
-    ? process.env.TELEGRAM_CHANNELS.split(',').map(c => c.trim())
-    : DEFAULT_CHANNELS;
-
 interface TelegramPost {
     id: string;
     channel: string;
@@ -24,6 +20,8 @@ interface TelegramPost {
     date: string;
     link: string;
     views?: string;
+    mediaUrl?: string;
+    mediaType?: 'image' | 'video';
 }
 
 /**
@@ -33,10 +31,12 @@ interface TelegramPost {
  */
 export class TelegramCollector extends BaseCollector {
     private geocoder = getGeocodingService();
+    private channels: string[];
+    private region: string;
 
-    constructor(supabase: SupabaseClient) {
+    constructor(supabase: SupabaseClient, region: string = 'GLOBAL', customChannels?: string[]) {
         const config: CollectorConfig = {
-            name: 'TELEGRAM',
+            name: `TELEGRAM_${region}`,
             cacheDurationSeconds: 300, // 5 minutes (very fast moving)
             rateLimitPerMinute: 10,
             maxRetries: 2,
@@ -44,15 +44,27 @@ export class TelegramCollector extends BaseCollector {
             circuitBreakerTimeout: 600
         };
         super(config, supabase);
+        this.region = region;
+
+        if (customChannels && customChannels.length > 0) {
+            this.channels = customChannels;
+        } else {
+            // Fallback to Env or Defaults for Global
+            this.channels = process.env.TELEGRAM_CHANNELS
+                ? process.env.TELEGRAM_CHANNELS.split(',').map(c => c.trim())
+                : DEFAULT_CHANNELS;
+        }
     }
 
     protected async fetchData(): Promise<MonitorEvent[]> {
         const allEvents: MonitorEvent[] = [];
+        // Use this.channels instead of global TARGET_CHANNELS
+        const targetList = this.channels;
 
         // Process channels in parallel but limit concurrency to avoid IP blocks
         // We'll process them in chunks of 2
-        for (let i = 0; i < TARGET_CHANNELS.length; i += 2) {
-            const chunk = TARGET_CHANNELS.slice(i, i + 2);
+        for (let i = 0; i < targetList.length; i += 2) {
+            const chunk = targetList.slice(i, i + 2);
             const promises = chunk.map(channel => this.fetchChannel(channel));
 
             const results = await Promise.allSettled(promises);
@@ -67,7 +79,7 @@ export class TelegramCollector extends BaseCollector {
             await new Promise(r => setTimeout(r, 1000));
         }
 
-        console.log(`📱 Telegram: Collected ${allEvents.length} total events from ${TARGET_CHANNELS.length} channels`);
+        console.log(`📱 Telegram [${this.region}]: Collected ${allEvents.length} total events from ${targetList.length} channels`);
 
         // Deduplicate based on similar text (simple approach) or ID
         // Returning top 30 most recent
@@ -153,6 +165,29 @@ export class TelegramCollector extends BaseCollector {
             const viewsElement = element.querySelector('.tgme_widget_message_views');
             const views = viewsElement?.textContent || '0';
 
+            // Extract Media (Images/Videos)
+            let mediaUrl: string | undefined = undefined;
+            let mediaType: 'image' | 'video' | undefined = undefined;
+
+            const photoWrap = element.querySelector('.tgme_widget_message_photo_wrap');
+            if (photoWrap) {
+                const style = photoWrap.getAttribute('style') || '';
+                const match = style.match(/background-image:url\('([^']+)'\)/);
+                if (match && match[1]) {
+                    mediaUrl = match[1];
+                    mediaType = 'image';
+                }
+            } else {
+                const videoEl = element.querySelector('.tgme_widget_message_video');
+                if (videoEl) {
+                    const src = videoEl.getAttribute('src');
+                    if (src) {
+                        mediaUrl = src;
+                        mediaType = 'video';
+                    }
+                }
+            }
+
             if (dateStr) {
                 posts.push({
                     id,
@@ -160,7 +195,9 @@ export class TelegramCollector extends BaseCollector {
                     text,
                     date: dateStr,
                     link,
-                    views
+                    views,
+                    mediaUrl,
+                    mediaType
                 });
             }
         });
@@ -194,23 +231,38 @@ export class TelegramCollector extends BaseCollector {
         // Geocoding
         const geocodeRequest = {
             text: post.text,
-            priority: severity === 'CRITICAL' ? 'high' : 'normal'
+            priority: severity === 'CRITICAL' ? 'high' : 'normal',
+            context: {
+                // Provide region as context to help disambiguate (e.g. "Cordoba" -> Cordoba, Argentina vs Spain)
+                country: this.region !== 'GLOBAL' && !this.region.includes('_') ? this.region : undefined
+            }
         };
-
-        // For now, simple keyword location or use geocoder if critical
-        // Using a simplified location extraction to be faster and save AI tokens for now
-        // Only invoke AI for HIGH priority
 
         let location = 'Global';
         let coordinates = { lat: 0, lng: 0 };
 
-        if (severity === 'CRITICAL' || severity === 'HIGH') {
+        // ATTEMPT GEOCODING FOR ALL EVENTS to fix positioning
+        try {
             const geoResult = await this.geocoder.geocode(geocodeRequest);
             if (geoResult.success && geoResult.location) {
-                location = geoResult.location.name;
+                location = geoResult.location.city || geoResult.location.region || geoResult.location.country || geoResult.location.name || location;
                 coordinates = { lat: geoResult.location.lat, lng: geoResult.location.lng };
+            } else {
+                // Fallback to Region Center if geocoding fails
+                if (this.region !== 'GLOBAL') {
+                    location = this.region.replace('_', ' ');
+                    // We rely on BaseCollector or subsequent logic to set default Lat/Lng for region if (0,0)
+                }
+            }
+        } catch (e) {
+            console.warn(`Geocoding failed for ${post.id}:`, e);
+            if (this.region !== 'GLOBAL') {
+                location = this.region.replace('_', ' ');
             }
         }
+
+        // Small delay to be nice to rate limits since we are processing more now
+        await new Promise(r => setTimeout(r, 500));
 
         return {
             id: `tg_${post.channel}_${post.id}`,
@@ -223,7 +275,10 @@ export class TelegramCollector extends BaseCollector {
             location,
             coordinates,
             timestamp: post.date,
-            sourceUrl: post.link
+            priority: severity === 'CRITICAL' ? 1 : severity === 'HIGH' ? 2 : 3,
+            sourceUrl: `https://t.me/s/${post.channel}/${post.id}`,
+            mediaUrl: post.mediaUrl,
+            mediaType: post.mediaType
         };
     }
 

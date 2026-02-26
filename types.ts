@@ -61,6 +61,8 @@ export interface MonitorEvent {
   coordinates: { lat: number; lng: number };
   propheticReference?: string;
   sourceUrl?: string;
+  mediaUrl?: string;
+  mediaType?: 'image' | 'video';
   // Weather Alert specific fields
   alertGeometry?: WeatherAlertGeometry; // Polygon area for weather alerts
   eventType?: string; // Specific event type (e.g., "Tornado Warning")
@@ -116,6 +118,13 @@ export interface AdminConfig {
   // Telegram Bot Integration (Simplified)
   telegramBotToken?: string;        // Bot token from @BotFather
   telegramChannelIds: string[];     // Channel IDs to monitor (e.g., @channelname or -100123456789)
+
+  // X/Twitter Intelligence
+  twitterEnabled?: boolean;
+  twitterKeywords?: string[];
+
+  // Aviation Intelligence
+  aviationEnabled?: boolean;
 
   // Legacy API Keys
   newsApiKey?: string;              // Free tier available

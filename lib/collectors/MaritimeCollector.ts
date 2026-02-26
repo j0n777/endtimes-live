@@ -53,8 +53,14 @@ export class MaritimeCollector extends BaseCollector {
                         if (geoRes.success && geoRes.location) {
                             coordinates = { lat: geoRes.location.lat, lng: geoRes.location.lng };
                             location = geoRes.location.name;
+                        } else {
+                             location = 'International Waters';
                         }
-                    } catch (e) { /* ignore */ }
+                    } catch (e) { 
+                        location = 'International Waters';
+                    }
+                } else {
+                     location = 'International Waters';
                 }
 
                 events.push({

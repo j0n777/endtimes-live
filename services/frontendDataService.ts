@@ -12,8 +12,8 @@ import { MonitorEvent } from '../types';
  * ~10-20KB payload for 300 events
  */
 export async function loadMapEvents(
-    priorityMax: number = 2,
-    limit: number = 300
+    priorityMax: number = 3,
+    limit: number = 500
 ): Promise<MonitorEvent[]> {
     try {
         const { data, error } = await supabase.rpc('get_map_events', {
@@ -143,12 +143,12 @@ export async function loadAllEvents(): Promise<MonitorEvent[]> {
     try {
         const { data, error } = await supabase
             .from('events')
-            .select('id, title, description, category, severity, source_type, source_name, location, lat, lng, event_timestamp, source_url, casualties')
+            .select('id, title, description, category, severity, source_type, source_name, location, lat, lng, event_timestamp, source_url, casualties, media_url, media_type')
             // Prophecy Persistence: Ensure we catch older fulfilled prophecies if needed, 
-            // but currently we just fetch top 500 by priority/recency.
+            // but currently we just fetch top 150 by priority/recency.
             //.order('priority', { ascending: true }) // Disabled to ensure recent events show up first
             .order('event_timestamp', { ascending: false }) // Use event_timestamp (reliable) instead of detected_at
-            .limit(500);
+            .limit(150);
 
         if (error) {
             console.error('Error loading all events:', error);
@@ -170,6 +170,8 @@ export async function loadAllEvents(): Promise<MonitorEvent[]> {
             },
             timestamp: event.event_timestamp,
             sourceUrl: event.source_url,
+            mediaUrl: event.media_url,
+            mediaType: event.media_type,
             conflictLevel: event.casualties ? `${event.casualties} casualties` : undefined
         }));
 

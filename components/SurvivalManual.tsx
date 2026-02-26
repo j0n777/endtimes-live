@@ -7,6 +7,16 @@ const SurvivalManual: React.FC = () => {
   const [selectedGuide, setSelectedGuide] = useState<SurvivalGuide>(SURVIVAL_GUIDES[0]);
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
 
+  // Deep Link Support
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const guideId = params.get('guide');
+    if (guideId) {
+      const targetGuide = SURVIVAL_GUIDES.find(g => g.id === guideId);
+      if (targetGuide) setSelectedGuide(targetGuide);
+    }
+  }, []);
+
   const toggleCheck = (id: string) => {
     setCheckedItems(prev => ({ ...prev, [id]: !prev[id] }));
   };
@@ -22,8 +32,26 @@ const SurvivalManual: React.FC = () => {
     }
   };
 
+  const survivalSchema = {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    "name": `Survival Protocol: ${selectedGuide.title}`,
+    "description": selectedGuide.content.substring(0, 150).replace(/[#*]/g, '') + '...',
+    "step": selectedGuide.checklist ? selectedGuide.checklist.map(item => ({
+      "@type": "HowToStep",
+      "text": item.text
+    })) : [],
+    "image": "https://endtimes.live/logo_etm.jpg"
+  };
+
   return (
     <div className="flex h-full bg-[#050505] text-gray-200 font-mono">
+      <SEOHead
+        title={`Survival Protocol: ${selectedGuide.title}`}
+        description={`Emergency preparedness guide for ${selectedGuide.category}. ${selectedGuide.content.substring(0, 100).replace(/[#*]/g, '')}...`}
+        schema={survivalSchema}
+        type="article"
+      />
       {/* Sidebar List */}
       <div className="w-64 border-r border-tactical-800 flex flex-col overflow-y-auto">
         <div className="p-4 border-b border-tactical-800 bg-tactical-900">
@@ -51,15 +79,15 @@ const SurvivalManual: React.FC = () => {
       <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
         <div className="max-w-3xl mx-auto">
           <div className="flex items-center gap-4 mb-8 pb-4 border-b border-tactical-700">
-             <div className="p-3 bg-tactical-800 rounded text-tactical-500">
-               {getIcon(selectedGuide.category)}
-             </div>
-             <div>
-               <h1 className="text-2xl font-bold text-white tracking-wider">{selectedGuide.title}</h1>
-               <span className="text-xs text-tactical-500 bg-tactical-900 px-2 py-1 rounded border border-tactical-700">
-                 PROTOCOL: {selectedGuide.category}_V1
-               </span>
-             </div>
+            <div className="p-3 bg-tactical-800 rounded text-tactical-500">
+              {getIcon(selectedGuide.category)}
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-white tracking-wider">{selectedGuide.title}</h1>
+              <span className="text-xs text-tactical-500 bg-tactical-900 px-2 py-1 rounded border border-tactical-700">
+                PROTOCOL: {selectedGuide.category}_V1
+              </span>
+            </div>
           </div>
 
           {/* Checklist Section */}
@@ -68,13 +96,13 @@ const SurvivalManual: React.FC = () => {
               <h3 className="text-sm font-bold text-tactical-warn mb-3 uppercase tracking-widest">Readiness Checklist</h3>
               <div className="space-y-2">
                 {selectedGuide.checklist.map(item => (
-                  <div 
-                    key={item.id} 
+                  <div
+                    key={item.id}
                     onClick={() => toggleCheck(item.id)}
                     className="flex items-center gap-3 cursor-pointer group hover:bg-tactical-800/50 p-1 rounded"
                   >
-                    {checkedItems[item.id] ? 
-                      <CheckSquare className="w-5 h-5 text-tactical-500" /> : 
+                    {checkedItems[item.id] ?
+                      <CheckSquare className="w-5 h-5 text-tactical-500" /> :
                       <Square className="w-5 h-5 text-gray-600 group-hover:text-gray-400" />
                     }
                     <span className={`text-sm ${checkedItems[item.id] ? 'text-gray-500 line-through' : 'text-gray-300'}`}>
@@ -88,29 +116,31 @@ const SurvivalManual: React.FC = () => {
 
           {/* Markdown Content */}
           <div className="prose prose-invert prose-sm max-w-none font-sans">
-             {selectedGuide.content.split('\n').map((line, i) => {
-                if (line.startsWith('###')) {
-                  return <h3 key={i} className="text-lg font-mono font-bold text-tactical-500 mt-6 mb-3 border-l-4 border-tactical-500 pl-3">{line.replace('###', '')}</h3>;
-                }
-                if (line.startsWith('-')) {
-                  return (
-                    <div key={i} className="flex gap-2 mb-2 ml-4">
-                      <span className="text-tactical-500">•</span>
-                      <span className="text-gray-300">{line.replace('-', '')}</span>
-                    </div>
-                  );
-                }
-                if (line.startsWith('**')) {
-                   // Simple bold parser
-                   return <p key={i} className="mb-4 text-gray-300 font-bold">{line.replace(/\*\*/g, '')}</p>
-                }
-                return <p key={i} className="mb-4 text-gray-300 leading-relaxed">{line}</p>;
-             })}
+            {selectedGuide.content.split('\n').map((line, i) => {
+              if (line.startsWith('###')) {
+                return <h3 key={i} className="text-lg font-mono font-bold text-tactical-500 mt-6 mb-3 border-l-4 border-tactical-500 pl-3">{line.replace('###', '')}</h3>;
+              }
+              if (line.startsWith('-')) {
+                return (
+                  <div key={i} className="flex gap-2 mb-2 ml-4">
+                    <span className="text-tactical-500">•</span>
+                    <span className="text-gray-300">{line.replace('-', '')}</span>
+                  </div>
+                );
+              }
+              if (line.startsWith('**')) {
+                // Simple bold parser
+                return <p key={i} className="mb-4 text-gray-300 font-bold">{line.replace(/\*\*/g, '')}</p>
+              }
+              return <p key={i} className="mb-4 text-gray-300 leading-relaxed">{line}</p>;
+            })}
           </div>
         </div>
       </div>
     </div>
   );
 };
+
+import { SEOHead } from './SEOHead';
 
 export default SurvivalManual;

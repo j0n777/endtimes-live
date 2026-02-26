@@ -14,11 +14,14 @@ import { CyberAttacksCollector } from './CyberAttacksCollector';
 import { VIXCollector } from './VIXCollector';
 import { EmbassyCollector } from './EmbassyCollector';
 import { InternetShutdownsCollector } from './InternetShutdownsCollector';
+import { FlightCollector } from './FlightCollector';
 import { AviationCollector } from './AviationCollector';
 import { MaritimeCollector } from './MaritimeCollector';
-import { NewsRSSCollector } from './NewsRSSCollector';
+// import { NewsRSSCollector } from './NewsRSSCollector'; // REPLACED
+import { RegionalNewsCollector, MonitorRegion } from './RegionalNewsCollector';
 import { NewsApiAICollector } from './NewsApiAICollector';
 import { AskNewsCollector } from './AskNewsCollector';
+import { YouTubeLiveCollector } from './YouTubeLiveCollector';
 import { MonitorEvent } from '../../types';
 
 /**
@@ -42,28 +45,46 @@ export class CollectorOrchestrator {
             new PolymarketCollector(supabase),
             new WHOCollector(supabase),
             new GDELTCollector(supabase),
-            new TelegramCollector(supabase),
+
+            // Regional Telegram Collectors (Specific Intel)
+            new TelegramCollector(supabase, 'BRAZIL', ['g1_noticias', 'metropoles', 'midianinja', 'folha']),
+            new TelegramCollector(supabase, 'SOUTH_AMERICA', ['infobae', 'mercopress', 'warzone593', 'latam_intel']),
+            new TelegramCollector(supabase, 'EUROPE', ['disclosetv', 'bellumpacta_news', 'bellingcat', 'geopolitics_live']),
+            new TelegramCollector(supabase, 'AFRICA', ['allafrica', 'africanews', 'sabcnews']),
+            new TelegramCollector(supabase, 'RUSSIA_ASIA', ['intel_slava_z', 'rybar', 'rt_news', 'scmpnews']),
+            new TelegramCollector(supabase, 'NORTH_AMERICA', ['insiderpaper', 'police_frequency', 'breaking911', 'disclosetv']),
 
             // Security/Tech
             new CyberAttacksCollector(supabase),
             new InternetShutdownsCollector(supabase),
 
             // Alerts
-            // new WeatherNWSCollector(supabase), // API issues (400) + redundant with GDACS
+            new WeatherNWSCollector(supabase),
             new EmbassyCollector(supabase),
             new VIXCollector(supabase),
 
             // Transport
+            new FlightCollector(),
             new AviationCollector(supabase),
             new MaritimeCollector(supabase),
 
-            // General News
-            new NewsRSSCollector(supabase),
+            // Regional News (Staggered Groups)
+            new RegionalNewsCollector(supabase, MonitorRegion.BRAZIL),
+            new RegionalNewsCollector(supabase, MonitorRegion.SOUTH_AMERICA),
+            new RegionalNewsCollector(supabase, MonitorRegion.EUROPE),
+            new RegionalNewsCollector(supabase, MonitorRegion.NORTH_AMERICA),
+            new RegionalNewsCollector(supabase, MonitorRegion.AFRICA),
+            new RegionalNewsCollector(supabase, MonitorRegion.RUSSIA_ASIA),
+            // new NewsRSSCollector(supabase), // DEPRECATED
+
             new NewsApiAICollector(supabase),
             new AskNewsCollector(supabase),
 
             // Social (Unstable)
             new TwitterCollector(supabase),
+
+            // Video Intelligence
+            new YouTubeLiveCollector(supabase),
 
             // Protected (Rate limits / API keys)
             new ACLEDCollector(supabase),
@@ -73,6 +94,8 @@ export class CollectorOrchestrator {
 
     /**
      * Run all collectors that are due for refresh
+     * Default behavior: Runs everything parallel. 
+     * Staggered logic should be called by the scheduler (main loop).
      */
     async runAllCollectors(): Promise<{
         total: number;
@@ -86,11 +109,21 @@ export class CollectorOrchestrator {
             error?: string;
         }>;
     }> {
-        console.log('🚀 Starting data collection run...');
-        const startTime = Date.now();
+        console.log('🚀 Starting FULL data collection run...');
 
+        // For Staggered Verification, we can also force run specific sets here if needed.
+        // But assuming this is "Run All", we do parallel.
+
+        return await this.executeCollectors(this.collectors);
+    }
+
+    /**
+     * Helper to execute a list of collectors
+     */
+    private async executeCollectors(collectorsToRun: BaseCollector[]) {
+        const startTime = Date.now();
         const results = await Promise.allSettled(
-            this.collectors.map(async collector => {
+            collectorsToRun.map(async collector => {
                 const collectorName = (collector as any).config.name;
                 try {
                     const events = await collector.collect();
@@ -138,40 +171,64 @@ export class CollectorOrchestrator {
                     });
                 }
             } else {
+                // Should not happen with Promise.allSettled
                 errorCount++;
-                summary.push({
-                    collector: `collector_${index}`,
-                    status: 'error',
-                    eventCount: 0,
-                    error: result.reason?.message || 'Unknown error'
-                });
             }
         });
 
         const duration = Date.now() - startTime;
-
-        console.log(`\n✅ Collection complete in ${duration}ms:`);
-        console.log(`   • ${successCount} succeeded`);
-        console.log(`   • ${errorCount} failed`);
-        console.log(`   • ${totalEvents} total events collected\n`);
-
-        // Log summary to database
-        await this.logCollectionRun({
-            total: this.collectors.length,
-            successful: successCount,
-            failed: errorCount,
-            totalEvents,
-            duration,
-            timestamp: new Date().toISOString()
-        });
+        console.log(`\n✅ Collection Batch complete in ${duration}ms: ${successCount} OK, ${errorCount} Fail`);
 
         return {
-            total: this.collectors.length,
+            total: collectorsToRun.length,
             successful: successCount,
             failed: errorCount,
             totalEvents,
             results: summary
         };
+    }
+
+    /**
+     * Run Staggered Update Cycle
+     * T+0: South America, Brazil
+     * T+3: North America
+     * T+6: Europe
+     * T+9: Africa
+     * T+12: Russia/Asia
+     * Loop restarts every 15 min.
+     */
+    async runStaggeredCycle(minuteOffset: number) {
+        // Group Collectors
+        const groups: Record<number, string[]> = {
+            0: ['NEWS_SOUTH_AMERICA', 'NEWS_BRAZIL', 'TELEGRAM_SOUTH_AMERICA', 'TELEGRAM_BRAZIL', 'GDACS', 'VIX_INDEX'], // Critical Local + Fast Alerts
+            3: ['NEWS_NORTH_AMERICA', 'TELEGRAM_NORTH_AMERICA', 'POLYMARKET', 'AVIATION_HERALD'],
+            6: ['NEWS_EUROPE', 'TELEGRAM_EUROPE', 'MARITIME_NEWS'],
+            9: ['NEWS_AFRICA', 'TELEGRAM_AFRICA', 'WHO_OUTBREAKS', 'INTERNET_SHUTDOWNS'],
+            12: ['NEWS_RUSSIA_ASIA', 'TELEGRAM_RUSSIA_ASIA', 'CYBER_ATTACKS', 'NASA_EONET'] // Deep intel
+        };
+
+        // Determine which group to run based on current minute modulo 15
+        // Ideally this is called every minute, and we check if we match a slot.
+        // Or passed explicit offset.
+
+        // Find closest bucket
+        const bucket = Object.keys(groups)
+            .map(Number)
+            .reduce((prev, curr) => Math.abs(curr - minuteOffset) < Math.abs(prev - minuteOffset) ? curr : prev);
+
+        if (Math.abs(bucket - minuteOffset) > 1) {
+            console.log(`⏳ No scheduled tasks for minute ${minuteOffset} (Next bucket: ${bucket})`);
+            return;
+        }
+
+        const targetNames = groups[bucket];
+        console.log(`🕒 Staggered Update [Minute ${minuteOffset}]: Running ${targetNames.join(', ')}`);
+
+        const collectorsToRun = this.collectors.filter(c => targetNames.includes((c as any).config.name));
+
+        if (collectorsToRun.length > 0) {
+            await this.executeCollectors(collectorsToRun);
+        }
     }
 
     /**

@@ -10,8 +10,7 @@ const CRITICAL_ASSETS = [
     '/index.html',
     '/src/main.tsx',
     '/src/App.tsx',
-    '/src/index.css',
-    '/manifest.json'
+    '/src/index.css'
 ];
 
 // Install event - cache critical assets

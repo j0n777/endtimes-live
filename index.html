@@ -5,12 +5,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>End Times Monitor - Global Intelligence Platform</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;600;800&display=swap"
     rel="stylesheet">
-  <link rel="icon" href="/icon.svg" type="image/svg+xml">
-  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;600;800&display=swap"
-    rel="stylesheet">
+  <link rel="icon" href="/logo_etm.jpg" type="image/jpeg">
 
   <!-- PWA Manifest -->
   <link rel="manifest" href="/manifest.json">
@@ -27,32 +25,6 @@
     }
   </script>
 
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            mono: ['"Share Tech Mono"', 'monospace'],
-            sans: ['"Inter"', 'sans-serif'],
-          },
-          colors: {
-            tactical: {
-              900: '#1a1614', // Desert night - almost black with brown tint
-              800: '#2d2520', // Dark desert
-              700: '#3d342d', // Medium desert brown
-              500: '#c19a6b', // Desert tan - PRIMARY (replaces green)
-              alert: '#dc2626', // Red (keep)
-              warn: '#ea580c', // Amber (keep)
-            }
-          },
-          animation: {
-            'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-            'radar-scan': 'spin 4s linear infinite',
-          }
-        }
-      }
-    }
-  </script>
   <style>
     body {
       background-color: #050505;
@@ -98,14 +70,22 @@
 
     /* Recent Event Glow (Subtle, slow pulse) */
     @keyframes glow-pulse {
-      0% { filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0)); }
-      50% { filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8)); }
-      100% { filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0)); }
+      0% {
+        filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+      }
+
+      50% {
+        filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8));
+      }
+
+      100% {
+        filter: drop-shadow(0 0 0px rgba(255, 255, 255, 0));
+      }
     }
 
     .recent-event-glow {
       animation: glow-pulse 3s infinite ease-in-out;
-      z-index: 900 !important; 
+      z-index: 900 !important;
     }
 
     .leaflet-popup-tip {
@@ -152,9 +132,27 @@
   }
 }
 </script>
+
+  <!-- Umami Analytics -->
+  <script defer src="https://analytics.jonataribas.com/script.js"
+    data-website-id="17b21063-7282-4aae-9e41-2814fddef235"></script>
 </head>
 
 <body>
+  <noscript>
+    <h1>End Times Monitor - Global Intelligence Platform</h1>
+    <p>End Times Monitor is the world's leading real-time platform for tracking geopolitical conflicts, wars, seismic
+      activity, and prophetic fulfillment.</p>
+    <p>We provide a live situation map, verified OSINT feeds, and analysis of current events through the lens of
+      biblical prophecy.</p>
+    <h2>Live Tracking Features</h2>
+    <ul>
+      <li>Global Conflict Map</li>
+      <li>Real-time War Monitoring (Israel, Ukraine, Iran)</li>
+      <li>Seismic & Natural Disaster Alerts</li>
+      <li>Prophetic Timeline Analysis</li>
+    </ul>
+  </noscript>
   <div id="root" class="h-screen w-screen"></div>
   <script type="module" src="/index.tsx"></script>
 </body>
