@@ -1,4 +1,31 @@
-# Logs
+# =============================================================================
+# ENVIRONMENT / SECRETS - NEVER COMMIT THESE
+# =============================================================================
+.env
+.env.*
+!.env.*.example
+!.env.local.example
+
+# API keys or credentials files
+*.key
+*.pem
+*.p12
+*.pfx
+secrets.json
+credentials.json
+admin-config.json
+
+# =============================================================================
+# DEPENDENCIES & BUILD OUTPUT
+# =============================================================================
+node_modules
+dist
+dist-ssr
+*.local
+
+# =============================================================================
+# LOGS
+# =============================================================================
 logs
 *.log
 npm-debug.log*
@@ -7,12 +34,9 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
+# =============================================================================
+# EDITOR DIRECTORIES AND FILES
+# =============================================================================
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -22,5 +46,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-.env
-*.env
+
+# =============================================================================
+# TEMPORARY / TEST FILES
+# =============================================================================
+*.tmp
+*.temp
+/tmp
+

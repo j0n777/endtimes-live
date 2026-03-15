@@ -1,8 +1,12 @@
 // Supabase Client Configuration
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://bimfztwwzuwwefxfkkwe.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpbWZ6dHd3enV3d2VmeGZra3dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzY1MjgyMTEsImV4cCI6MjA1MjEwNDIxMX0.Pii9LrLVVl_-NPeoQulKQA_E6lx5uXv';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('⛔ Supabase config missing: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be defined in your .env file.');
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {

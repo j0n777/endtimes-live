@@ -15,12 +15,14 @@ function getEnv(key: string): string | undefined {
 
 // Supabase configuration
 const supabaseUrl = getEnv('VITE_SUPABASE_URL') ||
-    getEnv('NEXT_PUBLIC_SUPABASE_URL') ||
-    'https://bimfztwwzuwwefxfkkwe.supabase.co';
+    getEnv('NEXT_PUBLIC_SUPABASE_URL');
 
 const supabaseAnonKey = getEnv('VITE_SUPABASE_ANON_KEY') ||
-    getEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY') ||
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpbWZ6dHd3enV3d2VmeGZra3dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwNTg4NDUsImV4cCI6MjA4MzYzNDg0NX0.L3FKHnNr7ctlKhJmv4BwWEGhWw17VhIfRR51ozDn_qU';
+    getEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY');
+
+if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('⛔ Supabase config missing: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be defined in your .env file.');
+}
 
 // Client for frontend use (public operations)
 export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
