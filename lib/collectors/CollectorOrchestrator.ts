@@ -10,10 +10,12 @@ import { PolymarketCollector } from './PolymarketCollector';
 import { TelegramCollector } from './TelegramCollector';
 import { TwitterCollector } from './TwitterCollector';
 import { WeatherNWSCollector } from './WeatherNWSCollector';
+import { InmetCollector } from './InmetCollector';
 import { CyberAttacksCollector } from './CyberAttacksCollector';
 import { VIXCollector } from './VIXCollector';
 import { EmbassyCollector } from './EmbassyCollector';
 import { InternetShutdownsCollector } from './InternetShutdownsCollector';
+import { InternetBlackoutCollector } from './InternetBlackoutCollector';
 import { FlightCollector } from './FlightCollector';
 import { AviationCollector } from './AviationCollector';
 import { MaritimeCollector } from './MaritimeCollector';
@@ -22,6 +24,8 @@ import { RegionalNewsCollector, MonitorRegion } from './RegionalNewsCollector';
 import { NewsApiAICollector } from './NewsApiAICollector';
 import { AskNewsCollector } from './AskNewsCollector';
 import { YouTubeLiveCollector } from './YouTubeLiveCollector';
+import { DefconCollector } from './DefconCollector';
+import { SolarAlertCollector } from './SolarAlertCollector';
 import { MonitorEvent } from '../../types';
 
 /**
@@ -31,9 +35,11 @@ import { MonitorEvent } from '../../types';
 export class CollectorOrchestrator {
     private collectors: BaseCollector[];
     private supabase: SupabaseClient;
+    private defconCollector: DefconCollector;
 
     constructor(supabase: SupabaseClient) {
         this.supabase = supabase;
+        this.defconCollector = new DefconCollector();
 
         // Initialize all collectors
         this.collectors = [
@@ -57,9 +63,14 @@ export class CollectorOrchestrator {
             // Security/Tech
             new CyberAttacksCollector(supabase),
             new InternetShutdownsCollector(supabase),
+            new InternetBlackoutCollector(supabase),
+
+            // Space Weather
+            new SolarAlertCollector(supabase),
 
             // Alerts
             new WeatherNWSCollector(supabase),
+            new InmetCollector(supabase),
             new EmbassyCollector(supabase),
             new VIXCollector(supabase),
 
@@ -200,11 +211,11 @@ export class CollectorOrchestrator {
     async runStaggeredCycle(minuteOffset: number) {
         // Group Collectors
         const groups: Record<number, string[]> = {
-            0: ['NEWS_SOUTH_AMERICA', 'NEWS_BRAZIL', 'TELEGRAM_SOUTH_AMERICA', 'TELEGRAM_BRAZIL', 'GDACS', 'VIX_INDEX'], // Critical Local + Fast Alerts
-            3: ['NEWS_NORTH_AMERICA', 'TELEGRAM_NORTH_AMERICA', 'POLYMARKET', 'AVIATION_HERALD'],
+            0: ['NEWS_SOUTH_AMERICA', 'NEWS_BRAZIL', 'TELEGRAM_SOUTH_AMERICA', 'TELEGRAM_BRAZIL', 'GDACS', 'VIX_INDEX', 'INMET_WEATHER'], // Critical Local + Fast Alerts
+            3: ['NEWS_NORTH_AMERICA', 'TELEGRAM_NORTH_AMERICA', 'POLYMARKET', 'AVIATION_MILITARY', 'FLIGHT_RADAR', 'YOUTUBE_LIVE_CAMS'], // Live cams + military flights
             6: ['NEWS_EUROPE', 'TELEGRAM_EUROPE', 'MARITIME_NEWS'],
-            9: ['NEWS_AFRICA', 'TELEGRAM_AFRICA', 'WHO_OUTBREAKS', 'INTERNET_SHUTDOWNS'],
-            12: ['NEWS_RUSSIA_ASIA', 'TELEGRAM_RUSSIA_ASIA', 'CYBER_ATTACKS', 'NASA_EONET'] // Deep intel
+            9: ['NEWS_AFRICA', 'TELEGRAM_AFRICA', 'WHO_OUTBREAKS', 'INTERNET_SHUTDOWNS', 'INTERNET_BLACKOUT', 'WEATHER_NWS', 'EMBASSY_ALERTS'],
+            12: ['NEWS_RUSSIA_ASIA', 'TELEGRAM_RUSSIA_ASIA', 'CYBER_ATTACKS', 'NASA_EONET', 'SOLAR_ALERTS'] // Deep intel
         };
 
         // Determine which group to run based on current minute modulo 15
@@ -228,6 +239,11 @@ export class CollectorOrchestrator {
 
         if (collectorsToRun.length > 0) {
             await this.executeCollectors(collectorsToRun);
+        }
+
+        // DEFCON_MONITOR: run every ~30 min (throttled internally), piggybacks on group 0
+        if (bucket === 0) {
+            await this.defconCollector.run();
         }
     }
 

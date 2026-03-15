@@ -3,7 +3,7 @@ import { BaseCollector, CollectorConfig } from './BaseCollector';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { MonitorEvent, EventCategory, Severity } from '../../types';
 import { getGeocodingService } from '../services/GeocodingService';
-import { extractStaticLocation } from '../services/StaticLocationService';
+import { resolveLocation } from '../services/LocationResolver';
 import Parser from 'rss-parser';
 
 export enum MonitorRegion {
@@ -147,26 +147,44 @@ export class RegionalNewsCollector extends BaseCollector {
                 const defaultCoords = regionDefaults[this.region];
                 coordinates = defaultCoords;
 
-                const staticLoc = extractStaticLocation(text);
+                const staticLoc = resolveLocation(title, desc, feed.name);
 
                 if (staticLoc) {
                     location = staticLoc.name;
                     coordinates = staticLoc.coords;
-                } else {
-                    // Use AI Geocoding for HIGH/CRITICAL, use free Nominatim for MEDIUM
+                } else if (severity === 'CRITICAL' || severity === 'HIGH') {
+                    // Only use AI for high-priority items that weren't resolved by keyword matching
                     try {
-                        const pLevel = (severity === 'CRITICAL' || severity === 'HIGH') ? 'high' : 'low';
-                        const geoRes = await this.geocoder.geocode({ text: text, priority: pLevel, context: { country: this.region.replace('_', ' ') } });
+                        const geoRes = await this.geocoder.geocode({ text: title, priority: 'high', context: { country: this.region.replace('_', ' '), sourceName: feed.name } });
                         if (geoRes.success && geoRes.location) {
-                            location = geoRes.location.city || geoRes.location.address || geoRes.location.name || geoRes.location.country;
+                            location = geoRes.location.city || geoRes.location.address || geoRes.location.country;
                             coordinates = { lat: geoRes.location.lat, lng: geoRes.location.lng };
                         } else {
-                            // Fallback Name if Nominatim fails
-                            location = this.region.replace('_', ' '); // e.g. "SOUTH AMERICA"
+                            location = defaultCoords === regionDefaults[this.region]
+                                ? this.region.replace('_', ' ')
+                                : location;
                         }
                     } catch (e) {
                         location = this.region.replace('_', ' ');
                     }
+                } else {
+                    // For MEDIUM severity without keyword match, keep regional default
+                    location = this.region.replace('_', ' ');
+                }
+
+                // Extract image URL from RSS item (try multiple common formats)
+                let mediaUrl: string | undefined;
+                const anyItem = item as any;
+                if (anyItem.enclosure?.url && anyItem.enclosure?.type?.startsWith('image')) {
+                    mediaUrl = anyItem.enclosure.url;
+                } else if (anyItem['media:content']?.$?.url) {
+                    mediaUrl = anyItem['media:content'].$.url;
+                } else if (anyItem['media:thumbnail']?.$?.url) {
+                    mediaUrl = anyItem['media:thumbnail'].$.url;
+                } else {
+                    const htmlContent = anyItem.content || anyItem.description || '';
+                    const imgMatch = htmlContent.match(/<img[^>]+src="([^"]+)"/);
+                    if (imgMatch) mediaUrl = imgMatch[1];
                 }
 
                 events.push({
@@ -180,7 +198,9 @@ export class RegionalNewsCollector extends BaseCollector {
                     sourceUrl: item.link || feed.url,
                     timestamp: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
                     location,
-                    coordinates
+                    coordinates,
+                    mediaUrl,
+                    mediaType: mediaUrl ? 'image' : undefined,
                 });
             }
             return events;

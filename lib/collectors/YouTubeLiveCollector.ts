@@ -16,42 +16,129 @@ interface LiveCamResult {
 
 // Map channel handles to their standard location/names if not easily parsed from title
 const CHANNEL_DEFAULTS: Record<string, { namePrefix: string }> = {
-    'earthcam': { namePrefix: 'EarthCam' },
-    'earthtv': { namePrefix: 'EarthTV' },
-    'inquizex': { namePrefix: 'Inquizex OSINT' },
-    'intelcamslive': { namePrefix: 'IntelCams OSINT' }
+    'earthcam':          { namePrefix: 'EarthCam' },
+    'earthtv':           { namePrefix: 'EarthTV' },
+    'inquizex':          { namePrefix: 'Inquizex OSINT' },
+    'intelcamslive':     { namePrefix: 'IntelCams OSINT' },
+    'aljazeera':         { namePrefix: 'Al Jazeera' },
+    'aljazeeraenglish':  { namePrefix: 'Al Jazeera EN' },
+    'france24english':   { namePrefix: 'France 24' },
+    'dwnews':            { namePrefix: 'DW News' },
+    'trtworld':          { namePrefix: 'TRT World' },
+    'ruptly':            { namePrefix: 'Ruptly' },
+    'wion':              { namePrefix: 'WION' },
+    'i24newsenglish':    { namePrefix: 'i24 NEWS' },
+    'cgtn':              { namePrefix: 'CGTN' },
+    'skynewsarabia':     { namePrefix: 'Sky News Arabia' },
+    'skyworldnews':      { namePrefix: 'Sky World News' },
 };
 
-// Simple Geocoding dictionary for stream titles
-// Real geocoding APIs cost money or rate limit, so for OSINT streams we use keyword matching
+// Geocoding dictionary for stream titles — keyword → coordinates
 const GEO_DICTIONARY: Record<string, { lat: number, lng: number, location: string }> = {
-    'kyiv': { lat: 50.4501, lng: 30.5234, location: 'Kyiv, Ukraine' },
-    'kiev': { lat: 50.4501, lng: 30.5234, location: 'Kyiv, Ukraine' },
-    'tehran': { lat: 35.6892, lng: 51.3890, location: 'Tehran, Iran' },
-    'iran': { lat: 35.6892, lng: 51.3890, location: 'Iran (General)' },
-    'tel aviv': { lat: 32.0853, lng: 34.7818, location: 'Tel Aviv, Israel' },
-    'jerusalem': { lat: 31.7767, lng: 35.2345, location: 'Jerusalem, Israel' },
-    'gaza': { lat: 31.5017, lng: 34.4668, location: 'Gaza Strip' },
-    'moscow': { lat: 55.7539, lng: 37.6208, location: 'Moscow, Russia' },
-    'new york': { lat: 40.7580, lng: -73.9855, location: 'New York, USA' },
-    'times square': { lat: 40.7580, lng: -73.9855, location: 'New York, USA' },
-    'taipei': { lat: 25.0330, lng: 121.5654, location: 'Taipei, Taiwan' },
-    'cairo': { lat: 30.0444, lng: 31.2357, location: 'Cairo, Egypt' },
-    'beirut': { lat: 33.8938, lng: 35.5018, location: 'Beirut, Lebanon' },
-    'lebanon': { lat: 33.8938, lng: 35.5018, location: 'Lebanon' },
-    'london': { lat: 51.5072, lng: -0.1276, location: 'London, UK' },
-    'paris': { lat: 48.8566, lng: 2.3522, location: 'Paris, France' },
-    'tokyo': { lat: 35.6762, lng: 139.6503, location: 'Tokyo, Japan' },
-    'las vegas': { lat: 36.1699, lng: -115.1398, location: 'Las Vegas, USA' },
-    'miami': { lat: 25.7617, lng: -80.1918, location: 'Miami, USA' },
-    'sydney': { lat: -33.8688, lng: 151.2093, location: 'Sydney, Australia' },
-    'istanbul': { lat: 41.0082, lng: 28.9784, location: 'Istanbul, Turkey' },
-    'seoul': { lat: 37.5665, lng: 126.9780, location: 'Seoul, South Korea' },
-    'pyongyang': { lat: 39.0392, lng: 125.7625, location: 'Pyongyang, North Korea' },
-    'korea': { lat: 37.5665, lng: 126.9780, location: 'Seoul, South Korea' },
-    'beijing': { lat: 39.9042, lng: 116.4074, location: 'Beijing, China' },
-    'taiwan': { lat: 23.6978, lng: 120.9605, location: 'Taiwan' },
-    'japan': { lat: 35.6762, lng: 139.6503, location: 'Japan' }
+    // --- Ukraine / Eastern Europe ---
+    'kyiv':        { lat: 50.4501, lng: 30.5234,  location: 'Kyiv, Ukraine' },
+    'kiev':        { lat: 50.4501, lng: 30.5234,  location: 'Kyiv, Ukraine' },
+    'ukraine':     { lat: 49.0139, lng: 31.2858,  location: 'Ukraine' },
+    'kharkiv':     { lat: 49.9935, lng: 36.2304,  location: 'Kharkiv, Ukraine' },
+    'zaporizhzhia':{ lat: 47.8388, lng: 35.1396,  location: 'Zaporizhzhia, Ukraine' },
+    'odessa':      { lat: 46.4825, lng: 30.7233,  location: 'Odessa, Ukraine' },
+    'moldova':     { lat: 47.0105, lng: 28.8638,  location: 'Moldova' },
+    // --- Middle East ---
+    'tehran':      { lat: 35.6892, lng: 51.3890,  location: 'Tehran, Iran' },
+    'iran':        { lat: 35.6892, lng: 51.3890,  location: 'Iran' },
+    'tel aviv':    { lat: 32.0853, lng: 34.7818,  location: 'Tel Aviv, Israel' },
+    'jerusalem':   { lat: 31.7767, lng: 35.2345,  location: 'Jerusalem' },
+    'israel':      { lat: 31.5000, lng: 34.9000,  location: 'Israel' },
+    'gaza':        { lat: 31.5017, lng: 34.4668,  location: 'Gaza Strip' },
+    'west bank':   { lat: 31.9522, lng: 35.2332,  location: 'West Bank' },
+    'beirut':      { lat: 33.8938, lng: 35.5018,  location: 'Beirut, Lebanon' },
+    'lebanon':     { lat: 33.8938, lng: 35.5018,  location: 'Lebanon' },
+    'damascus':    { lat: 33.5138, lng: 36.2765,  location: 'Damascus, Syria' },
+    'aleppo':      { lat: 36.2021, lng: 37.1343,  location: 'Aleppo, Syria' },
+    'syria':       { lat: 34.8021, lng: 38.9968,  location: 'Syria' },
+    'baghdad':     { lat: 33.3152, lng: 44.3661,  location: 'Baghdad, Iraq' },
+    'iraq':        { lat: 33.2232, lng: 43.6793,  location: 'Iraq' },
+    'mosul':       { lat: 36.3350, lng: 43.1189,  location: 'Mosul, Iraq' },
+    'kabul':       { lat: 34.5553, lng: 69.2075,  location: 'Kabul, Afghanistan' },
+    'doha':        { lat: 25.2854, lng: 51.5310,  location: 'Doha, Qatar' },
+    'qatar':       { lat: 25.3548, lng: 51.1839,  location: 'Qatar' },
+    'riyadh':      { lat: 24.6877, lng: 46.7219,  location: 'Riyadh, Saudi Arabia' },
+    'saudi':       { lat: 23.8859, lng: 45.0792,  location: 'Saudi Arabia' },
+    'dubai':       { lat: 25.2048, lng: 55.2708,  location: 'Dubai, UAE' },
+    'abu dhabi':   { lat: 24.4539, lng: 54.3773,  location: 'Abu Dhabi, UAE' },
+    'uae':         { lat: 23.4241, lng: 53.8478,  location: 'UAE' },
+    'amman':       { lat: 31.9539, lng: 35.9106,  location: 'Amman, Jordan' },
+    'jordan':      { lat: 30.5852, lng: 36.2384,  location: 'Jordan' },
+    'cairo':       { lat: 30.0444, lng: 31.2357,  location: 'Cairo, Egypt' },
+    'egypt':       { lat: 26.8206, lng: 30.8025,  location: 'Egypt' },
+    'sanaa':       { lat: 15.3694, lng: 44.1910,  location: "Sana'a, Yemen" },
+    'yemen':       { lat: 15.5527, lng: 48.5164,  location: 'Yemen' },
+    'khartoum':    { lat: 15.5007, lng: 32.5599,  location: 'Khartoum, Sudan' },
+    'sudan':       { lat: 12.8628, lng: 30.2176,  location: 'Sudan' },
+    'tripoli':     { lat: 32.8872, lng: 13.1913,  location: 'Tripoli, Libya' },
+    'libya':       { lat: 26.3351, lng: 17.2283,  location: 'Libya' },
+    // --- Russia / Central Asia ---
+    'moscow':      { lat: 55.7539, lng: 37.6208,  location: 'Moscow, Russia' },
+    'russia':      { lat: 61.5240, lng: 105.3188, location: 'Russia' },
+    'st. petersburg': { lat: 59.9343, lng: 30.3351, location: 'St. Petersburg, Russia' },
+    'minsk':       { lat: 53.9006, lng: 27.5590,  location: 'Minsk, Belarus' },
+    'almaty':      { lat: 43.2220, lng: 76.8512,  location: 'Almaty, Kazakhstan' },
+    'tashkent':    { lat: 41.2995, lng: 69.2401,  location: 'Tashkent, Uzbekistan' },
+    // --- Asia-Pacific ---
+    'beijing':     { lat: 39.9042, lng: 116.4074, location: 'Beijing, China' },
+    'shanghai':    { lat: 31.2304, lng: 121.4737, location: 'Shanghai, China' },
+    'china':       { lat: 35.8617, lng: 104.1954, location: 'China' },
+    'taiwan':      { lat: 23.6978, lng: 120.9605, location: 'Taiwan' },
+    'taipei':      { lat: 25.0330, lng: 121.5654, location: 'Taipei, Taiwan' },
+    'hong kong':   { lat: 22.3193, lng: 114.1694, location: 'Hong Kong' },
+    'tokyo':       { lat: 35.6762, lng: 139.6503, location: 'Tokyo, Japan' },
+    'japan':       { lat: 36.2048, lng: 138.2529, location: 'Japan' },
+    'seoul':       { lat: 37.5665, lng: 126.9780, location: 'Seoul, South Korea' },
+    'korea':       { lat: 37.5665, lng: 126.9780, location: 'Seoul, South Korea' },
+    'pyongyang':   { lat: 39.0392, lng: 125.7625, location: 'Pyongyang, North Korea' },
+    'north korea': { lat: 40.3399, lng: 127.5101, location: 'North Korea' },
+    'singapore':   { lat: 1.3521,  lng: 103.8198, location: 'Singapore' },
+    'jakarta':     { lat: -6.2088, lng: 106.8456, location: 'Jakarta, Indonesia' },
+    'manila':      { lat: 14.5995, lng: 120.9842, location: 'Manila, Philippines' },
+    'bangkok':     { lat: 13.7563, lng: 100.5018, location: 'Bangkok, Thailand' },
+    'hanoi':       { lat: 21.0285, lng: 105.8542, location: 'Hanoi, Vietnam' },
+    'mumbai':      { lat: 19.0760, lng: 72.8777,  location: 'Mumbai, India' },
+    'delhi':       { lat: 28.6139, lng: 77.2090,  location: 'New Delhi, India' },
+    'india':       { lat: 20.5937, lng: 78.9629,  location: 'India' },
+    'pakistan':    { lat: 30.3753, lng: 69.3451,  location: 'Pakistan' },
+    'islamabad':   { lat: 33.6844, lng: 73.0479,  location: 'Islamabad, Pakistan' },
+    'karachi':     { lat: 24.8607, lng: 67.0011,  location: 'Karachi, Pakistan' },
+    'sydney':      { lat: -33.8688, lng: 151.2093, location: 'Sydney, Australia' },
+    'australia':   { lat: -25.2744, lng: 133.7751, location: 'Australia' },
+    // --- Europe ---
+    'london':      { lat: 51.5072, lng: -0.1276,  location: 'London, UK' },
+    'paris':       { lat: 48.8566, lng: 2.3522,   location: 'Paris, France' },
+    'berlin':      { lat: 52.5200, lng: 13.4050,  location: 'Berlin, Germany' },
+    'madrid':      { lat: 40.4168, lng: -3.7038,  location: 'Madrid, Spain' },
+    'rome':        { lat: 41.9028, lng: 12.4964,  location: 'Rome, Italy' },
+    'warsaw':      { lat: 52.2297, lng: 21.0122,  location: 'Warsaw, Poland' },
+    'istanbul':    { lat: 41.0082, lng: 28.9784,  location: 'Istanbul, Turkey' },
+    'ankara':      { lat: 39.9334, lng: 32.8597,  location: 'Ankara, Turkey' },
+    'athens':      { lat: 37.9838, lng: 23.7275,  location: 'Athens, Greece' },
+    // --- Americas ---
+    'new york':    { lat: 40.7128, lng: -74.0060, location: 'New York, USA' },
+    'times square':{ lat: 40.7580, lng: -73.9855, location: 'Times Square, New York' },
+    'washington':  { lat: 38.9072, lng: -77.0369, location: 'Washington DC, USA' },
+    'chicago':     { lat: 41.8781, lng: -87.6298, location: 'Chicago, USA' },
+    'los angeles': { lat: 34.0522, lng: -118.2437, location: 'Los Angeles, USA' },
+    'miami':       { lat: 25.7617, lng: -80.1918, location: 'Miami, USA' },
+    'las vegas':   { lat: 36.1699, lng: -115.1398, location: 'Las Vegas, USA' },
+    'mexico city': { lat: 19.4326, lng: -99.1332, location: 'Mexico City, Mexico' },
+    'bogota':      { lat: 4.7110,  lng: -74.0721, location: 'Bogotá, Colombia' },
+    'caracas':     { lat: 10.4806, lng: -66.9036, location: 'Caracas, Venezuela' },
+    // --- Africa ---
+    'nairobi':     { lat: -1.2921, lng: 36.8219,  location: 'Nairobi, Kenya' },
+    'addis ababa': { lat: 9.0320,  lng: 38.7469,  location: 'Addis Ababa, Ethiopia' },
+    'ethiopia':    { lat: 9.1450,  lng: 40.4897,  location: 'Ethiopia' },
+    'lagos':       { lat: 6.5244,  lng: 3.3792,   location: 'Lagos, Nigeria' },
+    'nigeria':     { lat: 9.0820,  lng: 8.6753,   location: 'Nigeria' },
+    'somalia':     { lat: 5.1521,  lng: 46.1996,  location: 'Somalia' },
+    'mogadishu':   { lat: 2.0469,  lng: 45.3182,  location: 'Mogadishu, Somalia' },
 };
 
 export class YouTubeLiveCollector extends BaseCollector {
@@ -70,8 +157,16 @@ export class YouTubeLiveCollector extends BaseCollector {
         super(config, supabase);
         this.geocoder = getGeocodingService();
 
-        // We include major global live cam networks focusing on urban views and conflicts
-        this.targetHandles = targetHandles || ['earthcam', 'earthTV', 'Inquizex', 'intelcamslive', 'SkylinkHQ'];
+        // Live cam networks + 24/7 news channels (always live, conflict-zone focus)
+        this.targetHandles = targetHandles || [
+            // Urban / webcam networks
+            'earthcam', 'earthTV', 'SkylinkHQ',
+            // OSINT conflict cams
+            'Inquizex', 'intelcamslive',
+            // Middle East & Global News (24/7 streams — provide location context)
+            'AlJazeeraEnglish', 'france24english', 'DWNews', 'TRTWorld',
+            'i24newsenglish', 'ruptly', 'wion', 'skynewsarabia',
+        ];
     }
 
     protected async fetchData(): Promise<MonitorEvent[]> {
@@ -228,7 +323,28 @@ export class YouTubeLiveCollector extends BaseCollector {
             if (lowerTitle.includes('iran')) return GEO_DICTIONARY['tehran'];
             if (lowerTitle.includes('israel')) return GEO_DICTIONARY['tel aviv'];
             if (lowerTitle.includes('gaza')) return GEO_DICTIONARY['gaza'];
-            if (lowerTitle.includes('qatar')) return GEO_DICTIONARY['cairo']; // Approximate general ME view if Doha missing
+            if (lowerTitle.includes('qatar')) return GEO_DICTIONARY['doha'];
+        }
+
+        // News channels: map to their primary bureau/focus location when title is too generic
+        if (handle.toLowerCase() === 'aljazeeraenglish' || handle.toLowerCase() === 'aljazeera') {
+            if (lowerTitle.includes('live')) return GEO_DICTIONARY['doha'];
+        }
+        if (handle.toLowerCase() === 'i24newsenglish') {
+            if (lowerTitle.includes('live')) return GEO_DICTIONARY['tel aviv'];
+        }
+        if (handle.toLowerCase() === 'trtworld') {
+            if (lowerTitle.includes('live')) return GEO_DICTIONARY['istanbul'];
+        }
+        if (handle.toLowerCase() === 'skynewsarabia') {
+            if (lowerTitle.includes('live')) return GEO_DICTIONARY['dubai'];
+        }
+        if (handle.toLowerCase() === 'wion') {
+            if (lowerTitle.includes('live')) return GEO_DICTIONARY['delhi'];
+        }
+        if (handle.toLowerCase() === 'ruptly') {
+            // Ruptly covers Europe & conflict zones
+            if (lowerTitle.includes('live')) return GEO_DICTIONARY['moscow'];
         }
 
         // Direct dictionary match

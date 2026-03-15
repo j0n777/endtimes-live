@@ -3,7 +3,7 @@ import { BaseCollector, CollectorConfig } from './BaseCollector';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { MonitorEvent, EventCategory, Severity } from '../../types';
 import { getGeocodingService } from '../services/GeocodingService';
-import { extractStaticLocation } from '../services/StaticLocationService';
+import { resolveLocation } from '../services/LocationResolver';
 import Parser from 'rss-parser';
 
 // Comprehensive Intelligence Feeds (3+ per Continent)
@@ -116,20 +116,35 @@ export class NewsRSSCollector extends BaseCollector {
             // Default to Mid-Atlantic to ensure visibility even if Global (better than Null Island)
             let coordinates = { lat: 25.0, lng: -40.0 };
 
-            const staticLoc = extractStaticLocation(text);
+            const staticLoc = resolveLocation(title, desc, feed.name);
 
             if (staticLoc) {
                 location = staticLoc.name;
                 coordinates = staticLoc.coords;
             } else if (severity === 'CRITICAL' || severity === 'HIGH') {
-                // Only use AI for critical items that weren't found statically
+                // Only use AI for critical items that weren't found by keyword resolver
                 try {
-                    const geoRes = await this.geocoder.geocode({ text: title, priority: 'high' });
+                    const geoRes = await this.geocoder.geocode({ text: title, priority: 'high', context: { sourceName: feed.name } });
                     if (geoRes.success && geoRes.location) {
-                        location = geoRes.location.name;
+                        location = geoRes.location.city || geoRes.location.address || geoRes.location.country;
                         coordinates = { lat: geoRes.location.lat, lng: geoRes.location.lng };
                     }
                 } catch (e) { /* ignore */ }
+            }
+
+            // Extract image URL from RSS item (try multiple common formats)
+            let mediaUrl: string | undefined;
+            const anyItem = item as any;
+            if (anyItem.enclosure?.url && anyItem.enclosure?.type?.startsWith('image')) {
+                mediaUrl = anyItem.enclosure.url;
+            } else if (anyItem['media:content']?.$?.url) {
+                mediaUrl = anyItem['media:content'].$.url;
+            } else if (anyItem['media:thumbnail']?.$?.url) {
+                mediaUrl = anyItem['media:thumbnail'].$.url;
+            } else {
+                const htmlContent = anyItem.content || anyItem.description || '';
+                const imgMatch = htmlContent.match(/<img[^>]+src="([^"]+)"/);
+                if (imgMatch) mediaUrl = imgMatch[1];
             }
 
             events.push({
@@ -143,7 +158,9 @@ export class NewsRSSCollector extends BaseCollector {
                 sourceUrl: item.link || feed.url,
                 timestamp: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
                 location,
-                coordinates
+                coordinates,
+                mediaUrl,
+                mediaType: mediaUrl ? 'image' : undefined,
             });
         }
         return events;

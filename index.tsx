@@ -4,6 +4,7 @@ import App from './App';
 import './index.css';
 
 import { HelmetProvider } from 'react-helmet-async';
+import { I18nProvider } from './lib/i18n';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -14,7 +15,9 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <HelmetProvider>
-      <App />
+      <I18nProvider>
+        <App />
+      </I18nProvider>
     </HelmetProvider>
   </React.StrictMode>
 );

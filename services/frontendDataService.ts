@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import { MonitorEvent } from '../types';
+import { MonitorEvent, EventCategory } from '../types';
 
 /**
  * Frontend Data Service - Supabase Only
@@ -177,6 +177,53 @@ export async function loadAllEvents(): Promise<MonitorEvent[]> {
 
     } catch (error) {
         console.error('Failed to load all events:', error);
+        return [];
+    }
+}
+
+/**
+ * Load most recent events filtered by specific categories.
+ * When the user has selected a subset of categories, this fetches the 150
+ * most recent events for ONLY those categories (instead of filtering from
+ * the global 150, which would show fewer results per category).
+ */
+export async function loadEventsByCategories(
+    categories: EventCategory[],
+    limit: number = 150
+): Promise<MonitorEvent[]> {
+    if (!categories || categories.length === 0) return loadAllEvents();
+    try {
+        const { data, error } = await supabase
+            .from('events')
+            .select('id, title, description, category, severity, source_type, source_name, location, lat, lng, event_timestamp, source_url, casualties, media_url, media_type')
+            .in('category', categories)
+            .order('event_timestamp', { ascending: false })
+            .limit(limit);
+
+        if (error) {
+            console.error('Error loading events by categories:', error);
+            return [];
+        }
+
+        return (data || []).map(event => ({
+            id: event.id,
+            title: event.title,
+            description: event.description || '',
+            category: event.category,
+            severity: event.severity,
+            sourceType: event.source_type,
+            sourceName: event.source_name,
+            location: event.location || '',
+            coordinates: { lat: event.lat, lng: event.lng },
+            timestamp: event.event_timestamp,
+            sourceUrl: event.source_url,
+            mediaUrl: event.media_url,
+            mediaType: event.media_type,
+            conflictLevel: event.casualties ? `${event.casualties} casualties` : undefined
+        }));
+
+    } catch (error) {
+        console.error('Failed to load events by categories:', error);
         return [];
     }
 }

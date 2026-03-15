@@ -2,8 +2,10 @@ import React, { useState, useMemo } from 'react';
 import { RADIO_CHANNELS } from '../constants';
 import type { IARURegion, Continent, RadioLicense, RadioChannel } from '../types';
 import { Radio, Signal, Info, Search, Filter, Globe2, MapPin, Shield, Waves } from 'lucide-react';
+import { useLocale } from '../lib/i18n';
 
 const CommsPanel: React.FC = () => {
+  const { t } = useLocale();
   const [selectedRegion, setSelectedRegion] = useState<'ALL' | IARURegion>('ALL');
   const [selectedContinent, setSelectedContinent] = useState<'ALL' | Continent>('ALL');
   const [selectedLicense, setSelectedLicense] = useState<'ALL' | RadioLicense>('ALL');
@@ -82,8 +84,8 @@ const CommsPanel: React.FC = () => {
               <Radio className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white tracking-widest">SIGNAL INTELLIGENCE</h1>
-              <div className="text-xs text-gray-500">GLOBAL FREQUENCY DATABASE • {filteredChannels.length} CHANNELS</div>
+              <h1 className="text-2xl font-bold text-white tracking-widest">{t.comms.title}</h1>
+              <div className="text-xs text-gray-500">GLOBAL FREQUENCY DATABASE • {filteredChannels.length} {t.comms.channelCount(filteredChannels.length).replace(/\d+ /, '')}</div>
             </div>
           </div>
           <div className="flex items-center gap-2 text-xs text-tactical-500 bg-tactical-900 px-3 py-1 rounded border border-tactical-700">
@@ -108,7 +110,7 @@ const CommsPanel: React.FC = () => {
                 onChange={(e) => setSelectedRegion(e.target.value as any)}
                 className="w-full bg-black border border-tactical-700 text-white text-xs rounded px-2 py-2 hover:border-tactical-500 transition"
               >
-                <option value="ALL">All Regions</option>
+                <option value="ALL">{t.comms.allRegions}</option>
                 <option value="GLOBAL">🌐 Global Emergency</option>
                 <option value="IARU_R1">Region 1 (EU/AF/ME)</option>
                 <option value="IARU_R2">Region 2 (Americas)</option>
@@ -127,7 +129,7 @@ const CommsPanel: React.FC = () => {
                 onChange={(e) => setSelectedContinent(e.target.value as any)}
                 className="w-full bg-black border border-tactical-700 text-white text-xs rounded px-2 py-2 hover:border-tactical-500 transition"
               >
-                <option value="ALL">All Continents</option>
+                <option value="ALL">{t.comms.allContinents}</option>
                 <option value="GLOBAL">🌍 Global</option>
                 <option value="NORTH_AMERICA">🇺🇸 North America</option>
                 <option value="SOUTH_AMERICA">🇧🇷 South America</option>
@@ -149,7 +151,7 @@ const CommsPanel: React.FC = () => {
                 onChange={(e) => setSelectedLicense(e.target.value as any)}
                 className="w-full bg-black border border-tactical-700 text-white text-xs rounded px-2 py-2 hover:border-tactical-500 transition"
               >
-                <option value="ALL">All Types</option>
+                <option value="ALL">{t.comms.allLicenses}</option>
                 <option value="NONE">✅ License-Free</option>
                 <option value="AMATEUR">Amateur Radio</option>
                 <option value="MARINE">Maritime</option>
@@ -175,7 +177,7 @@ const CommsPanel: React.FC = () => {
                 onChange={(e) => setSelectedBand(e.target.value as any)}
                 className="w-full bg-black border border-tactical-700 text-white text-xs rounded px-2 py-2 hover:border-tactical-500 transition"
               >
-                <option value="ALL">All Bands</option>
+                <option value="ALL">{t.comms.allBands}</option>
                 <option value="HF">HF (3-30 MHz)</option>
                 <option value="VHF">VHF (30-300 MHz)</option>
                 <option value="UHF">UHF (300 MHz-3 GHz)</option>
@@ -193,7 +195,7 @@ const CommsPanel: React.FC = () => {
                   className="w-4 h-4"
                 />
                 <span className={`text-xs font-bold ${emergencyOnly ? 'text-red-400' : 'text-gray-400'}`}>
-                  🚨 EMERGENCY ONLY
+                  🚨 {t.comms.emergency}
                 </span>
               </label>
             </div>
@@ -204,7 +206,7 @@ const CommsPanel: React.FC = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input
               type="text"
-              placeholder="Search by frequency, name, network, or continent..."
+              placeholder={t.comms.searchPlaceholder}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-black border border-tactical-700 text-white text-xs rounded pl-10 pr-4 py-2 hover:border-tactical-500 focus:border-amber-500 focus:outline-none transition"

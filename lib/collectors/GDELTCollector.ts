@@ -2,6 +2,7 @@ import { BaseCollector, CollectorConfig } from './BaseCollector';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { MonitorEvent, EventCategory, Severity } from '../../types';
 import { getGeocodingService } from '../services/GeocodingService';
+import { resolveLocation } from '../services/LocationResolver';
 
 const GDELT_API_URL = 'https://api.gdeltproject.org/api/v2/doc/doc';
 
@@ -113,31 +114,27 @@ export class GDELTCollector extends BaseCollector {
         // Basic validation
         if (!article.title || !article.url) return null;
 
-        // Use default coordinates first to be fast, then enhance if needed
         let coordinates = { lat: 0, lng: 0 };
         let location = article.sourcecountry || 'Unknown';
 
-        // Try basic term matching for location if sourcecountry is generic
-        // (In a real scenario, use the GeocodingService. For now, using a simplified approach + geocoder if critical)
-
-        // Only use AI geocoding for high severity items to save tokens
         const severity = this.determineSeverity(article);
 
-        if (severity === 'CRITICAL' || severity === 'HIGH') {
+        // Step 1: Try keyword resolver first (zero API cost, high accuracy)
+        const resolved = resolveLocation(article.title, '', 'GDELT');
+        if (resolved) {
+            coordinates = resolved.coords;
+            location = resolved.name;
+        } else if (severity === 'CRITICAL' || severity === 'HIGH') {
+            // Step 2: AI geocoding only for high-priority items that keyword-matching couldn't resolve
             const geocodeResult = await this.geocoder.geocode({
                 text: article.title,
-                context: {
-                    country: article.sourcecountry
-                },
+                context: { country: article.sourcecountry },
                 priority: 'high'
             });
 
             if (geocodeResult.success && geocodeResult.location) {
-                coordinates = {
-                    lat: geocodeResult.location.lat,
-                    lng: geocodeResult.location.lng
-                };
-                location = `${geocodeResult.location.name}`;
+                coordinates = { lat: geocodeResult.location.lat, lng: geocodeResult.location.lng };
+                location = geocodeResult.location.city || geocodeResult.location.country || location;
             }
         }
 

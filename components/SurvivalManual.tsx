@@ -1,18 +1,97 @@
 import React, { useState } from 'react';
 import { SURVIVAL_GUIDES } from '../constants';
+import { SURVIVAL_GUIDES_PT } from '../locales/content.pt-BR';
 import { SurvivalGuide } from '../types';
 import { ChevronRight, CheckSquare, Square, Droplets, Utensils, Shield, Radio, Flame, Zap } from 'lucide-react';
+import { useLocale } from '../lib/i18n';
+
+/** Renders inline **bold** and *italic* within a text string as React nodes. */
+function renderInline(text: string): React.ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i} className="text-white font-bold">{part.slice(2, -2)}</strong>;
+    }
+    return part;
+  });
+}
+
+/** Minimal markdown renderer: headings, bullet/numbered lists, bold inline. */
+const MarkdownContent: React.FC<{ text: string }> = ({ text }) => {
+  const lines = text.split('\n');
+  const elements: React.ReactNode[] = [];
+  let listItems: React.ReactNode[] = [];
+  let listKey = 0;
+
+  const flushList = () => {
+    if (listItems.length > 0) {
+      elements.push(
+        <ul key={`ul-${listKey++}`} className="mb-4 space-y-1 ml-4">
+          {listItems}
+        </ul>
+      );
+      listItems = [];
+    }
+  };
+
+  lines.forEach((line, i) => {
+    if (line.startsWith('### ')) {
+      flushList();
+      elements.push(
+        <h3 key={i} className="text-sm font-mono font-bold text-tactical-500 mt-6 mb-2 border-l-4 border-tactical-500 pl-3 uppercase tracking-widest">
+          {line.slice(4)}
+        </h3>
+      );
+    } else if (line.startsWith('## ')) {
+      flushList();
+      elements.push(
+        <h2 key={i} className="text-base font-mono font-bold text-white mt-5 mb-2">{line.slice(3)}</h2>
+      );
+    } else if (/^(\d+)\.\s/.test(line)) {
+      const content = line.replace(/^\d+\.\s/, '');
+      listItems.push(
+        <li key={i} className="flex gap-2 text-gray-300 text-sm">
+          <span className="text-tactical-500 shrink-0">{line.match(/^(\d+)/)?.[1]}.</span>
+          <span>{renderInline(content)}</span>
+        </li>
+      );
+    } else if (line.startsWith('- ')) {
+      listItems.push(
+        <li key={i} className="flex gap-2 text-gray-300 text-sm">
+          <span className="text-tactical-500 shrink-0">•</span>
+          <span>{renderInline(line.slice(2))}</span>
+        </li>
+      );
+    } else if (line.trim() === '') {
+      flushList();
+    } else {
+      flushList();
+      elements.push(
+        <p key={i} className="mb-3 text-gray-300 text-sm leading-relaxed">{renderInline(line)}</p>
+      );
+    }
+  });
+  flushList();
+  return <>{elements}</>;
+};
 
 const SurvivalManual: React.FC = () => {
-  const [selectedGuide, setSelectedGuide] = useState<SurvivalGuide>(SURVIVAL_GUIDES[0]);
+  const { t, locale } = useLocale();
+  const guides = locale === 'pt-BR' ? SURVIVAL_GUIDES_PT : SURVIVAL_GUIDES;
+  const [selectedGuide, setSelectedGuide] = useState<SurvivalGuide>(guides[0]);
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
+
+  // Reset selected guide when locale changes
+  React.useEffect(() => {
+    setSelectedGuide(guides[0]);
+  }, [locale]);
 
   // Deep Link Support
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const guideId = params.get('guide');
     if (guideId) {
-      const targetGuide = SURVIVAL_GUIDES.find(g => g.id === guideId);
+      const targetGuide = guides.find(g => g.id === guideId);
       if (targetGuide) setSelectedGuide(targetGuide);
     }
   }, []);
@@ -55,9 +134,9 @@ const SurvivalManual: React.FC = () => {
       {/* Sidebar List */}
       <div className="w-64 border-r border-tactical-800 flex flex-col overflow-y-auto">
         <div className="p-4 border-b border-tactical-800 bg-tactical-900">
-          <h2 className="text-tactical-500 font-bold tracking-widest">PROTOCOLS</h2>
+          <h2 className="text-tactical-500 font-bold tracking-widest">{t.protocols.title}</h2>
         </div>
-        {SURVIVAL_GUIDES.map(guide => (
+        {guides.map(guide => (
           <button
             key={guide.id}
             onClick={() => setSelectedGuide(guide)}
@@ -116,24 +195,7 @@ const SurvivalManual: React.FC = () => {
 
           {/* Markdown Content */}
           <div className="prose prose-invert prose-sm max-w-none font-sans">
-            {selectedGuide.content.split('\n').map((line, i) => {
-              if (line.startsWith('###')) {
-                return <h3 key={i} className="text-lg font-mono font-bold text-tactical-500 mt-6 mb-3 border-l-4 border-tactical-500 pl-3">{line.replace('###', '')}</h3>;
-              }
-              if (line.startsWith('-')) {
-                return (
-                  <div key={i} className="flex gap-2 mb-2 ml-4">
-                    <span className="text-tactical-500">•</span>
-                    <span className="text-gray-300">{line.replace('-', '')}</span>
-                  </div>
-                );
-              }
-              if (line.startsWith('**')) {
-                // Simple bold parser
-                return <p key={i} className="mb-4 text-gray-300 font-bold">{line.replace(/\*\*/g, '')}</p>
-              }
-              return <p key={i} className="mb-4 text-gray-300 leading-relaxed">{line}</p>;
-            })}
+            <MarkdownContent text={selectedGuide.content} />
           </div>
         </div>
       </div>

@@ -184,10 +184,13 @@ export class GeocodingService {
 
     /**
      * Fallback geocoding using Nominatim (OpenStreetMap)
-     * Free, no API key required
+     * Free, no API key required.
+     * IMPORTANT: Only send short, location-like text (not full article text).
      */
     private async geocodeWithNominatim(request: GeocodingRequest): Promise<GeocodingResult> {
-        const query = encodeURIComponent(request.text);
+        // Extract a concise query: take first 80 chars to avoid sending full article text
+        const conciseText = request.text.substring(0, 80).replace(/['"]/g, '').trim();
+        const query = encodeURIComponent(conciseText);
         const countryParam = request.context?.country ? `&countrycodes=${request.context.country}` : '';
 
         const url = `https://nominatim.openstreetmap.org/search?q=${query}${countryParam}&format=json&limit=3&addressdetails=1`;
@@ -252,40 +255,63 @@ export class GeocodingService {
     }
 
     /**
-     * Build prompt for AI geocoding
+     * Build prompt for AI geocoding with improved context and source awareness
      */
     private buildGeocodingPrompt(request: GeocodingRequest): string {
-        let prompt = `You are a precise geocoding expert. Extract the exact geographic coordinates from this text:
+        const sourceName = (request.context as any)?.sourceName as string | undefined;
 
-TEXT: "${request.text}"
+        // Map known feed sources to geographic hints for the AI
+        const SOURCE_HINTS: Record<string, string> = {
+            'Channel News Asia': 'Southeast Asia / Singapore region',
+            'NHK World': 'Japan',
+            'SCMP': 'China / Hong Kong',
+            'Times of India': 'India / South Asia',
+            'Al Jazeera': 'Middle East / Arab world',
+            'Jerusalem Post': 'Israel / Palestine',
+            'Arab News': 'Saudi Arabia / Gulf',
+            'Kyiv Independent': 'Ukraine',
+            'The Moscow Times': 'Russia',
+            'AllAfrica': 'Africa',
+            'News24 SA': 'South Africa',
+            'ABC News AU': 'Australia / Pacific',
+        };
+
+        const sourceHint = sourceName ? SOURCE_HINTS[sourceName] : undefined;
+
+        let prompt = `You are a precise geocoding expert for a world events monitor. Extract geographic coordinates from this news headline.
+
+HEADLINE: "${request.text}"
 `;
 
+        if (sourceHint) {
+            prompt += `SOURCE: ${sourceName} (geographic focus: ${sourceHint})\n`;
+        } else if (sourceName) {
+            prompt += `SOURCE: ${sourceName}\n`;
+        }
+
         if (request.context?.country) {
-            prompt += `\nCONTEXT: This event is likely in ${request.context.country}`;
+            prompt += `REGION CONTEXT: ${request.context.country}\n`;
         }
 
         prompt += `
+RULES:
+1. Identify the PRIMARY country or city mentioned in the headline (not just mentioned in passing)
+2. If the headline describes a nation's people (e.g. "Singaporeans", "Brazilians", "French"), geocode to that nation
+3. If no specific location in headline, use the SOURCE geographic focus as a hint
+4. NEVER return (0, 0) coordinates — if truly unknown, return low confidence
+5. Prefer the most specific location (city > country > region)
 
-Extract the MOST SPECIFIC location mentioned. For example:
-- If "downtown Kyiv, Ukraine" → Find Kyiv city center coordinates
-- If "Main Street in Springfield" → Find that specific street
-- If "apartment building on Baker Street, London" → Find Baker Street, London coordinates
-
-Return ONLY a JSON object with this structure (no markdown, no explanation):
+Return ONLY a JSON object (no markdown, no explanation):
 {
   "lat": <latitude as number>,
   "lng": <longitude as number>,
   "accuracy": "exact" | "street" | "city" | "region" | "country",
-  "address": "<full address if possible>",
-  "street": "<street name if mentioned>",
-  "city": "<city name>",
-  "region": "<state/province if known>",
-  "country": "<country name>",
-  "countryCode": "<ISO 3166-1 alpha-2 code>",
-  "confidence": <0.0 to 1.0 how confident you are>
-}
-
-Be as precise as possible. If multiple locations are mentioned, choose the most specific one.`;
+  "city": "<city name or null>",
+  "region": "<state/province or null>",
+  "country": "<country full name>",
+  "countryCode": "<ISO 3166-1 alpha-2 code, uppercase>",
+  "confidence": <0.0 to 1.0>
+}`;
 
         return prompt;
     }

@@ -22,6 +22,8 @@ const ICONS: Record<EventCategory, string> = {
   [EventCategory.MARITIME]: `<path d="M12 22V8M5 12H2a10 10 0 0 0 20 0h-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="5" r="3" stroke="currentColor" stroke-width="2"/>`, // Anchor
   [EventCategory.INFRASTRUCTURE]: `<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" stroke="currentColor" stroke-width="2"/>`, // Wrench
   [EventCategory.ENVIRONMENTAL]: `<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.48 10-10 10Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 21c0-3 1.85-5.36 5.08-6" stroke="currentColor" stroke-width="2"/>`, // Leaf
+  [EventCategory.INTERNET_BLACKOUT]: `<line x1="2" y1="2" x2="22" y2="22" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><path d="M8.5 16.5a5 5 0 0 1 7 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 12.5c1.5-1.3 3.5-2.2 5.8-2.4M13 10.2c2 .3 3.8 1.1 5 2.3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M1.5 8.5C4 6.5 7.9 5 12 5c1.9 0 3.7.3 5.4.8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="20" r="1" fill="currentColor"/>`, // WiFi Off (slash across)
+  [EventCategory.SOLAR_ALERT]: `<circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`, // Sun with rays
   [EventCategory.OTHER]: `<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M12 16v-4" stroke="currentColor" stroke-width="2"/><path d="M12 8h.01" stroke="currentColor" stroke-width="2"/>` // Info
 };
 
@@ -63,13 +65,51 @@ export const getIconHtml = (category: EventCategory, severity: Severity, isWar: 
   return `
     <div class="relative flex items-center justify-center ${animation}" style="width: ${size}px; height: ${size}px;">
       ${isWar ? `<div class="absolute inset-0 rounded-full opacity-30 animate-ping" style="background-color: ${color}; transform: scale(0.8);"></div>` : ''}
-      
-      <div class="relative z-10 flex items-center justify-center" 
+
+      <div class="relative z-10 flex items-center justify-center"
            style="width: 100%; height: 100%; color: ${strokeColor}; filter: ${filter};">
         <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           ${iconSvg}
         </svg>
       </div>
+    </div>
+  `;
+};
+
+/**
+ * Military aircraft icon — small plane silhouette rotated by heading.
+ * Used for the live military aircraft overlay layer (NOT event pins).
+ * @param heading degrees (0 = north, 90 = east). Icon default points north (up).
+ * @param isEmergency if true, uses red/alert color (squawk 7700 etc.)
+ */
+export const getMilitaryAircraftIconHtml = (heading: number, isEmergency: boolean): string => {
+  const color = isEmergency ? '#ef4444' : '#94a3b8'; // red for emergency, slate for normal
+  const glow = isEmergency
+    ? 'drop-shadow(0 0 4px #ef4444) drop-shadow(0 0 8px #ef4444)'
+    : 'drop-shadow(0 0 3px #000) drop-shadow(0 0 6px #64748b)';
+
+  // Plane SVG pointing upward (north = 0°). Rotation applied via CSS.
+  const planeSvg = `
+    <polygon points="12,2 15,9 22,9 16,14 18,21 12,17 6,21 8,14 2,9 9,9"
+      fill="${color}" stroke="none" opacity="0.9"/>
+  `;
+  // Actually a simpler fighter silhouette:
+  const fighterSvg = `
+    <path d="M12 2 L14 8 L20 10 L14 12 L15 20 L12 18 L9 20 L10 12 L4 10 L10 8 Z"
+      fill="${color}" stroke="#000" stroke-width="0.5" opacity="0.92"/>
+  `;
+
+  return `
+    <div style="
+      width: 22px; height: 22px;
+      display: flex; align-items: center; justify-content: center;
+      transform: rotate(${heading}deg);
+      filter: ${glow};
+      transition: transform 0.5s ease;
+    ">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24">
+        ${fighterSvg}
+      </svg>
     </div>
   `;
 };

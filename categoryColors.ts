@@ -22,6 +22,8 @@ export const CATEGORY_COLORS: Record<EventCategory, string> = {
     [EventCategory.MARITIME]: '#1e3a8a',         // Blue-900
     [EventCategory.INFRASTRUCTURE]: '#6366f1',   // Indigo-500
     [EventCategory.ENVIRONMENTAL]: '#10b981',    // Emerald-500
+    [EventCategory.INTERNET_BLACKOUT]: '#7c3aed', // Violet-700
+    [EventCategory.SOLAR_ALERT]: '#f59e0b',       // Amber-500 (solar/corona gold)
     [EventCategory.OTHER]: '#94a3b8'             // Slate-400
 };
 
@@ -46,6 +48,8 @@ export const CATEGORY_LABELS: Record<EventCategory, string> = {
     [EventCategory.MARITIME]: 'Maritime Incident',
     [EventCategory.INFRASTRUCTURE]: 'Infrastructure',
     [EventCategory.ENVIRONMENTAL]: 'Environmental',
+    [EventCategory.INTERNET_BLACKOUT]: 'Internet Blackout',
+    [EventCategory.SOLAR_ALERT]: 'Solar Alert',
     [EventCategory.OTHER]: 'Other Events',
 };
 

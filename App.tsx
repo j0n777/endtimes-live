@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Radio, BookOpen, Activity, RefreshCw, Layers, Shield, Menu, X, Globe, DollarSign, Cpu, LandPlot, Rss, Settings, ChevronUp, ChevronDown, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { AlertTriangle, Radio, BookOpen, RefreshCw, Shield, Menu, X, Globe, DollarSign, Cpu, LandPlot, Rss, Settings, ChevronUp, ChevronDown, Trash2 } from 'lucide-react';
+import { useLocale } from './lib/i18n';
+import { calculateDefcon, DEFCON_META } from './utils/defconCalculator';
+import { calculateOmegaIndex, OMEGA_META } from './utils/omegaCalculator';
+import { StatusBar } from './components/StatusBar';
 import { MOCK_EVENTS } from './constants';
 import { ViewState, MonitorEvent, AdminConfig, DataSourceStatus, EventCategory } from './types';
 import { CATEGORY_COLORS, CATEGORY_LABELS } from './categoryColors';
 import SituationMap from './components/SituationMap';
 // import AIChat from './components/AIChat';
-import TacticalRadar from './components/TacticalRadar';
 import SurvivalManual from './components/SurvivalManual';
 import CommsPanel from './components/CommsPanel';
 import ProphecyIntel from './components/ProphecyIntel';
@@ -14,27 +17,107 @@ import { LiveThreatFeed } from './components/LiveThreatFeed';
 // import AdminPanel from './components/AdminPanel';
 // REMOVED: Direct API calls - import { fetchRealTimeEvents } from './services/geminiService';
 // REMOVED: Direct API calls - import { fetchAllDataSources } from './services/data-sources';
-import { loadAllEvents, getCollectorStatuses, triggerDataCollection } from './services/frontendDataService';
+import { loadAllEvents, loadEventsByCategories, getCollectorStatuses, triggerDataCollection } from './services/frontendDataService';
+import { fetchMilitaryAircraft, MilitaryAircraft } from './services/militaryAircraftService';
+import { loadConflictZones, ConflictZone } from './services/conflictZoneService';
+import { loadNuclearAlerts, NuclearAlert } from './services/nuclearAlertService';
 import Clock from './components/Clock';
 import { BottomFilterBar } from './components/BottomFilterBar';
 
 import { SEOHead } from './components/SEOHead';
 
 const App: React.FC = () => {
+  const { t } = useLocale();
+
   // --- STATE MANAGEMENT ---
   const [viewState, setViewState] = useState<ViewState>('SITUATION_MAP');
   const [events, setEvents] = useState<MonitorEvent[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<MonitorEvent[]>([]);
+  const [initialCategoryCounts, setInitialCategoryCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dataSourceStatuses, setDataSourceStatuses] = useState<DataSourceStatus[]>([]);
 
+  // DEFCON — OSINT source (defconlevel.com) takes priority, falls back to event-based calc
+  const [osintDefcon, setOsintDefcon] = useState<{ level: 1 | 2 | 3 | 4 | 5; codename: string; source: string } | null>(null);
+
+  useEffect(() => {
+    const fetchDefcon = async () => {
+      try {
+        const res = await fetch('/data/defcon.json?t=' + Date.now());
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.level >= 1 && data?.level <= 5) {
+            setOsintDefcon({ level: data.level, codename: data.codename, source: data.source });
+          }
+        }
+      } catch { /* silently ignore — fallback to calculated */ }
+    };
+    fetchDefcon();
+    const interval = setInterval(fetchDefcon, 30 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const calculatedDefcon = useMemo(() => calculateDefcon(events), [events]) as 1 | 2 | 3 | 4 | 5;
+  const defconLevel = (osintDefcon?.level ?? calculatedDefcon) as 1 | 2 | 3 | 4 | 5;
+  const defconMeta = DEFCON_META[defconLevel];
+
+  const omegaLevel = useMemo(() => calculateOmegaIndex(events), [events]);
+  const omegaMeta = OMEGA_META[omegaLevel];
+
   // LAYER CONTROLS
   const [showTransport, setShowTransport] = useState<boolean>(false);
+  const [showAircraft, setShowAircraft] = useState<boolean>(false);
+  const [militaryAircraft, setMilitaryAircraft] = useState<MilitaryAircraft[]>([]);
+  const [aircraftLoading, setAircraftLoading] = useState<boolean>(false);
+  const [showConflictZones, setShowConflictZones] = useState<boolean>(true);
+  const [conflictZones, setConflictZones] = useState<ConflictZone[]>([]);
+  const [showNuclearAlerts, setShowNuclearAlerts] = useState<boolean>(true);
+  const [nuclearAlerts, setNuclearAlerts] = useState<NuclearAlert[]>([]);
   const [visibleCategories, setVisibleCategories] = useState<Set<EventCategory>>(
     new Set(Object.values(EventCategory))
   );
+
+  // Military aircraft live polling — 30s initial delay, then every 8 min.
+  // The delay prevents the aircraft fetch from running simultaneously with the
+  // initial events load, and the longer interval reduces API pressure.
+  useEffect(() => {
+    if (!showAircraft) {
+      setMilitaryAircraft([]);
+      return;
+    }
+    const loadAircraft = async () => {
+      setAircraftLoading(true);
+      try {
+        const data = await fetchMilitaryAircraft();
+        setMilitaryAircraft(data);
+      } catch (e) {
+        console.warn('Military aircraft fetch failed:', e);
+      } finally {
+        setAircraftLoading(false);
+      }
+    };
+    // Initial fetch after 30s delay (let events/map finish loading first)
+    const initTimer = setTimeout(loadAircraft, 30_000);
+    // Then poll every 8 minutes
+    const interval = setInterval(loadAircraft, 8 * 60 * 1000);
+    return () => { clearTimeout(initTimer); clearInterval(interval); };
+  }, [showAircraft]);
+
+  // Load conflict zones + nuclear alerts on startup (1-hour client cache in each service)
+  useEffect(() => {
+    loadConflictZones().then(zones => setConflictZones(zones));
+    loadNuclearAlerts().then(alerts => setNuclearAlerts(alerts));
+  }, []);
+
+  // ☢ Nuclear alerts are CRITICAL — force layer ON whenever active alerts exist.
+  // The layer can still be toggled OFF only when there are no alerts.
+  useEffect(() => {
+    if (nuclearAlerts.length > 0) {
+      setShowNuclearAlerts(true);
+    }
+  }, [nuclearAlerts]);
 
   // --- DATA FETCHING ---
   const handleRefreshData = async () => {
@@ -46,6 +129,13 @@ const App: React.FC = () => {
       // Load events
       const data = await loadAllEvents();
       setEvents(data);
+
+      const counts: Record<string, number> = {};
+      data.forEach(e => {
+        counts[e.category] = (counts[e.category] || 0) + 1;
+      });
+      setInitialCategoryCounts(counts);
+
       // setFilteredEvents(data); // Handled by effect below
 
       // Load statuses
@@ -69,20 +159,49 @@ const App: React.FC = () => {
     handleRefreshData();
   }, []);
 
-  // Filter Logic
+  // Filter Logic (for transport layer — category filter now done server-side)
   useEffect(() => {
     let filtered = events;
-
-    // Filter Transport
     if (!showTransport) {
       filtered = filtered.filter(e => e.category !== 'TRANSPORT');
     }
-
-    // Filter by Category
-    filtered = filtered.filter(e => visibleCategories.has(e.category));
-
     setFilteredEvents(filtered);
-  }, [events, showTransport, visibleCategories]);
+  }, [events, showTransport]);
+
+  const isInitialMount = useRef(true);
+
+  // Per-category server-side refetch — when user selects a subset of categories,
+  // fetch the 150 most recent events FOR THOSE CATEGORIES from Supabase.
+  // This way selecting "CONFLICT" shows the 150 most recent conflict events,
+  // not "conflict events from within the global 150".
+  useEffect(() => {
+    const allCategories = new Set(Object.values(EventCategory));
+    const isAllSelected = visibleCategories.size >= allCategories.size;
+
+    if (isAllSelected && isInitialMount.current) {
+      isInitialMount.current = false;
+      return; // No change from initial load — global 150 already loaded
+    }
+    isInitialMount.current = false;
+
+    // Debounce: wait 400ms after last toggle before querying
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const selectedCats = [...visibleCategories] as EventCategory[];
+        const data = selectedCats.length > 0
+          ? await loadEventsByCategories(selectedCats)
+          : await loadAllEvents();
+        setEvents(data);
+      } catch (e) {
+        console.error('Category filter refetch failed:', e);
+      } finally {
+        setLoading(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [visibleCategories]);
 
   // Navigation Logic
   interface NavButtonProps {
@@ -112,13 +231,17 @@ const App: React.FC = () => {
   const renderContent = () => {
     switch (viewState) {
       case 'SITUATION_MAP':
-        return <SituationMap events={filteredEvents} />;
+        return <SituationMap
+          events={filteredEvents}
+          showAircraft={showAircraft}
+          militaryAircraft={militaryAircraft}
+          showConflictZones={showConflictZones}
+          conflictZones={conflictZones}
+          showNuclearAlerts={showNuclearAlerts}
+          nuclearAlerts={nuclearAlerts}
+        />;
       case 'LIVE_FEED':
-        return (
-          <div className="h-full overflow-y-auto p-4 md:p-8 flex justify-center">
-            <IntelFeed events={events} />
-          </div>
-        );
+        return <IntelFeed events={events} />;
       case 'TIMELINE':
         return <ProphecyIntel />;
       case 'SURVIVAL':
@@ -129,7 +252,15 @@ const App: React.FC = () => {
         // return <AIChat events={events} />;
         return null;
       default:
-        return <SituationMap events={filteredEvents} />;
+        return <SituationMap
+          events={filteredEvents}
+          showAircraft={showAircraft}
+          militaryAircraft={militaryAircraft}
+          showConflictZones={showConflictZones}
+          conflictZones={conflictZones}
+          showNuclearAlerts={showNuclearAlerts}
+          nuclearAlerts={nuclearAlerts}
+        />;
     }
   };
 
@@ -285,8 +416,8 @@ const App: React.FC = () => {
             <div className="w-3 h-3 bg-tactical-500 rounded-full relative"></div>
           </div>
           <div>
-            <h4 className="font-bold text-sm tracking-widest">NEW INTEL RECEIVED</h4>
-            <p className="text-[10px] text-gray-400">Syncing database...</p>
+            <h4 className="font-bold text-sm tracking-widest">{t.header.newIntel}</h4>
+            <p className="text-[10px] text-gray-400">{t.header.syncing}</p>
           </div>
         </div>
       </div>
@@ -319,7 +450,7 @@ const App: React.FC = () => {
                 END TIMES MONITOR
               </h1>
               <p className="text-[8px] text-gray-500 uppercase tracking-widest">
-                Global Intelligence Platform
+                {t.header.subtitle}
               </p>
             </div>
             {/* Isolated Clock Component */}
@@ -335,60 +466,67 @@ const App: React.FC = () => {
           role="navigation"
           aria-label="Primary navigation"
         >
-          <NavButton target="SITUATION_MAP" label="SITUATION" />
-          <NavButton target="LIVE_FEED" label="LIVE WIRE" />
-          <NavButton target="TIMELINE" label="PROPHECY" />
-          <NavButton target="SURVIVAL" label="PROTOCOLS" />
-          <NavButton target="RADIO" label="COMMS" />
+          <NavButton target="SITUATION_MAP" label={t.nav.situation} />
+          <NavButton target="LIVE_FEED" label={t.nav.liveFeed} />
+          <NavButton target="TIMELINE" label={t.nav.prophecy} />
+          <NavButton target="SURVIVAL" label={t.nav.protocols} />
+          <NavButton target="RADIO" label={t.nav.comms} />
           {/* <NavButton target="ADMIN" label="ADMIN" /> */}
         </nav>
 
-        {/* Data Source Status (Desktop) */}
-        {dataSourceStatuses.length > 0 && (
-          <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-tactical-800/50 border border-tactical-700 rounded text-[10px]">
-            <div className="flex items-center gap-1">
-              <div className={`w-2 h-2 rounded-full ${dataSourceStatuses.some(s => s.status === 'active') ? 'bg-[#c19a6b] animate-pulse' : 'bg-gray-500'
-                }`} />
-              <span className="text-gray-400">
-                {dataSourceStatuses.filter(s => s.status === 'active').length}/{dataSourceStatuses.length} SOURCES
-              </span>
-            </div>
-            <span className="text-tactical-500 font-bold">
-              {filteredEvents.length} / {events.length} VISIBLE
-            </span>
-          </div>
-        )}
-
-        <div className="flex items-center gap-2">
-          {/* Status Indicator (replaces buttons) */}
-          <div className="flex items-center gap-2 px-3 py-1 bg-black/50 border border-tactical-900 text-xs text-gray-500">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-            <span className="uppercase tracking-wider text-[10px]">SYSTEM ONLINE</span>
-          </div>
-
+        {/* Share + Online */}
+        <div className="flex items-center gap-3">
+          {/* Share button */}
           <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="flex items-center gap-2 px-3 py-1 bg-tactical-800 border border-tactical-700 hover:bg-tactical-700 text-xs text-white transition-colors"
+            onClick={async () => {
+              const shareData = {
+                title: 'End Times Monitor',
+                text: 'Live global event monitoring — geopolitics, disasters, conflicts and more.',
+                url: 'https://endtimes.live',
+              };
+              try {
+                if (navigator.share) {
+                  await navigator.share(shareData);
+                } else {
+                  await navigator.clipboard.writeText('https://endtimes.live');
+                }
+              } catch (e) {
+                if ((e as Error).name !== 'AbortError') {
+                  await navigator.clipboard.writeText('https://endtimes.live');
+                }
+              }
+            }}
+            className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-white transition-colors font-mono uppercase tracking-widest"
+            title="Share"
+            aria-label="Share this site"
           >
-            <Layers className="w-3 h-3" />
-            <span className="hidden sm:inline">INTEL</span>
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+            </svg>
+            <span className="hidden lg:inline">Share</span>
           </button>
+          {/* Online dot */}
+          <div className="flex items-center gap-1.5 text-[10px] text-gray-500 font-mono">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="hidden lg:inline uppercase tracking-widest">{t.header.online}</span>
+          </div>
         </div>
       </header>
 
       {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
         <div className="absolute top-14 left-0 w-full bg-tactical-900 border-b border-tactical-700 z-50 md:hidden flex flex-col p-4 space-y-2 shadow-2xl">
-          <NavButton target="SITUATION_MAP" label="SITUATION MAP" icon={Globe} />
-          <NavButton target="LIVE_FEED" label="LIVE INTELLIGENCE WIRE" icon={Rss} />
-          <NavButton target="TIMELINE" label="PROPHETIC TIMELINE" icon={BookOpen} />
-          <NavButton target="SURVIVAL" label="SURVIVAL PROTOCOLS" icon={Shield} />
-          <NavButton target="RADIO" label="RADIO / COMMS" icon={Radio} />
+          <NavButton target="SITUATION_MAP" label={t.nav.situation} icon={Globe} />
+          <NavButton target="LIVE_FEED" label={t.nav.liveFeed} icon={Rss} />
+          <NavButton target="TIMELINE" label={t.nav.prophecy} icon={BookOpen} />
+          <NavButton target="SURVIVAL" label={t.nav.protocols} icon={Shield} />
+          <NavButton target="RADIO" label={t.nav.comms} icon={Radio} />
         </div>
       )}
 
       {/* Main Content Area */}
-      <div className="flex-1 relative bg-[#050505] overflow-hidden">
+      <div className="flex-1 relative bg-[#050505] overflow-hidden pb-8">
         {renderContent()}
 
         {/* LEFT OVERLAY: Live Threat Feed (Visible in SITUATION_MAP) */}
@@ -396,82 +534,131 @@ const App: React.FC = () => {
           <LiveThreatFeed events={events} />
         )}
 
-        {/* Right Sidebar (Sliding Panel) */}
-        <div className={`absolute top-0 right-0 h-full w-80 sm:w-96 bg-tactical-900/95 border-l border-tactical-700 transform transition-transform duration-300 z-30 backdrop-blur-md flex flex-col ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        {/* Right Sidebar — Layer / Category Filter */}
+        <div className={`absolute top-0 right-0 h-full w-72 bg-tactical-900/95 border-l border-tactical-700 transform transition-transform duration-300 z-30 backdrop-blur-md flex flex-col ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
           <div className="p-4 border-b border-tactical-700 flex justify-between items-center bg-black/40">
-            <h2 className="text-sm font-bold tracking-widest text-white">INTELLIGENCE_LAYER</h2>
-            <button onClick={() => setSidebarOpen(false)}><X className="w-4 h-4 text-gray-500 hover:text-white" /></button>
+            <h2 className="text-xs font-bold tracking-widest text-tactical-400 uppercase">{t.sidebar.title}</h2>
+            <button onClick={() => setSidebarOpen(false)} className="text-gray-500 hover:text-white transition-colors"><X className="w-4 h-4" /></button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-6">
-            {/* Radar Widget */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-5">
+
+            {/* Transport Layer */}
             <div>
-              <h3 className="text-xs text-tactical-500 mb-2 flex items-center gap-2"><Activity className="w-3 h-3" /> THREAT RADAR</h3>
-              <TacticalRadar events={events} />
+              <p className="text-[10px] text-gray-600 uppercase tracking-widest mb-2">{t.sidebar.activeLayers}</p>
+              <button
+                onClick={() => setShowTransport(!showTransport)}
+                className={`flex items-center gap-2 w-full px-3 py-2 rounded-sm text-xs font-mono border transition-colors ${showTransport
+                  ? 'border-blue-700/50 text-blue-400 bg-blue-900/10'
+                  : 'border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-400'
+                  }`}
+              >
+                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${showTransport ? 'bg-blue-500 animate-pulse' : 'bg-gray-700'}`} />
+                {t.sidebar.transport}
+              </button>
+              {/* Military Aircraft Live Layer */}
+              <button
+                onClick={() => setShowAircraft(!showAircraft)}
+                className={`flex items-center gap-2 w-full px-3 py-2 mt-1.5 rounded-sm text-xs font-mono border transition-colors ${showAircraft
+                  ? 'border-slate-500/60 text-slate-300 bg-slate-800/20'
+                  : 'border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-400'
+                  }`}
+                title="Live military aircraft from adsb.lol"
+              >
+                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${showAircraft ? 'bg-slate-400 animate-pulse' : 'bg-gray-700'}`} />
+                ✈ MIL AIRCRAFT {aircraftLoading ? '(loading…)' : showAircraft ? `(${militaryAircraft.length})` : '(live)'}
+              </button>
+
+              {/* Conflict Zones Layer */}
+              <button
+                onClick={() => setShowConflictZones(!showConflictZones)}
+                className={`flex items-center gap-2 w-full px-3 py-2 mt-1.5 rounded-sm text-xs font-mono border transition-colors ${showConflictZones
+                  ? 'border-red-700/50 text-red-400 bg-red-900/10'
+                  : 'border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-400'
+                  }`}
+                title="Active war zones and conflict areas"
+              >
+                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${showConflictZones ? 'bg-red-500' : 'bg-gray-700'}`} />
+                🔴 ZONAS DE CONFLITO {conflictZones.length > 0 ? `(${conflictZones.length})` : ''}
+              </button>
+
+              {/* Nuclear Alerts Layer */}
+              {nuclearAlerts.length > 0 ? (
+                // ☢ LOCKED: When active nuclear alerts exist, layer cannot be hidden
+                <div
+                  className="flex items-center gap-2 w-full px-3 py-2 mt-1.5 rounded-sm text-xs font-mono border border-purple-600/70 text-purple-300 bg-purple-900/15 cursor-not-allowed select-none"
+                  title="☢ Alerta ativo — layer permanente enquanto houver alertas ativos"
+                >
+                  <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-purple-500 animate-ping" />
+                  ☢ ALERTAS NUCLEARES ({nuclearAlerts.length}) 🔒
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowNuclearAlerts(!showNuclearAlerts)}
+                  className={`flex items-center gap-2 w-full px-3 py-2 mt-1.5 rounded-sm text-xs font-mono border transition-colors ${showNuclearAlerts
+                    ? 'border-purple-700/60 text-purple-300 bg-purple-900/10'
+                    : 'border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-400'
+                    }`}
+                  title="Nuclear strike blast radius visualization"
+                >
+                  <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${showNuclearAlerts ? 'bg-purple-500 animate-pulse' : 'bg-gray-700'}`} />
+                  ☢ ALERTAS NUCLEARES (0)
+                </button>
+              )}
             </div>
 
-            {/* LAYERS CONTROL */}
-            <div className="bg-black/40 p-4 rounded border border-tactical-800">
-              <h3 className="text-xs text-tactical-500 mb-3 flex items-center gap-2">ACTIVE LAYERS</h3>
-
-              <div className="space-y-3">
-                {/* Transport Layer */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${showTransport ? 'bg-blue-500 animate-pulse' : 'bg-gray-600'}`}></div>
-                    <span className={`text-sm ${showTransport ? 'text-gray-200' : 'text-gray-500'}`}>Global Transport (Air/Sea)</span>
-                  </div>
-                  <button
-                    onClick={() => setShowTransport(!showTransport)}
-                    className={`w-10 h-5 rounded-full relative transition-colors duration-300 ${showTransport ? 'bg-tactical-600' : 'bg-gray-800 border border-gray-700'}`}
-                  >
-                    <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all duration-300 shadow-md ${showTransport ? 'left-6' : 'left-1'}`}></div>
-                  </button>
-                </div>
-
-                <hr className="border-t border-tactical-800 my-2" />
-                <p className="text-[10px] text-gray-500 mb-2 uppercase tracking-wider">Event Categories</p>
-
-                {/* Event Category Toggles */}
+            {/* Category Filter Chips */}
+            <div>
+              <p className="text-[10px] text-gray-600 uppercase tracking-widest mb-2">{t.sidebar.categories}</p>
+              <div className="flex flex-wrap gap-1.5">
                 {Object.entries(CATEGORY_LABELS).map(([category, label]) => {
-                  /* Skip specific legacy alias categories to avoid clutter */
                   if (category === 'PANDEMIC' || category === 'GOVERNMENT' || category === 'TECHNOLOGY') return null;
-
+                  const count = initialCategoryCounts[category] || 0;
+                  if (count === 0) return null;
                   const color = CATEGORY_COLORS[category as EventCategory] || '#9ca3af';
                   const isVisible = visibleCategories.has(category as EventCategory);
-
                   return (
-                    <div key={category} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: isVisible ? color : '#4b5563' }}></div>
-                        <span className={`text-sm ${isVisible ? 'text-gray-200' : 'text-gray-500'}`}>{label}</span>
-                      </div>
-                      <button
-                        onClick={() => {
-                          const newVisible = new Set(visibleCategories);
-                          if (isVisible) {
-                            newVisible.delete(category as EventCategory);
-                          } else {
-                            newVisible.add(category as EventCategory);
-                          }
-                          setVisibleCategories(newVisible);
-                        }}
-                        className={`w-8 h-4 rounded-full relative transition-colors duration-300 ${isVisible ? 'bg-tactical-600' : 'bg-gray-800 border border-gray-700'}`}
-                      >
-                        <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all duration-300 shadow-md ${isVisible ? 'left-4' : 'left-0.5'}`}></div>
-                      </button>
-                    </div>
+                    <button
+                      key={category}
+                      onClick={() => {
+                        const next = new Set(visibleCategories);
+                        isVisible ? next.delete(category as EventCategory) : next.add(category as EventCategory);
+                        setVisibleCategories(next);
+                      }}
+                      title={isVisible ? 'Click to hide' : 'Click to show'}
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded-sm text-[10px] font-mono border transition-all ${isVisible
+                        ? 'border-white/10 text-gray-300 bg-white/5 hover:bg-white/10'
+                        : 'border-transparent text-gray-600 opacity-40 hover:opacity-60'
+                        }`}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: isVisible ? color : '#4b5563' }} />
+                      {label}
+                      <span className="text-gray-500">({count})</span>
+                    </button>
                   );
                 })}
               </div>
-
-              <p className="text-[10px] text-gray-500 mt-4 leading-relaxed">
-                Toggle categories to filter events on the Intelligence Map. Grayed out categories are suppressed from view.
-              </p>
+              <p className="text-[10px] text-gray-700 mt-3 leading-relaxed">{t.sidebar.categoriesHint}</p>
             </div>
+
           </div>
         </div>
 
+
+        {/* ── Status Bar (bottom) ──────────────────────────────────── */}
+        <StatusBar
+          omegaLevel={omegaLevel}
+          omegaMeta={omegaMeta}
+          defconLevel={defconLevel}
+          defconMeta={defconMeta}
+          osintDefcon={osintDefcon}
+          filteredCount={filteredEvents.length}
+          totalCount={events.length}
+          activeSourceCount={dataSourceStatuses.filter(s => s.status === 'active').length}
+          totalSourceCount={dataSourceStatuses.length}
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+        />
 
       </div>
     </div>

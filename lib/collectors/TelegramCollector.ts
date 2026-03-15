@@ -3,6 +3,7 @@ import { BaseCollector, CollectorConfig } from './BaseCollector';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { MonitorEvent, EventCategory, Severity } from '../../types';
 import { getGeocodingService } from '../services/GeocodingService';
+import { resolveLocation } from '../services/LocationResolver';
 
 // Priority channels for intelligence
 const DEFAULT_CHANNELS = [
@@ -228,37 +229,40 @@ export class TelegramCollector extends BaseCollector {
         // Determine Severity
         const severity = this.determineSeverity(post.text);
 
-        // Geocoding
-        const geocodeRequest = {
-            text: post.text,
-            priority: severity === 'CRITICAL' ? 'high' : 'normal',
-            context: {
-                // Provide region as context to help disambiguate (e.g. "Cordoba" -> Cordoba, Argentina vs Spain)
-                country: this.region !== 'GLOBAL' && !this.region.includes('_') ? this.region : undefined
-            }
-        };
+        // Geocoding — title-first keyword resolver, then AI only for CRITICAL/HIGH
+        const postTitle = lines[0].length > 10 ? lines[0] : (lines[1] || lines[0]);
+        const postDesc = post.text.substring(postTitle.length, 400);
 
         let location = 'Global';
         let coordinates = { lat: 0, lng: 0 };
 
-        // ATTEMPT GEOCODING FOR ALL EVENTS to fix positioning
-        try {
-            const geoResult = await this.geocoder.geocode(geocodeRequest);
-            if (geoResult.success && geoResult.location) {
-                location = geoResult.location.city || geoResult.location.region || geoResult.location.country || geoResult.location.name || location;
-                coordinates = { lat: geoResult.location.lat, lng: geoResult.location.lng };
-            } else {
-                // Fallback to Region Center if geocoding fails
-                if (this.region !== 'GLOBAL') {
+        // Step 1: keyword resolver (zero API cost)
+        const resolved = resolveLocation(postTitle, postDesc);
+        if (resolved) {
+            location = resolved.name;
+            coordinates = resolved.coords;
+        } else if (severity === 'CRITICAL' || severity === 'HIGH') {
+            // Step 2: AI geocoding for important items only
+            try {
+                const geoResult = await this.geocoder.geocode({
+                    text: postTitle,
+                    priority: 'high',
+                    context: {
+                        country: this.region !== 'GLOBAL' && !this.region.includes('_') ? this.region : undefined
+                    }
+                });
+                if (geoResult.success && geoResult.location) {
+                    location = geoResult.location.city || geoResult.location.country || location;
+                    coordinates = { lat: geoResult.location.lat, lng: geoResult.location.lng };
+                } else if (this.region !== 'GLOBAL') {
                     location = this.region.replace('_', ' ');
-                    // We rely on BaseCollector or subsequent logic to set default Lat/Lng for region if (0,0)
                 }
+            } catch (e) {
+                console.warn(`Geocoding failed for ${post.id}:`, e);
+                if (this.region !== 'GLOBAL') location = this.region.replace('_', ' ');
             }
-        } catch (e) {
-            console.warn(`Geocoding failed for ${post.id}:`, e);
-            if (this.region !== 'GLOBAL') {
-                location = this.region.replace('_', ' ');
-            }
+        } else if (this.region !== 'GLOBAL') {
+            location = this.region.replace('_', ' ');
         }
 
         // Small delay to be nice to rate limits since we are processing more now

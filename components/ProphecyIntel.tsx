@@ -9,11 +9,11 @@ import {
   ExtendedProphecyEvent
 } from '../prophecyIndex';
 import { BookOpen, CheckCircle, Clock, CircleDashed, AlertTriangle, ChevronDown, ChevronRight, Filter, ShieldAlert } from 'lucide-react';
-
-// ... imports
+import { useLocale } from '../lib/i18n';
 import { SEOHead } from './SEOHead';
 
 const ProphecyIntel: React.FC = () => {
+  const { t } = useLocale();
   // ... existing state ... 
   const [selectedCategory, setSelectedCategory] = useState<ProphecyCategory | 'ALL'>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<'ALL' | 'FULFILLED' | 'IN_PROGRESS' | 'PENDING'>('ALL');
@@ -203,8 +203,8 @@ const ProphecyIntel: React.FC = () => {
               <BookOpen className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-xl md:text-2xl font-bold text-white tracking-widest">PROPHETIC INTELLIGENCE</h1>
-              <div className="text-xs text-gray-500">COMPREHENSIVE ESCHATOLOGICAL DATABASE</div>
+              <h1 className="text-xl md:text-2xl font-bold text-white tracking-widest">{t.prophecy.title}</h1>
+              <div className="text-xs text-gray-500">{t.prophecy.subtitle}</div>
             </div>
           </div>
 
@@ -233,7 +233,7 @@ const ProphecyIntel: React.FC = () => {
             className="flex items-center gap-2 px-4 py-2 bg-tactical-800 border border-tactical-700 hover:bg-tactical-700 text-white text-sm transition-colors w-full md:w-auto"
           >
             <Filter className="w-4 h-4" />
-            FILTERS {showFilters ? '▼' : '►'}
+            {t.prophecy.filter} {showFilters ? '▼' : '►'}
           </button>
 
           {showFilters && (
@@ -249,7 +249,7 @@ const ProphecyIntel: React.FC = () => {
                       : 'bg-tactical-800 text-gray-400 hover:bg-tactical-700'
                       }`}
                   >
-                    ALL ({PROPHECY_STATS.total})
+                    {t.prophecy.allCategories} ({PROPHECY_STATS.total})
                   </button>
                   {/* Keep category keys but use English Labels */}
                   {Object.keys(CATEGORY_LABELS).map(catKey => {
@@ -276,41 +276,17 @@ const ProphecyIntel: React.FC = () => {
               <div>
                 <label className="text-xs text-gray-500 uppercase mb-2 block">Status:</label>
                 <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => setSelectedStatus('ALL')}
-                    className={`px-3 py-1 text-xs rounded transition-colors ${selectedStatus === 'ALL'
-                      ? 'bg-tactical-500 text-black font-bold'
-                      : 'bg-tactical-800 text-gray-400 hover:bg-tactical-700'
-                      }`}
-                  >
-                    ALL
+                  <button onClick={() => setSelectedStatus('ALL')} className={`px-3 py-1 text-xs rounded transition-colors ${selectedStatus === 'ALL' ? 'bg-tactical-500 text-black font-bold' : 'bg-tactical-800 text-gray-400 hover:bg-tactical-700'}`}>
+                    {t.prophecy.allStatuses}
                   </button>
-                  <button
-                    onClick={() => setSelectedStatus('FULFILLED')}
-                    className={`px-3 py-1 text-xs rounded transition-colors ${selectedStatus === 'FULFILLED'
-                      ? 'bg-green-600 text-white font-bold'
-                      : 'bg-green-900/30 text-green-400 hover:bg-green-900/50'
-                      }`}
-                  >
-                    STATUS_LABELS.FULFILLED
+                  <button onClick={() => setSelectedStatus('FULFILLED')} className={`px-3 py-1 text-xs rounded transition-colors ${selectedStatus === 'FULFILLED' ? 'bg-green-600 text-white font-bold' : 'bg-green-900/30 text-green-400 hover:bg-green-900/50'}`}>
+                    {t.prophecy.fulfilled}
                   </button>
-                  <button
-                    onClick={() => setSelectedStatus('IN_PROGRESS')}
-                    className={`px-3 py-1 text-xs rounded transition-colors ${selectedStatus === 'IN_PROGRESS'
-                      ? 'bg-yellow-600 text-black font-bold'
-                      : 'bg-yellow-900/30 text-yellow-400 hover:bg-yellow-900/50'
-                      }`}
-                  >
-                    STATUS_LABELS.IN_PROGRESS
+                  <button onClick={() => setSelectedStatus('IN_PROGRESS')} className={`px-3 py-1 text-xs rounded transition-colors ${selectedStatus === 'IN_PROGRESS' ? 'bg-yellow-600 text-black font-bold' : 'bg-yellow-900/30 text-yellow-400 hover:bg-yellow-900/50'}`}>
+                    {t.prophecy.inProgress}
                   </button>
-                  <button
-                    onClick={() => setSelectedStatus('PENDING')}
-                    className={`px-3 py-1 text-xs rounded transition-colors ${selectedStatus === 'PENDING'
-                      ? 'bg-gray-600 text-white font-bold'
-                      : 'bg-gray-900/30 text-gray-400 hover:bg-gray-900/50'
-                      }`}
-                  >
-                    STATUS_LABELS.PENDING
+                  <button onClick={() => setSelectedStatus('PENDING')} className={`px-3 py-1 text-xs rounded transition-colors ${selectedStatus === 'PENDING' ? 'bg-gray-600 text-white font-bold' : 'bg-gray-900/30 text-gray-400 hover:bg-gray-900/50'}`}>
+                    {t.prophecy.pending}
                   </button>
                 </div>
               </div>
@@ -320,8 +296,8 @@ const ProphecyIntel: React.FC = () => {
 
         {/* Results Count */}
         <div className="mb-4 text-sm text-gray-500">
-          Showing <span className="text-white font-bold">{filteredBiblical.length}</span> Biblical Prophecies
-          {filteredIslamic.length > 0 && <span> + <span className="text-red-400 font-bold">{filteredIslamic.length}</span> Warnings</span>}
+          <span className="text-white font-bold">{filteredBiblical.length}</span> {t.prophecy.biblical}
+          {filteredIslamic.length > 0 && <span> + <span className="text-red-400 font-bold">{filteredIslamic.length}</span> {t.prophecy.islamic}</span>}
         </div>
 
         {/* 1. BIBLICAL PROPHECIES LIST */}
@@ -344,7 +320,7 @@ const ProphecyIntel: React.FC = () => {
           <div className="mt-12">
             <div className="flex items-center gap-2 mb-6 border-b border-red-900/50 pb-2">
               <ShieldAlert className="w-6 h-6 text-red-500" />
-              <h2 className="text-xl font-bold text-red-500 tracking-widest">DECEPTION WARNINGS</h2>
+              <h2 className="text-xl font-bold text-red-500 tracking-widest">{t.prophecy.islamic}</h2>
               <div className="text-xs text-red-800/80 uppercase ml-auto border border-red-900/30 px-2 py-1 rounded">
                 Islamic Eschatology Parallels
               </div>

@@ -1,6 +1,6 @@
 import { BaseCollector, CollectorConfig } from './BaseCollector';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { MonitorEvent, EventCategory, Severity } from '../../types';
+import { MonitorEvent, EventCategory, Severity, SourceType } from '../../types';
 
 // NWS API User Agent is required and must be specific (Project + Email)
 const USER_AGENT = '(EndTimesMonitor, contato@jonataribas.com)';
@@ -33,15 +33,18 @@ export class WeatherNWSCollector extends BaseCollector {
             name: 'WEATHER_NWS',
             cacheDurationSeconds: 600, // 10 minutes
             rateLimitPerMinute: 60,
-            maxRetries: 3
+            maxRetries: 3,
+            circuitBreakerThreshold: 5,
+            circuitBreakerTimeout: 300
         };
         super(config, supabase);
     }
 
     protected async fetchData(): Promise<MonitorEvent[]> {
         // Fetch active alerts
-        // Limit to severe+ to avoid spam, but adding Moderate so the user can see data
-        const url = 'https://api.weather.gov/alerts/active?severity=Extreme,Severe,Moderate&limit=50';
+        // Fetch active alerts
+        // Limit to Extreme and Severe only to avoid map spam
+        const url = 'https://api.weather.gov/alerts/active?status=Actual&messageType=Alert&severity=Extreme,Severe&limit=50';
 
         const response = await fetch(url, {
             headers: {
@@ -69,7 +72,7 @@ export class WeatherNWSCollector extends BaseCollector {
                 description: props.description,
                 category: EventCategory.NATURAL_DISASTER,
                 severity: this.mapSeverity(props.severity),
-                sourceType: 'OFFICIAL',
+                sourceType: SourceType.OFFICIAL,
                 sourceName: 'NWS',
                 location: props.areaDesc,
                 coordinates: coords,

@@ -26,6 +26,8 @@ const ORDERED_CATEGORIES: EventCategory[] = [
     // EventCategory.ENVIRONMENTAL,
     EventCategory.PROPHETIC,
     EventCategory.PERSECUTION,
+    EventCategory.INTERNET_BLACKOUT,
+    EventCategory.SOLAR_ALERT,
     // EventCategory.OTHER
 ] as EventCategory[];
 

@@ -14,7 +14,7 @@ export const SEOHead: React.FC<SEOHeadProps> = (props) => {
     const {
         title = 'End Times Monitor | Global Intelligence Platform',
         description = 'Real-time global conflict tracking, OSINT aggregation, prophetic timeline analysis, and situational awareness map. The ultimate source for end times intelligence.',
-        image = '/logo_etm.jpg',
+        image = 'https://endtimes.live/logo_etm.jpg',
         url = 'https://endtimes.live',
         type = 'website',
         schema

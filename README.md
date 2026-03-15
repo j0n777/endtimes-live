@@ -1,5 +1,23 @@
 # 🌍 End Times Monitor
 
+> ## ⚠️ AVISO CRÍTICO DE INFRAESTRUTURA — LEIA ANTES DE QUALQUER DEPLOY
+>
+> **Este projeto roda via Docker. Cada `docker-compose up --build` gera uma nova imagem (~400MB).**
+> **Imagens antigas ficam como "dangling" e acumulam GB silenciosamente no disco da VPS.**
+>
+> **OBRIGATÓRIO após qualquer rebuild:**
+> ```bash
+> docker image prune -f        # remove imagens dangling (~400MB por build esquecido)
+> docker builder prune -f      # limpa build cache (pode acumular 30+ GB)
+> ```
+> Em 2026-03-07 o disco chegou a **99% de uso** por causa desse acúmulo.
+> Ver relatório completo: `/home/docker-sites/STORAGE_REPORT.md`
+>
+> **Nunca instale `node_modules` localmente** — o Docker constrói internamente. Remova se existir:
+> ```bash
+> rm -rf /home/docker-sites/endtimesmonitor/node_modules
+> ```
+
 **A comprehensive global intelligence platform for monitoring eschatological events, conflicts, disasters, and prophetic developments in real-time.**
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]()
@@ -91,6 +109,13 @@ End Times Monitor is an advanced OSINT (Open Source Intelligence) and data aggre
    - Setup: Create bot via @BotFather
 
 9. **Legacy APIs** - NewsAPI, MediaStack (optional)
+
+---
+
+## 🏗️ VPS Infrastructure Note
+This project runs as a multi-container Docker deployment on `/home/docker-sites/endtimesmonitor`.
+1. **`endtimesmonitor`** (Frontend container): Runs the Vite compiled app via Nginx internally on port `80`, routed externally by Traefik.
+2. **`endtimes_worker`** (Backend process): Runs ongoing data collection scripts asynchronously in the background.
 
 ---
 

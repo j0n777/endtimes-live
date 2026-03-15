@@ -64,8 +64,11 @@ export class AviationCollector extends BaseCollector {
                 const speedKmh = velocity ? Math.round(velocity * 3.6) : 0;
                 const altFt = alt ? Math.round(alt * 3.28084) : 0;
 
+                // Stable daily ID: same callsign on the same UTC day = same event
+                // Prevents re-insertion with new ID every 2-minute cycle
+                const todayUTC = new Date().toISOString().split('T')[0].replace(/-/g, '');
                 allEvents.push({
-                    id: `flight_${callsign}_${Math.floor(Date.now() / 10000)}`,
+                    id: `flight_${callsign}_${todayUTC}`,
                     title: `[Aviation] ${title}`,
                     description: `Detected military or critical aircraft operating at ${altFt} ft. Speed: ${speedKmh} km/h. Heading: ${heading}°. Origin: ${country}.`,
                     category: EventCategory.AVIATION,
@@ -87,22 +90,9 @@ export class AviationCollector extends BaseCollector {
     }
 
     private fallbackMockedData(): MonitorEvent[] {
-        return [
-            {
-                id: 'flight_FORTE11_mock',
-                title: '[Aviation] TACTICAL DRONE/ISR: FORTE11 (United States)',
-                description: 'Detected RQ-4 Global Hawk drone operating at 50,000 ft. Speed: 600 km/h. Heading: 90° over Black Sea.',
-                category: EventCategory.AVIATION,
-                severity: 'HIGH',
-                sourceType: 'OFFICIAL',
-                sourceName: 'OpenSky Network (Cache)',
-                location: 'Black Sea Airspace',
-                coordinates: { lat: 42.5, lng: 35.0 },
-                timestamp: new Date().toISOString(),
-                priority: 2,
-                sourceUrl: 'https://globe.adsbexchange.com/',
-                ...({ heading: 90 } as any)
-            }
-        ];
+        // Return empty array instead of static mock data.
+        // Mock data with new Date() timestamp was causing FORTE11 to always
+        // reappear at the top of the feed whenever OpenSky API was unavailable.
+        return [];
     }
 }

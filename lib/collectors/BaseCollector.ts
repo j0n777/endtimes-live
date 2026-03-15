@@ -305,6 +305,8 @@ export abstract class BaseCollector {
                     source_name: event.sourceName,
                     source_type: event.sourceType,
                     source_url: event.sourceUrl || '',
+                    media_url: event.mediaUrl || null,
+                    media_type: event.mediaType || null,
                     event_timestamp: event.timestamp,
                     collector_name: this.config.name,
                     fetched_at: new Date().toISOString(),

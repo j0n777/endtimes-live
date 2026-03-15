@@ -1,4 +1,4 @@
-export type Severity = 'HIGH' | 'ELEVATED' | 'MEDIUM' | 'LOW';
+export type Severity = 'CRITICAL' | 'HIGH' | 'ELEVATED' | 'MEDIUM' | 'LOW';
 
 export enum EventCategory {
   CONFLICT = 'CONFLICT',
@@ -18,6 +18,8 @@ export enum EventCategory {
   MARITIME = 'MARITIME',
   INFRASTRUCTURE = 'INFRASTRUCTURE',
   ENVIRONMENTAL = 'ENVIRONMENTAL',
+  INTERNET_BLACKOUT = 'INTERNET_BLACKOUT',
+  SOLAR_ALERT = 'SOLAR_ALERT',
   OTHER = 'OTHER'
 }
 

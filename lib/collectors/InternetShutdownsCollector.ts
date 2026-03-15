@@ -1,6 +1,6 @@
 import { BaseCollector, CollectorConfig } from './BaseCollector';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { MonitorEvent, EventCategory, Severity } from '../../types';
+import { MonitorEvent, EventCategory, Severity, SourceType } from '../../types';
 
 const FEED_URL = 'https://pulse.internetsociety.org/feed';
 
@@ -10,7 +10,9 @@ export class InternetShutdownsCollector extends BaseCollector {
             name: 'INTERNET_SHUTDOWNS',
             cacheDurationSeconds: 3600,
             rateLimitPerMinute: 10,
-            maxRetries: 3
+            maxRetries: 3,
+            circuitBreakerThreshold: 5,
+            circuitBreakerTimeout: 300
         };
         super(config, supabase);
     }
@@ -30,9 +32,9 @@ export class InternetShutdownsCollector extends BaseCollector {
                 id: this.generateId(item.link),
                 title: item.title,
                 description: item.description,
-                category: EventCategory.POLITICAL, // Often political tool
+                category: EventCategory.INTERNET_BLACKOUT,
                 severity: 'ELEVATED',
-                sourceType: 'NEWS',
+                sourceType: SourceType.RSS,
                 sourceName: 'Internet Society Pulse',
                 location: this.extractLocation(item.title),
                 coordinates: { lat: 0, lng: 0 },
