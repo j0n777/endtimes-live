@@ -8,9 +8,7 @@ const TILE_CACHE = 'map-tiles-v1';
 const CRITICAL_ASSETS = [
     '/',
     '/index.html',
-    '/src/main.tsx',
-    '/src/App.tsx',
-    '/src/index.css'
+    '/logo_etm.jpg'
 ];
 
 // Install event - cache critical assets
