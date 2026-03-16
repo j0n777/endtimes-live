@@ -28,8 +28,8 @@ const ICONS: Record<EventCategory, string> = {
 };
 
 export const getIconHtml = (category: EventCategory, severity: Severity, isWar: boolean): string => {
-  // SPECIAL HANDLING FOR TRANSPORT (Planes/Ships) - No bubble background, just the icon
-  if (category === 'TRANSPORT') {
+  // SPECIAL HANDLING FOR TRANSPORT AND AVIATION (Planes/Ships) - No bubble background, just the icon
+  if (category === 'TRANSPORT' || category === 'AVIATION') {
     // Return a clean SVG that points UP (North) by default so rotation applied in SituationMap is accurate.
     return `
       <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #3b82f6; filter: drop-shadow(0 0 3px #000) drop-shadow(0 0 8px #3b82f6);">

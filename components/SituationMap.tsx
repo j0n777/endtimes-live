@@ -557,8 +557,15 @@ const SituationMap: React.FC<SituationMapProps> = ({
       let html = getIconHtml(event.category, event.severity, isWar);
 
       // ROTATION LOGIC FOR PLANES/SHIPS
-      const heading = (event as any).heading;
-      if (event.category === 'TRANSPORT' && typeof heading === 'number') {
+      let heading = (event as any).heading ?? event.metadata?.heading;
+      
+      // Fallback: extract heading from description if it was stripped from the main object
+      if (heading === undefined && event.description) {
+        const match = event.description.match(/Heading:\s*([\d.-]+)/i);
+        if (match) heading = parseFloat(match[1]);
+      }
+
+      if ((event.category === 'TRANSPORT' || event.category === 'AVIATION') && typeof heading === 'number') {
         html = `<div style="transform: rotate(${heading}deg); transform-origin: center; transition: transform 0.5s ease-out;">${html}</div>`;
       }
 
