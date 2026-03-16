@@ -30,12 +30,11 @@ const ICONS: Record<EventCategory, string> = {
 export const getIconHtml = (category: EventCategory, severity: Severity, isWar: boolean): string => {
   // SPECIAL HANDLING FOR TRANSPORT (Planes/Ships) - No bubble background, just the icon
   if (category === 'TRANSPORT') {
-    // We assume rotation is handled by CSS class or style injected in the DivIcon options in Map
-    // But here we return a clean SVG
+    // Return a clean SVG that points UP (North) by default so rotation applied in SituationMap is accurate.
     return `
-      <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #60a5fa; filter: drop-shadow(0 0 4px #3b82f6);">
-        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M2 12h20"/><path d="M13 2l9 10-9 10"/><path d="M11 2v20"/>
+      <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #3b82f6; filter: drop-shadow(0 0 3px #000) drop-shadow(0 0 8px #3b82f6);">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" opacity="0.9">
+           <path d="M12 2 L14 8 L20 10 L14 12 L15 20 L12 18 L9 20 L10 12 L4 10 L10 8 Z" stroke="#000" stroke-width="0.5"/>
         </svg>
       </div>
     `;
