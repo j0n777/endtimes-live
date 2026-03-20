@@ -1,452 +1,94 @@
-# 🌍 End Times Monitor
+<div align="center">
+  <img src="docs/preview.png" alt="End Times Monitor Dashboard" width="100%" style="border-radius: 10px;">
+  <br><br>
 
-**[🔴 LIVE APPLICATION: endtimes.live](https://endtimes.live)**
+  # 🌍 End Times Monitor
+  
+  **A comprehensive global intelligence platform for monitoring eschatological events, conflicts, disasters, and prophetic developments in real-time.**
+  
+  <h3>
+    <a href="https://endtimes.live">🔴 ACESSAR A PLATAFORMA AO VIVO: endtimes.live</a>
+  </h3>
 
-![End Times Monitor Dashboard](docs/preview.png)
-
-> ## ⚠️ AVISO CRÍTICO DE INFRAESTRUTURA — LEIA ANTES DE QUALQUER DEPLOY
->
-> **Este projeto roda via Docker. Cada `docker-compose up --build` gera uma nova imagem (~400MB).**
-> **Imagens antigas ficam como "dangling" e acumulam GB silenciosamente no disco da VPS.**
->
-> **OBRIGATÓRIO após qualquer rebuild:**
-> ```bash
-> docker image prune -f        # remove imagens dangling (~400MB por build esquecido)
-> docker builder prune -f      # limpa build cache (pode acumular 30+ GB)
-> ```
-> Em 2026-03-07 o disco chegou a **99% de uso** por causa desse acúmulo.
-> Ver relatório completo: `/home/docker-sites/STORAGE_REPORT.md`
->
-> **Nunca instale `node_modules` localmente** — o Docker constrói internamente. Remova se existir:
-> ```bash
-> rm -rf /home/docker-sites/endtimesmonitor/node_modules
-> ```
-
-**A comprehensive global intelligence platform for monitoring eschatological events, conflicts, disasters, and prophetic developments in real-time.**
-
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]()
-[![License](https://img.shields.io/badge/license-MIT-blue)]()
-[![Data Sources](https://img.shields.io/badge/data%20sources-9-orange)]()
-[![Events](https://img.shields.io/badge/events-800%2B-red)]()
+  <p>
+    <a href="#-visão-geral-overview">Visão Geral</a> •
+    <a href="#-como-funciona-a-inteligência">Como Funciona</a> •
+    <a href="#-fontes-de-dados-osint">Fontes de Dados</a> •
+    <a href="#-arquitetura-e-ia">Arquitetura & IA</a> •
+    <a href="#-como-contribuir">Contribuir</a>
+  </p>
+</div>
 
 ---
 
-## 📖 Overview
+## 📖 Visão Geral (Overview)
 
-End Times Monitor is an advanced OSINT (Open Source Intelligence) and data aggregation platform designed to track global events relevant to biblical prophecy, conflicts, natural disasters, pandemics, and geopolitical developments. Built with React, TypeScript, and powered by multiple authoritative data sources including Telegram channels and prediction markets.
+O **End Times Monitor** é uma plataforma avançada de *OSINT* (Inteligência de Fontes Abertas) e agregação de dados. Nossa missão é rastrear eventos globais relevantes para a profecia bíblica, conflitos geopolíticos, desastres naturais e pandemias, conectando o noticiário atual com o contexto das escrituras.
 
-### Key Features
+O sistema exibe o mundo como um radar militar: classificando, pontuando a gravidade e plotando tudo em um globo interativo.
 
-- 🗺️ **Interactive Global Map** - Visualize events worldwide with severity indicators
-- 📡 **9 Real-Time Data Sources** - GDACS, NASA, WHO, ACLED, Telegram, Polymarket, and more
-- 🤖 **AI-Powered Analysis** - Google Gemini integration for intelligent event classification
-- 📊 **Prediction Markets Intelligence** - Polymarket integration for early event detection
-- 🔔 **Real-Time Alerts** - Monitor Telegram channels for breaking news
-- 📖 **Biblical Prophecy Tracking** - Correlate events with scriptural references
-- 🛰️ **OSINT Integration** - Multiple intelligence sources in one platform
-- 🌐 **Multilingual Support** - English (with Portuguese, Spanish, French, Arabic coming soon)
+**🌐 Explore o sistema ao vivo em [endtimes.live](https://endtimes.live)** e veja as zonas de conflito e eventos de ruptura acontecendo agora.
 
 ---
 
-## 🎯 What It Monitors
+## ⚙️ Como Funciona a Inteligência?
 
-### Event Categories
+O sistema opera 24/7 rastreando a internet através de "coletores" (collectors) construídos no nosso backend. 
 
-| Category | Description | Data Sources |
-|----------|-------------|--------------|
-| **CONFLICT** | Wars, military actions, armed conflicts, protests | ACLED, GDELT, Telegram, Polymarket |
-| **NATURAL DISASTER** | Earthquakes, tsunamis, hurricanes, floods, volcanoes | GDACS, USGS, NASA EONET |
-| **FIRES** | Wildfires, thermal anomalies | NASA FIRMS, NASA EONET |
-| **PANDEMIC** | Disease outbreaks, epidemics, health emergencies | WHO, Telegram |
-| **ECONOMIC** | Financial crises, market crashes, economic instability | News APIs, Polymarket |
-| **PROPHETIC** | Israel/Jerusalem events, Middle East developments | Multiple sources |
-| **PERSECUTION** | Religious persecution, martyrdom reports | News APIs, Telegram |
+1. **Agregação Contínua**: O backend varre periodicamente 9 fontes de dados diferentes, desde o Banco Mundial até canais do Telegram e Mercados de Previsão.
+2. **Análise de Risco (Scoring)**: Todo evento recebe uma classificação de gravidade (Baixa, Média, Alta ou Crítica) baseada na letalidade e impacto global.
+3. **Consolidação em Tempo Real**: Os resultados são plotados imediatamente no mapa interativo com ícones de radar militar. O mapa alerta o usuário visualmente para zonas de grande calor geopolítico ou ambiental.
 
 ---
 
-## 📊 Data Sources (9 Total)
+## 📊 Fontes de Dados (OSINT)
 
-### Free & No Authentication Required
+Utilizamos as fontes de dados de maior autoridade e agilidade na internet:
 
-1. **GDACS** - Global Disaster Alert and Coordination System
-   - Coverage: Major disasters (earthquakes M5.0+, hurricanes, floods, volcanoes)
-   - Update Frequency: Real-time
-   - Events: 50-100
+* **GDACS / NASA EONET / USGS / FIRMS**: Monitoramento de terremotos, vulcões, anomalias térmicas e furacões.
+* **ACLED / GDELT**: Bancos de dados de conflitos armados, protestos globais e extração de notícias de mais de 100 idiomas.
+* **WHO (OMS)**: Emergências de saúde globais e registro de pandemias.
+* **Polymarket**: Inteligência financeira baseada em mercados de previsão para prever escaladas geopolíticas (Ex: Probabilidade de invasões).
+* **Telegram OSINT**: Rastreamento em tempo real de canais de guerra que publicam no minuto em que o evento acontece.
 
-2. **WHO** - World Health Organization Disease Outbreaks
-   - Coverage: Global health emergencies, epidemics, pandemics
-   - Update Frequency: Daily
-   - Events: 10-20
-
-3. **GDELT** - Global Database of Events, Language & Tone
-   - Coverage: Global news events in 100+ languages
-   - Update Frequency: Every 15 minutes
-   - Events: 50-100
-
-4. **Polymarket** - Prediction Markets Intelligence
-   - Coverage: Geopolitical events, conflicts, wars (market-based predictions)
-   - Update Frequency: Real-time
-   - Events: 20-40 high-relevance markets
-
-### Requires Free API Key
-
-5. **NASA EONET** - Earth Observatory Natural Event Tracker
-   - Coverage: Wildfires, storms, volcanoes, floods, droughts
-   - Events: 100-200
-   - Get Key: https://api.nasa.gov/
-
-6. **ACLED** - Armed Conflict Location & Event Data
-   - Coverage: Armed conflicts, protests, violence, battles
-   - Events: 50-100
-   - Get Key: https://acleddata.com/ (3,000 requests/year free)
-
-7. **NASA FIRMS** - Fire Information for Resource Management
-   - Coverage: Active fires, thermal anomalies globally
-   - Events: 200-400
-   - Get Key: https://firms.modaps.eosdis.nasa.gov/api/
-
-### Requires Configuration
-
-8. **Telegram Bot** - Real-Time Channel Monitoring
-   - Coverage: Configurable news channels (supports Portuguese, English, etc.)
-   - Events: Varies (10-100+ depending on channels)
-   - Setup: Create bot via @BotFather
-
-9. **Legacy APIs** - NewsAPI, MediaStack (optional)
+> 📚 *Quer saber como processamos isso? Leia o [Guia Completo de Fontes de Dados](docs/DATA_SOURCES_README.md).*
 
 ---
 
-## 🏗️ VPS Infrastructure Note
-This project runs as a multi-container Docker deployment on `/home/docker-sites/endtimesmonitor`.
-1. **`endtimesmonitor`** (Frontend container): Runs the Vite compiled app via Nginx internally on port `80`, routed externally by Traefik.
-2. **`endtimes_worker`** (Backend process): Runs ongoing data collection scripts asynchronously in the background.
+## 🤖 Arquitetura e IA (Google Gemini)
+
+Muito mais do que um mapa, o End Times Monitor é equipado com um **Conselheiro Tático baseado em IA (Google Gemini)**. Ele atua como um analista de inteligência:
+- Avalia os eventos que estão ocorrendo.
+- Compreende efeitos em cascata (Ex: Um terremoto que pode gerar crise de abastecimento).
+- Traça correlações proféticas.
+
+**Stack Tecnológico:**
+- **Frontend**: React 18, TypeScript, Tailwind CSS, Leaflet Maps.
+- **Backend / Workers**: Node.js rodando em Docker (processos de 15 em 15 minutos).
+- **Banco de Dados**: Supabase (PostgreSQL) com segurança rigorosa (*Row Level Security*).
+- **Deploy**: Docker Compose em VPS com nginx/Traefik.
 
 ---
 
-## 🚀 Quick Start - Run Locally
+## 🤝 Como Contribuir
 
-### Prerequisites
+O repositório do **End Times Monitor** agora é focado em receber desenvolvedores, pesquisadores de OSINT, e estudantes de teologia que queiram melhorar a plataforma. Você pode ajudar adicionando novas fontes de inteligência, refinando as APIs ou melhorando o Frontend.
 
-- **Node.js** (v16 or higher)
-- **npm** or **yarn**
-- **Gemini API Key** (for AI analysis)
+### Passos para desenvolvedores
+Todos os guias técnicos, de configuração e de ambiente local foram movidos para a pasta `/docs/`. Se for a sua primeira vez, comece por aqui:
 
-### Installation
+1. Leia o nosso **[Guia de Contribuição (CONTRIBUTING.md)](CONTRIBUTING.md)** para entender como enviar seu Pull Request (Envios diretos para a `main` estão bloqueados).
+2. [Guia Rápido / Setup Local](docs/QUICK_START.md) — Para rodar o projeto na sua máquina.
+3. [Plano de Arquitetura](docs/ARCHITECTURE_PLAN.md) — Compreenda o código fonte.
+4. [Avisos Críticos de Servidor (VPS)](docs/VPS_MAINTENANCE.md) — Requisitos essenciais de deploy.
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/j0n777/End-Times-Monitor.git
-   cd End-Times-Monitor
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Configure API Key**
-   
-   Create a `.env.local` file in the project root:
-   ```env
-   API_KEY=your_gemini_api_key_here
-   ```
-
-   Get your Gemini API key: https://makersuite.google.com/app/apikey
-
-4. **Run the development server**
-   ```bash
-   npm run dev
-   ```
-
-5. **Open in browser**
-   ```
-   http://localhost:5173
-   ```
-
-### Build for Production
-
-```bash
-npm run build
-```
-
-Built files will be in the `dist/` directory.
+> **O End Times Monitor foi construído como um relógio global. 
+> Nosso objetivo não é causar pânico, mas promover consciência situacional.**
 
 ---
 
-## ⚙️ Configuration
-
-### Admin Panel Setup
-
-Navigate to **Admin** in the app to configure:
-
-#### 1. Telegram Bot (Optional but Recommended)
-
-1. Open Telegram and search for `@BotFather`
-2. Send `/newbot` and follow instructions
-3. Copy the bot token (format: `123456:ABC-DEF...`)
-4. In Admin Panel → TELEGRAM BOT INTEGRATION:
-   - Paste bot token
-   - Add channel IDs (e.g., `@channelname` or `-1001234567890`)
-5. Save configuration
-
-**Recommended Channels**: News channels in your language covering geopolitics, conflicts
-
-#### 2. External API Keys (Optional)
-
-**NASA EONET** (Optional):
-- Get free key: https://api.nasa.gov/
-- Paste in Admin → NASA EONET API KEY
-
-**ACLED** (Recommended for conflict data):
-- Register: https://acleddata.com/
-- Requires: API Key + Email
-- Paste in Admin → ACLED section
-
-**NASA FIRMS** (For fire tracking):
-- Register: https://firms.modaps.eosdis.nasa.gov/api/
-- Paste in Admin → NASA FIRMS API KEY
-
-#### 3. Free Sources (Pre-Enabled)
-
-- **GDACS** - Toggle ON (default)
-- **WHO** - Toggle ON (default)
-- **GDELT** - Toggle ON (default)
-- **Polymarket** - Toggle ON (default)
-
-### Save & Refresh
-
-1. Click **SAVE CONFIGURATION**
-2. Click **REFRESH** button in header
-3. Wait 10-30 seconds for initial data load
-4. Check header for "X/9 SOURCES • Y EVENTS"
-
----
-
-## 📱 Features Overview
-
-### 1. Situation Map
-
-- **Interactive global map** showing all monitored events
-- **Color-coded markers** by severity (RED = High, ORANGE = Elevated, YELLOW = Medium)
-- **Category filtering** - Show/hide specific event types
-- **Real-time updates** - 5-minute cache refresh
-- **Event details** - Click markers for full information
-
-### 2. Live Intelligence Wire
-
-- **Chronological feed** of all events
-- **Source attribution** - Know where each event came from
-- **Severity indicators** - Visual priority markers
-- **Conflict level classification** - Detailed threat assessment
-
-### 3. Prophetic Timeline
-
-- **Biblical prophecy tracker** - Monitor fulfillment status
-- **Scripture references** - Correlate events with prophecy
-- **Status tracking** - FULFILLED / IN_PROGRESS / PENDING
-
-### 4. Survival Protocols
-
-- **Emergency preparedness guides**
-- **Water, Food, Security, Communications**
-- **Checklists and instructions**
-- **Tactical survival information**
-
-### 5. AI Tactical Advisor
-
-- **Gemini-powered analysis** - Ask questions about current events
-- **Cascade effects analysis** - Understand 2nd/3rd order consequences
-- **Prophetic context** - Biblical perspective on events
-- **Strategic recommendations**
-
-### 6. Communications Panel
-
-- **Radio frequencies** - Emergency communications
-- **HF/VHF/UHF bands** - Survival radio frequencies
-- **PACE communication planning**
-
----
-
-## 🛠️ Technology Stack
-
-- **Frontend**: React 18 + TypeScript
-- **Build Tool**: Vite
-- **Styling**: Tailwind CSS (custom tactical theme)
-- **Maps**: Leaflet (React-Leaflet)
-- **AI**: Google Gemini API
-- **Icons**: Lucide React
-- **State Management**: React Hooks
-- **Storage**: Browser localStorage
-
----
-
-## 📂 Project Structure
-
-```
-End-Times-Monitor/
-├── components/
-│   ├── AIChat.tsx              # Gemini AI advisor
-│   ├── AdminPanel.tsx          # Configuration UI
-│   ├── CommsPanel.tsx          # Radio frequencies
-│   ├── IntelFeed.tsx           # Event feed
-│   ├── ProphecyIntel.tsx       # Prophecy tracker
-│   ├── SituationMap.tsx        # Interactive map
-│   ├── SurvivalManual.tsx      # Survival guides
-│   └── TacticalRadar.tsx       # Threat radar
-├── services/
-│   ├── data-sources.ts         # Unified aggregator
-│   ├── geminiService.ts        # AI integration
-│   ├── gdacs-service.ts        # GDACS API
-│   ├── nasa-eonet-service.ts   # NASA EONET
-│   ├── acled-service.ts        # Conflict data
-│   ├── who-service.ts          # Health data
-│   ├── gdelt-service.ts        # Global news
-│   ├── nasa-firms-service.ts   # Fire tracking
-│   ├── telegram-service.ts     # Telegram bot
-│   └── polymarket-service.ts   # Prediction markets
-├── App.tsx                     # Main application
-├── types.ts                    # TypeScript types
-├── constants.ts                # Data constants
-└── index.html                  # Entry point
-```
-
----
-
-## 🔐 Security & Privacy
-
-### Database Security (Supabase RLS)
-
-This application implements **Row Level Security (RLS)** to protect sensitive data:
-
-#### **Public Access (Anonymous Users)**
-- ✅ Can read recent events (last 30 days)
-- ✅ Can view high-priority events (priority ≤ 3)
-- ✅ Can use rate-limited RPC functions
-- ❌ **Cannot** insert, update, or delete events
-- ❌ **Cannot** access collector configurations
-- ❌ **Cannot** access rate limiting logs
-
-#### **Service Role Access (Backend/Collectors)**
-- ✅ Full CRUD access to all tables
-- ✅ Can bypass RLS for administrative operations
-- ⚠️ **Never expose service key in frontend code**
-
-#### **Security Features**
-- 🛡️ **Row Level Security** on all tables
-- 🔒 **Granular policies** for each user role
-- 🚦 **Rate limiting** on public API functions
-- 📝 **Security audit logging** for sensitive operations
-- 🔑 **Key separation** (anon vs service_role)
-
-#### **Documentation**
-- **[SECURITY_ANALYSIS_RLS.md](docs/SECURITY_ANALYSIS_RLS.md)** - Complete security analysis
-- **[RLS_IMPLEMENTATION_GUIDE.md](docs/RLS_IMPLEMENTATION_GUIDE.md)** - Implementation guide
-- **[supabase/migrations/005_rls_security.sql](supabase/migrations/005_rls_security.sql)** - RLS policies
-
-### Application Security
-
-- **All API keys stored locally** - Browser localStorage only
-- **No backend server** - Pure client-side application (frontend)
-- **No user tracking** - No analytics or external tracking
-- **Open source** - Transparent code
-- **Environment variables** - Sensitive keys never hardcoded
-- **CORS considerations** - Some APIs may require CORS proxy in production
-
-### Best Practices
-
-1. **Never commit `.env.local`** - Contains sensitive keys
-2. **Use anon key in frontend** - Limited by RLS policies
-3. **Use service key in backend only** - Full database access
-4. **Enable rate limiting** - In Supabase Dashboard
-5. **Monitor audit logs** - Track suspicious activity
-
-
-
----
-
-## 🌐 Planned Features & Roadmap
-
-### Phase 2 (Coming Soon)
-- [ ] Additional news APIs (MediaStack, Currents)
-- [ ] Volcano tracking (USGS Volcano API)
-- [ ] Space weather monitoring (NOAA)
-- [ ] Economic indicators (Alpha Vantage)
-- [ ] Religious persecution tracking (Open Doors)
-
-### Phase 3 (Future)
-- [ ] Multilingual UI (Portuguese, Spanish, French, Arabic)
-- [ ] Mobile app (React Native)
-- [ ] Webhook notifications for critical events
-- [ ] Export events (CSV/JSON)
-- [ ] Historical timeline view
-- [ ] Advanced filters and search
-
----
-
-## 📚 Documentation
-
-The detailed technical and conceptual documentation is stored in the `docs/` folder:
-
-- **[Quick Start](docs/QUICK_START.md)** - Quick setup guide
-- **[Architecture Plan](docs/ARCHITECTURE_PLAN.md)** - System design and structure
-- **[Data Sources](docs/DATA_SOURCES_README.md)** - Complete configuration documentation
-- **[Collector Config Reference](docs/COLLECTOR_CONFIG_REFERENCE.md)** - Guides to add the backend modules
-- **[Telegram & Polymarket Guide (PT-BR)](docs/TELEGRAM_POLYMARKET_GUIDE.md)** - Portuguese guide for configuration
-- **[API Keys](docs/API_KEYS_GUIDE.md)** - Guide for registering all essential API keys
-- **[Local Development](docs/LOCAL_DEVELOPMENT.md)** - Development guidelines
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please read our **[Contributing Guidelines](CONTRIBUTING.md)** before applying any changes. 
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-> **⚠️ NOTE:** Direct pushes to the `main` branch are protected. All contributions require a pull request and review.
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
----
-
-## ⚠️ Disclaimer
-
-This application is for **informational and educational purposes only**. It aggregates publicly available data from various sources. Users should:
-
-- Verify critical information through official channels
-- Use prediction market data for intelligence only, not gambling
-- Follow local laws and regulations
-- Respect data source terms of service
-
-The developers are not responsible for decisions made based on this information.
-
----
-
-## 🙏 Acknowledgments
-
-- **Data Providers**: GDACS, NASA, WHO, ACLED, GDELT, Polymarket
-- **Technology**: Google Gemini, React, Leaflet
-- **Inspiration**: Biblical prophecy and global awareness
-
----
-
-## 📧 Contact & Support
-
-- **Issues**: https://github.com/j0n777/End-Times-Monitor/issues
-- **Discussions**: https://github.com/j0n777/End-Times-Monitor/discussions
-
----
-
-**Built with ❤️ for global awareness and preparedness**
-
-Stay informed. Stay prepared. Stay vigilant.
-
-🌍 **End Times Monitor** - *When the world changes, be the first to know.*
+<p align="center">
+  <b>🌍 "Quando o mundo muda, seja o primeiro a saber."</b><br>
+  Construído com ❤️ para a comunidade.<br><br>
+  <a href="https://endtimes.live">Acessar EndTimes.live</a>
+</p>
