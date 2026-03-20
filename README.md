@@ -1,5 +1,9 @@
 # 🌍 End Times Monitor
 
+**[🔴 LIVE APPLICATION: endtimes.live](https://endtimes.live)**
+
+![End Times Monitor Dashboard](docs/preview.png)
+
 > ## ⚠️ AVISO CRÍTICO DE INFRAESTRUTURA — LEIA ANTES DE QUALQUER DEPLOY
 >
 > **Este projeto roda via Docker. Cada `docker-compose up --build` gera uma nova imagem (~400MB).**
@@ -335,8 +339,8 @@ This application implements **Row Level Security (RLS)** to protect sensitive da
 - 🔑 **Key separation** (anon vs service_role)
 
 #### **Documentation**
-- **[SECURITY_ANALYSIS_RLS.md](SECURITY_ANALYSIS_RLS.md)** - Complete security analysis
-- **[RLS_IMPLEMENTATION_GUIDE.md](RLS_IMPLEMENTATION_GUIDE.md)** - Implementation guide
+- **[SECURITY_ANALYSIS_RLS.md](docs/SECURITY_ANALYSIS_RLS.md)** - Complete security analysis
+- **[RLS_IMPLEMENTATION_GUIDE.md](docs/RLS_IMPLEMENTATION_GUIDE.md)** - Implementation guide
 - **[supabase/migrations/005_rls_security.sql](supabase/migrations/005_rls_security.sql)** - RLS policies
 
 ### Application Security
@@ -381,22 +385,29 @@ This application implements **Row Level Security (RLS)** to protect sensitive da
 
 ## 📚 Documentation
 
-- **[DATA_SOURCES_README.md](DATA_SOURCES_README.md)** - Complete data sources documentation
-- **[QUICK_START.md](QUICK_START.md)** - Quick setup guide
-- **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)** - Technical implementation details
-- **[TELEGRAM_POLYMARKET_GUIDE.md](TELEGRAM_POLYMARKET_GUIDE.md)** - Portuguese guide for Telegram/Polymarket
+The detailed technical and conceptual documentation is stored in the `docs/` folder:
+
+- **[Quick Start](docs/QUICK_START.md)** - Quick setup guide
+- **[Architecture Plan](docs/ARCHITECTURE_PLAN.md)** - System design and structure
+- **[Data Sources](docs/DATA_SOURCES_README.md)** - Complete configuration documentation
+- **[Collector Config Reference](docs/COLLECTOR_CONFIG_REFERENCE.md)** - Guides to add the backend modules
+- **[Telegram & Polymarket Guide (PT-BR)](docs/TELEGRAM_POLYMARKET_GUIDE.md)** - Portuguese guide for configuration
+- **[API Keys](docs/API_KEYS_GUIDE.md)** - Guide for registering all essential API keys
+- **[Local Development](docs/LOCAL_DEVELOPMENT.md)** - Development guidelines
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please:
+Contributions are welcome! Please read our **[Contributing Guidelines](CONTRIBUTING.md)** before applying any changes. 
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+> **⚠️ NOTE:** Direct pushes to the `main` branch are protected. All contributions require a pull request and review.
 
 ---
 
