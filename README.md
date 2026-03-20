@@ -1,5 +1,9 @@
 # 🌍 End Times Monitor
 
+**[🔴 LIVE APPLICATION: endtimes.live](https://endtimes.live)**
+
+![End Times Monitor Dashboard](docs/preview.png)
+
 > ## ⚠️ AVISO CRÍTICO DE INFRAESTRUTURA — LEIA ANTES DE QUALQUER DEPLOY
 >
 > **Este projeto roda via Docker. Cada `docker-compose up --build` gera uma nova imagem (~400MB).**
