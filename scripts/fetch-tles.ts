@@ -1,4 +1,5 @@
 import fs from 'fs';
+import { publishData } from '../lib/publishData';
 import path from 'path';
 
 export async function fetchTles() {
@@ -46,6 +47,7 @@ export async function fetchTles() {
         }
 
         fs.writeFileSync(outPath, JSON.stringify(tles, null, 2));
+        await publishData('tles.json', tles);
         console.log(`✅ Fetched and saved ${tles.length} TLEs to ${outPath}`);
     } catch (e) {
         console.error('❌ Failed to fetch TLEs', e);

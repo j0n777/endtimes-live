@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { dataUrl } from '../lib/dataUrl';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster';
@@ -597,7 +598,7 @@ const SituationMap: React.FC<SituationMapProps> = ({
         // Fetch dynamic cameras from local disk mapped volume
         let dynamicCams: any[] = [];
         try {
-          const res = await fetch('/data/cams.json?t=' + Date.now());
+          const res = await fetch(dataUrl('cams.json'));
           if (res.ok) {
             dynamicCams = await res.json();
           }

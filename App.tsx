@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { dataUrl } from './lib/dataUrl';
 import { AlertTriangle, Radio, BookOpen, RefreshCw, Shield, Menu, X, Globe, DollarSign, Cpu, LandPlot, Rss, Settings, ChevronUp, ChevronDown, Trash2 } from 'lucide-react';
 import { useLocale } from './lib/i18n';
 import { calculateDefcon, DEFCON_META } from './utils/defconCalculator';
@@ -48,7 +49,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const fetchDefcon = async () => {
       try {
-        const res = await fetch('/data/defcon.json?t=' + Date.now());
+        const res = await fetch(dataUrl('defcon.json'));
         if (res.ok) {
           const data = await res.json();
           if (data?.level >= 1 && data?.level <= 5) {

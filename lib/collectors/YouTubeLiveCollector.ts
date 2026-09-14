@@ -1,4 +1,5 @@
 import { BaseCollector, CollectorConfig } from './BaseCollector';
+import { publishData } from '../publishData';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { MonitorEvent, EventCategory, Severity, SourceType } from '../../types';
 import { getGeocodingService } from '../services/GeocodingService';
@@ -299,6 +300,7 @@ export class YouTubeLiveCollector extends BaseCollector {
             const file = path.join(dir, 'cams.json');
             fs.writeFileSync(file, JSON.stringify(events, null, 2));
             console.log(`✅ Saved ${events.length} dynamic cameras to cams.json`);
+            await publishData('cams.json', events);
         } catch (e: any) {
             console.log(`Failed to write cams.json: ${e.message}`);
         }

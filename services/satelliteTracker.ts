@@ -1,4 +1,5 @@
 import * as satellite from 'satellite.js';
+import { dataUrl } from '../lib/dataUrl';
 
 export interface TrackerSatellite {
     id: string;
@@ -32,7 +33,7 @@ export async function getSatellitePositions(): Promise<TrackerSatellite[]> {
     let tlesToUse = FALLBACK_TLES;
     
     try {
-        const res = await fetch('/data/tles.json?t=' + Date.now());
+        const res = await fetch(dataUrl('tles.json'));
         if (res.ok) {
             const data = await res.json();
             if (Array.isArray(data) && data.length > 0) {
