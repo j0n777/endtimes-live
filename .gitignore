@@ -59,3 +59,10 @@ lerna-debug.log*
 # =============================================================================
 docs/archive/
 archive/
+
+# gerados/lixo local (14/09/2026)
+build_log.txt
+status_output.txt
+public/data/tles.json
+public/data/cams.json
+public/data/defcon.json

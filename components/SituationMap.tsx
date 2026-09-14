@@ -56,6 +56,13 @@ interface SituationMapProps {
   conflictZones?: ConflictZone[];
   showNuclearAlerts?: boolean;
   nuclearAlerts?: NuclearAlert[];
+  
+  // Novas Props
+  showSatelliteBase?: boolean;
+  showRadar?: boolean;
+  showWebSDR?: boolean;
+  showSatellites?: boolean;
+  showSafecast?: boolean;
 }
 
 // Helper: format source label for popup
@@ -256,6 +263,11 @@ const SituationMap: React.FC<SituationMapProps> = ({
   conflictZones = [],
   showNuclearAlerts = false,
   nuclearAlerts = [],
+  showSatelliteBase = false,
+  showRadar = false,
+  showWebSDR = false,
+  showSatellites = false,
+  showSafecast = false,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -268,6 +280,14 @@ const SituationMap: React.FC<SituationMapProps> = ({
   const conflictZoneLayersRef = useRef<L.Layer[]>([]);
   const nuclearLayersRef = useRef<L.Layer[]>([]);
   const [activeCam, setActiveCam] = React.useState<LiveCam | null>(null);
+
+  // Refs for the new dynamically toggled map layers
+  const webSdrGroupRef = useRef<L.LayerGroup>(L.layerGroup());
+  const satellitesGroupRef = useRef<L.LayerGroup>(L.layerGroup());
+  const radarOverlayRef = useRef<L.TileLayer>(L.tileLayer('https://tilecache.rainviewer.com/v2/radar/now/256/{z}/{x}/{y}/2/1_1.png', { opacity: 0.6 }));
+  const radiationOverlayRef = useRef<L.TileLayer>(L.tileLayer('https://s3.amazonaws.com/bgeigie.safecast.org/tiles/{z}/{x}/{y}.png', { opacity: 0.7, minZoom: 3, maxZoom: 16 }));
+  const darkTilesRef = useRef<L.TileLayer>(L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19 }));
+  const satTilesRef = useRef<L.TileLayer>(L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles &copy; Esri' }));
 
   // 1. Initialize Map
   useEffect(() => {
@@ -293,13 +313,84 @@ const SituationMap: React.FC<SituationMapProps> = ({
       maxBoundsViscosity: 1.0
     });
 
-    // Dark Tactical Tiles
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      subdomains: 'abcd',
-      maxZoom: 19
-    }).addTo(map);
-
+    // Map Instance Setup
     mapInstanceRef.current = map;
+    darkTilesRef.current.addTo(map);
+
+    // 4. Fetch and populate WebSDR layer (Layer is isolated in Ref, visibility controlled by showWebSDR check)
+    fetch('/data/webSdrData.json')
+      .then(r => r.ok ? r.json() : [])
+      .then(data => {
+        data.forEach((sdr: any) => {
+          const icon = L.divIcon({
+            className: 'bg-transparent',
+            html: `<div class="relative flex items-center justify-center p-1.5 rounded-full border border-blue-500 bg-black/80 cursor-pointer shadow-[0_0_10px_rgba(59,130,246,0.5)]">
+                     <span style="font-size:12px;">📡</span>
+                   </div>`,
+            iconSize: [28, 28],
+            iconAnchor: [14, 14]
+          });
+          const marker = L.marker([sdr.coordinates.lat, sdr.coordinates.lng], { icon })
+            .bindPopup(`
+              <div class="p-3 min-w-[200px] font-mono text-xs bg-black text-gray-200">
+                <h3 class="font-bold text-blue-400 text-sm mb-1">${sdr.name}</h3>
+                <div class="text-gray-400 mb-2">${sdr.location}</div>
+                <div class="text-gray-500 mb-3">Frequências: ${sdr.frequency_range}</div>
+                <a href="${sdr.url}" target="_blank" class="block w-full text-center text-white bg-blue-600 px-2 py-1.5 rounded hover:bg-blue-500 transition">ABRIR WEBSDR</a>
+              </div>
+            `, { className: 'tactical-popup' });
+          webSdrGroupRef.current.addLayer(marker);
+        });
+      })
+      .catch(console.error);
+
+    // 5. Setup Satellites Update Loop
+    let satMarkers: Record<string, L.Marker> = {};
+    const updateSatellites = async () => {
+      try {
+        const { getSatellitePositions } = await import('../services/satelliteTracker');
+        const positions = await getSatellitePositions();
+        
+        positions.forEach(pos => {
+          const icon = L.divIcon({
+            className: 'bg-transparent',
+            html: `<div class="relative flex items-center justify-center p-1 rounded-full border border-purple-500 bg-black/80 cursor-pointer shadow-[0_0_10px_rgba(168,85,247,0.5)] transition-transform duration-500">
+                     <span style="font-size:14px;">🛰️</span>
+                   </div>`,
+            iconSize: [28, 28],
+            iconAnchor: [14, 14]
+          });
+
+          if (satMarkers[pos.id]) {
+            satMarkers[pos.id].setLatLng([pos.lat, pos.lng]);
+            const popup = satMarkers[pos.id].getPopup();
+            if (popup && popup.isOpen()) {
+              popup.setContent(`
+                <div class="p-2 font-mono text-xs bg-black text-gray-200">
+                  <div class="text-purple-400 font-bold mb-1">${pos.name}</div>
+                  <div class="text-gray-400">Altitude: ${Math.round(pos.alt)} km</div>
+                </div>
+              `);
+            }
+          } else {
+            const m = L.marker([pos.lat, pos.lng], { icon })
+              .bindPopup(`
+                <div class="p-2 font-mono text-xs bg-black text-gray-200">
+                  <div class="text-purple-400 font-bold mb-1">${pos.name}</div>
+                  <div class="text-gray-400">Altitude: ${Math.round(pos.alt)} km</div>
+                </div>
+              `, { className: 'tactical-popup' });
+            satMarkers[pos.id] = m;
+            satellitesGroupRef.current.addLayer(m);
+          }
+        });
+      } catch (err) {
+        console.error('Falha ao atualizar satélites', err);
+      }
+    };
+
+    updateSatellites();
+    (window as any).satInterval = setInterval(updateSatellites, 5000);
 
     // ⭐ Create custom panes upfront (must exist before any layer tries to use them)
     if (!map.getPane('conflictZones')) {
@@ -362,6 +453,10 @@ const SituationMap: React.FC<SituationMapProps> = ({
         }
 
         // Remove all event listeners to prevent memory leaks
+        if ((window as any).satInterval) {
+          clearInterval((window as any).satInterval);
+          (window as any).satInterval = null;
+        }
         mapInstanceRef.current.off();
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
@@ -369,6 +464,44 @@ const SituationMap: React.FC<SituationMapProps> = ({
       markersRef.current = [];
     };
   }, []);
+
+    // Lógica para Troca Base TileLayer
+    useEffect(() => {
+      const map = mapInstanceRef.current;
+      if (!map) return;
+      if (showSatelliteBase) {
+        map.removeLayer(darkTilesRef.current);
+        satTilesRef.current.addTo(map);
+      } else {
+        map.removeLayer(satTilesRef.current);
+        darkTilesRef.current.addTo(map);
+      }
+    }, [showSatelliteBase]);
+  
+    // Lógica para Layers Auxiliares
+    useEffect(() => {
+      const map = mapInstanceRef.current;
+      if (!map) return;
+      if (showRadar) radarOverlayRef.current.addTo(map); else map.removeLayer(radarOverlayRef.current);
+    }, [showRadar]);
+
+    useEffect(() => {
+      const map = mapInstanceRef.current;
+      if (!map) return;
+      if (showSafecast) radiationOverlayRef.current.addTo(map); else map.removeLayer(radiationOverlayRef.current);
+    }, [showSafecast]);
+
+    useEffect(() => {
+      const map = mapInstanceRef.current;
+      if (!map) return;
+      if (showWebSDR) webSdrGroupRef.current.addTo(map); else map.removeLayer(webSdrGroupRef.current);
+    }, [showWebSDR]);
+
+    useEffect(() => {
+      const map = mapInstanceRef.current;
+      if (!map) return;
+      if (showSatellites) satellitesGroupRef.current.addTo(map); else map.removeLayer(satellitesGroupRef.current);
+    }, [showSatellites]);
 
   // 2. Handle Markers (WITH SMART CLUSTERING)
   useEffect(() => {

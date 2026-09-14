@@ -19,7 +19,16 @@
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
-          .then(reg => console.log('✅ Service Worker registered:', reg.scope))
+          .then(reg => {
+            console.log('✅ Service Worker registered:', reg.scope);
+
+            // When a new SW takes control (after a deployment), reload the page
+            // so the browser fetches fresh assets instead of using stale chunks.
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+              console.log('🔄 New Service Worker active — reloading for fresh assets…');
+              window.location.reload();
+            });
+          })
           .catch(err => console.error('❌ SW registration failed:', err));
       });
     }

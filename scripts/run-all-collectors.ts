@@ -2,6 +2,13 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import { CollectorOrchestrator } from '../lib/collectors/CollectorOrchestrator';
+import { fetchTles } from './fetch-tles';
+import dns from 'node:dns';
+
+// Force IPv4 first to avoid broken/slow IPv6 resolution on VPS
+if (dns.setDefaultResultOrder) {
+    dns.setDefaultResultOrder('ipv4first');
+}
 
 // Load env vars
 dotenv.config({ path: '.env.local' });
@@ -42,6 +49,9 @@ async function runScheduler() {
     await orchestrator.resetCircuitBreaker('POLYMARKET');
     await orchestrator.resetCircuitBreaker('GDELT');
     
+    // Fetch initial TLEs on startup
+    await fetchTles();
+    
     // Main Loop
     while (true) {
         try {
@@ -55,7 +65,12 @@ async function runScheduler() {
             // The orchestrator handles the "is it time?" logic based on 15m modulo
             await orchestrator.runStaggeredCycle(minute % 15);
 
-            // 2. Run High-Frequency Critical Alerts (every 5 mins regardless of region?)
+            // 2. Refresh TLEs every hour
+            if (minute === 0) {
+                await fetchTles();
+            }
+
+            // 3. Run High-Frequency Critical Alerts (every 5 mins regardless of region?)
             // For now, let's stick to the Staggered groups which include them.
             
             // Wait for next minute boundary to align somewhat

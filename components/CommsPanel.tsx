@@ -324,7 +324,16 @@ const CommsPanel: React.FC = () => {
                           )}
                           {ch.notes && (
                             <p className="text-[10px] text-blue-400/70">
-                              ℹ️ {ch.notes}
+                              ℹ️ {ch.notes.includes('http') ? (
+                                <>
+                                  {ch.notes.substring(0, ch.notes.indexOf('http'))}
+                                  <a href={ch.notes.substring(ch.notes.indexOf('http'))} target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-300 font-bold">
+                                    {ch.notes.substring(ch.notes.indexOf('http'))}
+                                  </a>
+                                </>
+                              ) : (
+                                ch.notes
+                              )}
                             </p>
                           )}
                         </div>

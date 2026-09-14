@@ -1,0 +1,38 @@
+[
+  {
+    "id": "wsdr1",
+    "name": "Universidade de Twente WebSDR",
+    "frequency_range": "0 - 29 MHz",
+    "location": "Enschede, Holanda",
+    "coordinates": { "lat": 52.24, "lng": 6.85 },
+    "url": "http://websdr.ewi.utwente.nl:8901/",
+    "notes": "O WebSDR mais famoso do mundo. Excelente para cobrir toda a banda HF."
+  },
+  {
+    "id": "wsdr2",
+    "name": "Nantwich Secret Nuclear Bunker",
+    "frequency_range": "LF/MF/HF",
+    "location": "Cheshire, UK",
+    "coordinates": { "lat": 53.02, "lng": -2.52 },
+    "url": "http://hackgreen.co.uk/",
+    "notes": "SDR localizado em um ex-bunker nuclear."
+  },
+  {
+    "id": "wsdr3",
+    "name": "Pardinho KiwiSDR",
+    "frequency_range": "0 - 30 MHz",
+    "location": "Pardinho, SP, Brasil",
+    "coordinates": { "lat": -23.10, "lng": -48.37 },
+    "url": "http://pardinho.proxy.kiwisdr.com:8073/",
+    "notes": "Excelente SDR na América do Sul para escuta de rádio amador e ondas curtas."
+  },
+  {
+    "id": "wsdr4",
+    "name": "K3FEF WebSDR",
+    "frequency_range": "HF/VHF",
+    "location": "Pennsylvania, USA",
+    "coordinates": { "lat": 41.03, "lng": -75.22 },
+    "url": "http://k3fef.com:8901/",
+    "notes": "Boa recepção para transmissões militares americanas (HFGCS)."
+  }
+]
