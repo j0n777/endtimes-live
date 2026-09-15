@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { dataUrl } from './lib/dataUrl';
 import { AlertTriangle, Radio, BookOpen, RefreshCw, Shield, Menu, X, Globe, DollarSign, Cpu, LandPlot, Rss, Settings, ChevronUp, ChevronDown, Trash2 } from 'lucide-react';
 import { useLocale } from './lib/i18n';
 import { calculateDefcon, DEFCON_META } from './utils/defconCalculator';
@@ -24,7 +25,9 @@ import { loadNuclearAlerts, NuclearAlert } from './services/nuclearAlertService'
 import Clock from './components/Clock';
 import { BottomFilterBar } from './components/BottomFilterBar';
 
+import { GlobalSearch } from './components/GlobalSearch';
 import { SEOHead } from './components/SEOHead';
+import { Search } from 'lucide-react';
 
 const App: React.FC = () => {
   const { t } = useLocale();
@@ -38,6 +41,7 @@ const App: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dataSourceStatuses, setDataSourceStatuses] = useState<DataSourceStatus[]>([]);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   // DEFCON — OSINT source (defconlevel.com) takes priority, falls back to event-based calc
   const [osintDefcon, setOsintDefcon] = useState<{ level: 1 | 2 | 3 | 4 | 5; codename: string; source: string } | null>(null);
@@ -45,7 +49,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const fetchDefcon = async () => {
       try {
-        const res = await fetch('/data/defcon.json?t=' + Date.now());
+        const res = await fetch(dataUrl('defcon.json'));
         if (res.ok) {
           const data = await res.json();
           if (data?.level >= 1 && data?.level <= 5) {
@@ -57,6 +61,18 @@ const App: React.FC = () => {
     fetchDefcon();
     const interval = setInterval(fetchDefcon, 30 * 60 * 1000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Keyboard shortcut for search (Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const calculatedDefcon = useMemo(() => calculateDefcon(events), [events]) as 1 | 2 | 3 | 4 | 5;
@@ -78,6 +94,13 @@ const App: React.FC = () => {
   const [visibleCategories, setVisibleCategories] = useState<Set<EventCategory>>(
     new Set(Object.values(EventCategory))
   );
+
+  // NOVIDADES: Estados das novas camadas de mapa
+  const [showSatelliteBase, setShowSatelliteBase] = useState<boolean>(false);
+  const [showRadar, setShowRadar] = useState<boolean>(false);
+  const [showSafecast, setShowSafecast] = useState<boolean>(false);
+  const [showWebSDR, setShowWebSDR] = useState<boolean>(false);
+  const [showSatellites, setShowSatellites] = useState<boolean>(false);
 
   // Military aircraft live polling — 30s initial delay, then every 8 min.
   // The delay prevents the aircraft fetch from running simultaneously with the
@@ -239,6 +262,11 @@ const App: React.FC = () => {
           conflictZones={conflictZones}
           showNuclearAlerts={showNuclearAlerts}
           nuclearAlerts={nuclearAlerts}
+          showSatelliteBase={showSatelliteBase}
+          showRadar={showRadar}
+          showWebSDR={showWebSDR}
+          showSatellites={showSatellites}
+          showSafecast={showSafecast}
         />;
       case 'LIVE_FEED':
         return <IntelFeed events={events} />;
@@ -260,6 +288,11 @@ const App: React.FC = () => {
           conflictZones={conflictZones}
           showNuclearAlerts={showNuclearAlerts}
           nuclearAlerts={nuclearAlerts}
+          showSatelliteBase={showSatelliteBase}
+          showRadar={showRadar}
+          showWebSDR={showWebSDR}
+          showSatellites={showSatellites}
+          showSafecast={showSafecast}
         />;
     }
   };
@@ -268,13 +301,51 @@ const App: React.FC = () => {
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check URL for event_id
+    // Check URL for event_id and view/tab
     const params = new URLSearchParams(window.location.search);
     const eventId = params.get('event');
     if (eventId) {
       setSelectedEventId(eventId);
     }
+
+    const v = params.get('view') || params.get('tab');
+    if (v) {
+      const mapping: Record<string, ViewState> = {
+        'map': 'SITUATION_MAP',
+        'feed': 'LIVE_FEED',
+        'prophecy': 'TIMELINE',
+        'protocols': 'SURVIVAL',
+        'comms': 'RADIO',
+        'survival': 'SURVIVAL',
+        'radio': 'RADIO'
+      };
+      if (mapping[v]) setViewState(mapping[v]);
+    }
   }, []);
+
+  // URL Sync Effect: Update URL when viewState or locale changes
+  const { locale } = useLocale();
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    
+    // Sync View
+    const invMapping: Record<ViewState, string> = {
+      'SITUATION_MAP': 'map',
+      'LIVE_FEED': 'feed',
+      'TIMELINE': 'prophecy',
+      'SURVIVAL': 'protocols',
+      'RADIO': 'comms',
+      'AI_INTEL': 'ai',
+      'ADMIN': 'admin'
+    };
+    params.set('tab', invMapping[viewState]);
+    
+    // Sync Language
+    params.set('lang', locale === 'pt-BR' ? 'pt' : 'en');
+
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState({ ...window.history.state }, '', newUrl);
+  }, [viewState, locale]);
 
   const selectedEvent = React.useMemo(() => {
     if (!selectedEventId) return null;
@@ -422,34 +493,33 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Header */}
       <header
-        className="h-14 bg-tactical-900 border-b border-tactical-700 flex items-center justify-between px-4 z-20 shrink-0"
+        className="h-14 bg-tactical-900 border-b border-tactical-700 flex items-center justify-between px-2 sm:px-4 z-20 shrink-0"
         role="banner"
         aria-label="Main header"
       >
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           {/* Mobile Menu Toggle */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden text-white"
+            className="md:hidden text-white shrink-0 p-1"
             aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
             aria-expanded={mobileMenuOpen}
           >
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <img
               src="/logo_etm.jpg"
               alt="ETM Logo"
-              className="h-10 w-10 object-contain rounded-md border border-tactical-500/50 shadow-[0_0_10px_rgba(193,154,107,0.2)]"
+              className="h-8 w-8 sm:h-10 sm:w-10 object-contain rounded-md border border-tactical-500/50 shadow-[0_0_10px_rgba(193,154,107,0.2)]"
             />
             <div>
-              <h1 className="font-black text-sm tracking-wider text-white leading-tight">
+              <h1 className="font-black text-[10px] sm:text-sm tracking-wider text-white leading-tight">
                 END TIMES MONITOR
               </h1>
-              <p className="text-[8px] text-gray-500 uppercase tracking-widest">
+              <p className="text-[8px] text-gray-500 uppercase tracking-widest hidden sm:block">
                 {t.header.subtitle}
               </p>
             </div>
@@ -471,24 +541,36 @@ const App: React.FC = () => {
           <NavButton target="TIMELINE" label={t.nav.prophecy} />
           <NavButton target="SURVIVAL" label={t.nav.protocols} />
           <NavButton target="RADIO" label={t.nav.comms} />
-          {/* <NavButton target="ADMIN" label="ADMIN" /> */}
         </nav>
 
-        {/* Share + Git + Online */}
+        {/* Localized Actions: Search + Share + Online */}
         <div className="flex items-center gap-3">
-          {/* Git button */}
+          {/* Global Search Trigger */}
+          <button 
+            onClick={() => setIsSearchOpen(true)}
+            className="flex items-center gap-1.5 text-[10px] text-tactical-500 hover:text-white transition-colors font-mono uppercase tracking-widest bg-tactical-800/20 px-2 py-1 rounded border border-tactical-800/50"
+            title="Search (Ctrl+K)"
+          >
+            <Search className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Search</span>
+            <span className="hidden xl:inline opacity-40 ml-1">CTRL+K</span>
+          </button>
+
+          {/* GitHub button */}
           <a
             href="https://github.com/j0n777/End-Times-Monitor"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-[10px] text-gray-500 hover:text-white transition-colors font-mono uppercase tracking-widest border border-tactical-800 hover:border-tactical-600 px-2 py-1 rounded-sm bg-black/20"
+            className="flex items-center gap-1.5 text-[10px] text-gray-500 hover:text-white transition-colors font-mono uppercase tracking-widest bg-tactical-800/20 px-2 py-1 rounded border border-tactical-800/50"
             title="GitHub Repository"
+            aria-label="GitHub Repository"
           >
-            <svg className="w-3.5 h-3.5 text-tactical-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
             </svg>
-            <span className="hidden lg:inline">Repository</span>
+            <span className="hidden lg:inline">GitHub</span>
           </a>
+
           {/* Share button */}
           <button
             onClick={async () => {
@@ -519,6 +601,7 @@ const App: React.FC = () => {
             </svg>
             <span className="hidden lg:inline">Share</span>
           </button>
+          
           {/* Online dot */}
           <div className="flex items-center gap-1.5 text-[10px] text-gray-500 font-mono">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -542,7 +625,7 @@ const App: React.FC = () => {
       <div className="flex-1 relative bg-[#050505] overflow-hidden pb-8">
         {renderContent()}
 
-        {/* LEFT OVERLAY: Live Threat Feed (Visible in SITUATION_MAP) */}
+        {/* LEFT OVERLAY: Live Threat Feed */}
         {viewState === 'SITUATION_MAP' && (
           <LiveThreatFeed events={events} />
         )}
@@ -555,69 +638,56 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-5">
-
-            {/* Transport Layer */}
+            {/* Layers */}
             <div>
               <p className="text-[10px] text-gray-600 uppercase tracking-widest mb-2">{t.sidebar.activeLayers}</p>
-              <button
-                onClick={() => setShowTransport(!showTransport)}
-                className={`flex items-center gap-2 w-full px-3 py-2 rounded-sm text-xs font-mono border transition-colors ${showTransport
-                  ? 'border-blue-700/50 text-blue-400 bg-blue-900/10'
-                  : 'border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-400'
-                  }`}
-              >
+              <button onClick={() => setShowTransport(!showTransport)} className={`flex items-center gap-2 w-full px-3 py-2 rounded-sm text-xs font-mono border transition-colors ${showTransport ? 'border-blue-700/50 text-blue-400 bg-blue-900/10' : 'border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-400'}`}>
                 <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${showTransport ? 'bg-blue-500 animate-pulse' : 'bg-gray-700'}`} />
                 {t.sidebar.transport}
               </button>
-              {/* Military Aircraft Live Layer */}
-              <button
-                onClick={() => setShowAircraft(!showAircraft)}
-                className={`flex items-center gap-2 w-full px-3 py-2 mt-1.5 rounded-sm text-xs font-mono border transition-colors ${showAircraft
-                  ? 'border-slate-500/60 text-slate-300 bg-slate-800/20'
-                  : 'border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-400'
-                  }`}
-                title="Live military aircraft from adsb.lol"
-              >
+              <button onClick={() => setShowAircraft(!showAircraft)} className={`flex items-center gap-2 w-full px-3 py-2 mt-1.5 rounded-sm text-xs font-mono border transition-colors ${showAircraft ? 'border-slate-500/60 text-slate-300 bg-slate-800/20' : 'border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-400'}`}>
                 <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${showAircraft ? 'bg-slate-400 animate-pulse' : 'bg-gray-700'}`} />
                 ✈ MIL AIRCRAFT {aircraftLoading ? '(loading…)' : showAircraft ? `(${militaryAircraft.length})` : '(live)'}
               </button>
-
-              {/* Conflict Zones Layer */}
-              <button
-                onClick={() => setShowConflictZones(!showConflictZones)}
-                className={`flex items-center gap-2 w-full px-3 py-2 mt-1.5 rounded-sm text-xs font-mono border transition-colors ${showConflictZones
-                  ? 'border-red-700/50 text-red-400 bg-red-900/10'
-                  : 'border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-400'
-                  }`}
-                title="Active war zones and conflict areas"
-              >
+              <button onClick={() => setShowConflictZones(!showConflictZones)} className={`flex items-center gap-2 w-full px-3 py-2 mt-1.5 rounded-sm text-xs font-mono border transition-colors ${showConflictZones ? 'border-red-700/50 text-red-400 bg-red-900/10' : 'border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-400'}`}>
                 <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${showConflictZones ? 'bg-red-500' : 'bg-gray-700'}`} />
                 🔴 ZONAS DE CONFLITO {conflictZones.length > 0 ? `(${conflictZones.length})` : ''}
               </button>
-
-              {/* Nuclear Alerts Layer */}
               {nuclearAlerts.length > 0 ? (
-                // ☢ LOCKED: When active nuclear alerts exist, layer cannot be hidden
-                <div
-                  className="flex items-center gap-2 w-full px-3 py-2 mt-1.5 rounded-sm text-xs font-mono border border-purple-600/70 text-purple-300 bg-purple-900/15 cursor-not-allowed select-none"
-                  title="☢ Alerta ativo — layer permanente enquanto houver alertas ativos"
-                >
+                <div className="flex items-center gap-2 w-full px-3 py-2 mt-1.5 rounded-sm text-xs font-mono border border-purple-600/70 text-purple-300 bg-purple-900/15 cursor-not-allowed select-none">
                   <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-purple-500 animate-ping" />
                   ☢ ALERTAS NUCLEARES ({nuclearAlerts.length}) 🔒
                 </div>
               ) : (
-                <button
-                  onClick={() => setShowNuclearAlerts(!showNuclearAlerts)}
-                  className={`flex items-center gap-2 w-full px-3 py-2 mt-1.5 rounded-sm text-xs font-mono border transition-colors ${showNuclearAlerts
-                    ? 'border-purple-700/60 text-purple-300 bg-purple-900/10'
-                    : 'border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-400'
-                    }`}
-                  title="Nuclear strike blast radius visualization"
-                >
+                <button onClick={() => setShowNuclearAlerts(!showNuclearAlerts)} className={`flex items-center gap-2 w-full px-3 py-2 mt-1.5 rounded-sm text-xs font-mono border transition-colors ${showNuclearAlerts ? 'border-purple-700/60 text-purple-300 bg-purple-900/10' : 'border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-400'}`}>
                   <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${showNuclearAlerts ? 'bg-purple-500 animate-pulse' : 'bg-gray-700'}`} />
                   ☢ ALERTAS NUCLEARES (0)
                 </button>
               )}
+              
+              <div className="my-4 border-t border-tactical-800/60 pt-3">
+                <p className="text-[10px] text-gray-600 uppercase tracking-widest mb-2">{t.sidebar.tacticalOverlays}</p>
+                <button onClick={() => setShowSatelliteBase(!showSatelliteBase)} className={`flex items-center gap-2 w-full px-3 py-2 mt-1.5 rounded-sm text-xs font-mono border transition-colors ${showSatelliteBase ? 'border-emerald-700/50 text-emerald-400 bg-emerald-900/10' : 'border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-400'}`}>
+                  <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${showSatelliteBase ? 'bg-emerald-500 animate-pulse' : 'bg-gray-700'}`} />
+                  {t.sidebar.esriSatellite}
+                </button>
+                <button onClick={() => setShowSatellites(!showSatellites)} className={`flex items-center gap-2 w-full px-3 py-2 mt-1.5 rounded-sm text-xs font-mono border transition-colors ${showSatellites ? 'border-blue-700/50 text-blue-400 bg-blue-900/10' : 'border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-400'}`}>
+                  <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${showSatellites ? 'bg-blue-500 animate-pulse' : 'bg-gray-700'}`} />
+                  {t.sidebar.satellitesTracker}
+                </button>
+                <button onClick={() => setShowRadar(!showRadar)} className={`flex items-center gap-2 w-full px-3 py-2 mt-1.5 rounded-sm text-xs font-mono border transition-colors ${showRadar ? 'border-cyan-700/50 text-cyan-400 bg-cyan-900/10' : 'border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-400'}`}>
+                  <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${showRadar ? 'bg-cyan-500 animate-pulse' : 'bg-gray-700'}`} />
+                  {t.sidebar.weatherRadar}
+                </button>
+                <button onClick={() => setShowSafecast(!showSafecast)} className={`flex items-center gap-2 w-full px-3 py-2 mt-1.5 rounded-sm text-xs font-mono border transition-colors ${showSafecast ? 'border-yellow-700/50 text-yellow-400 bg-yellow-900/10' : 'border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-400'}`}>
+                  <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${showSafecast ? 'bg-yellow-500 animate-pulse' : 'bg-gray-700'}`} />
+                  {t.sidebar.globalRadiation}
+                </button>
+                <button onClick={() => setShowWebSDR(!showWebSDR)} className={`flex items-center gap-2 w-full px-3 py-2 mt-1.5 rounded-sm text-xs font-mono border transition-colors ${showWebSDR ? 'border-orange-700/50 text-orange-400 bg-orange-900/10' : 'border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-400'}`}>
+                  <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${showWebSDR ? 'bg-orange-500 animate-pulse' : 'bg-gray-700'}`} />
+                  {t.sidebar.webSdrStations}
+                </button>
+              </div>
             </div>
 
             {/* Category Filter Chips */}
@@ -631,19 +701,11 @@ const App: React.FC = () => {
                   const color = CATEGORY_COLORS[category as EventCategory] || '#9ca3af';
                   const isVisible = visibleCategories.has(category as EventCategory);
                   return (
-                    <button
-                      key={category}
-                      onClick={() => {
+                    <button key={category} onClick={() => {
                         const next = new Set(visibleCategories);
                         isVisible ? next.delete(category as EventCategory) : next.add(category as EventCategory);
                         setVisibleCategories(next);
-                      }}
-                      title={isVisible ? 'Click to hide' : 'Click to show'}
-                      className={`flex items-center gap-1.5 px-2 py-1 rounded-sm text-[10px] font-mono border transition-all ${isVisible
-                        ? 'border-white/10 text-gray-300 bg-white/5 hover:bg-white/10'
-                        : 'border-transparent text-gray-600 opacity-40 hover:opacity-60'
-                        }`}
-                    >
+                      }} title={isVisible ? 'Click to hide' : 'Click to show'} className={`flex items-center gap-1.5 px-2 py-1 rounded-sm text-[10px] font-mono border transition-all ${isVisible ? 'border-white/10 text-gray-300 bg-white/5 hover:bg-white/10' : 'border-transparent text-gray-600 opacity-40 hover:opacity-60'}`}>
                       <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: isVisible ? color : '#4b5563' }} />
                       {label}
                       <span className="text-gray-500">({count})</span>
@@ -653,12 +715,10 @@ const App: React.FC = () => {
               </div>
               <p className="text-[10px] text-gray-700 mt-3 leading-relaxed">{t.sidebar.categoriesHint}</p>
             </div>
-
           </div>
         </div>
 
-
-        {/* ── Status Bar (bottom) ──────────────────────────────────── */}
+        {/* StatusBar */}
         <StatusBar
           omegaLevel={omegaLevel}
           omegaMeta={omegaMeta}
@@ -673,6 +733,21 @@ const App: React.FC = () => {
           setSidebarOpen={setSidebarOpen}
         />
 
+        {/* Global Search Modal */}
+        <GlobalSearch 
+          isOpen={isSearchOpen} 
+          onClose={() => setIsSearchOpen(false)}
+          events={events}
+          onNavigate={(tab, id) => {
+            setViewState(tab);
+            if (tab === 'SURVIVAL' && id) {
+               const params = new URLSearchParams(window.location.search);
+               params.set('tab', 'protocols');
+               params.set('guide', id);
+               window.history.replaceState({}, '', `?${params.toString()}`);
+            }
+          }}
+        />
       </div>
     </div>
   );

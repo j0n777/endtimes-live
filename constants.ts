@@ -763,8 +763,35 @@ export const RADIO_CHANNELS: RadioChannel[] = [
     id: 'ts3', name: 'CHU Canada', frequency: '3.330 MHz', mode: 'AM', band: 'HF',
     region: 'IARU_R2', continent: 'NORTH_AMERICA', license: 'NONE',
     description: 'Canadian time standard',
-    notes: 'Also 7.850 MHz, 14.670 MHz.'
   },
+
+  // ========================================
+  // WEBSDR & AMATEUR RADIO
+  // ========================================
+  {
+    id: 'wsdr1', name: 'Univ Twente WebSDR', frequency: '0-29 MHz', mode: 'USB', band: 'HF',
+    region: 'IARU_R1', continent: 'EUROPE', license: 'MONITORING',
+    description: 'The most popular WebSDR, located in Enschede, Netherlands.',
+    notes: 'Access via: http://websdr.ewi.utwente.nl:8901/'
+  },
+  {
+    id: 'wsdr2', name: 'Secret Nuclear Bunker', frequency: '0-30 MHz', mode: 'USB', band: 'HF',
+    region: 'IARU_R1', continent: 'EUROPE', license: 'MONITORING',
+    description: 'WebSDR located in a former nuclear bunker in Cheshire, UK.',
+    notes: 'Access via: http://hackgreen.co.uk/'
+  },
+  {
+    id: 'wsdr3', name: 'Pardinho KiwiSDR', frequency: '0-30 MHz', mode: 'USB', band: 'HF',
+    region: 'IARU_R2', continent: 'SOUTH_AMERICA', license: 'MONITORING',
+    description: 'Excellent reception for amateur radio and shortwave in South America.',
+    notes: 'Access via: http://pardinho.proxy.kiwisdr.com:8073/'
+  },
+  {
+    id: 'wsdr4', name: 'K3FEF WebSDR', frequency: 'Varies', mode: 'USB', band: 'HF',
+    region: 'IARU_R2', continent: 'NORTH_AMERICA', license: 'MONITORING',
+    description: 'Pennsylvania USA node, good for US military monitoring (HFGCS).',
+    notes: 'Access via: http://k3fef.com:8901/'
+  }
 ];
 
 // --- PROPHECY DATA ---
@@ -789,113 +816,426 @@ export const PROPHECY_EVENTS: ProphecyEvent[] = [
 export const SURVIVAL_GUIDES: SurvivalGuide[] = [
   {
     id: 's1',
-    title: 'Water Protocols',
+    title: 'Water Protocols (Scarcity Edition)',
     category: 'WATER',
-    content: `### CRITICAL PRIORITY
-Water is the absolute priority. You can survive 3 weeks without food, but only 3 days without water.
+    content: `### PRIORITY 0: HYDRATION IN COLLAPSE
+Without water, death occurs in 72 hours. In a scarcity scenario, potable water is your most valuable currency.
 
-### 1. Requirements
-- **Drinking**: 2-3 Liters per person/day.
-- **Hygiene**: 2-4 Liters per person/day.
-- **Minimum Stock**: 2 weeks (approx 60L per person).
+### 1. Urban and Rural Sourcing (Scavenging)
+- **Subterranean Cisterns**: Commercial buildings and condos keep clean tanks for days after utility shutoff. Use a hand pump or a bucket with a rope.
+- **Air Conditioning**: Condensation water is distilled. It lacks minerals but is bacteria-free. Collect it and add a pinch of salt.
+- **Rainwater**: Use polyethylene tarps. **WARNING**: The first 10 inches of rain clean pollutants from the air; discard the first 20 liters.
 
-### 2. Purification Methods
-**Boiling (Tier 1)**: Bring to rolling boil for 1 min (3 min at high altitude). Kills bacteria, viruses, and parasites.
-**Chemical (Tier 2)**: Unscented Bleach (5-9%). 8 drops per gallon clear water, 16 drops cloudy. Wait 30 mins.
-**Filtration (Tier 3)**: Mechanical filters (0.1 micron). Removes bacteria/protozoa but NOT viruses.
+### 2. DIY Bio-Sand Filter (Construction)
+If commercial filters (Sawyer/Lifestraw) fail, build this system:
+- **Body**: 5-gallon bucket or 6-inch PVC pipe.
+- **Base (2 inches)**: Large stones for flow support.
+- **Middle (4 inches)**: Activated charcoal (burn wood and crush it). **ESSENTIAL**: Removes chemical toxins.
+- **Top (6 inches)**: Washed fine sand.
+- **The Secret**: Keep 2 inches of water above the sand. In 2 weeks, a *Schmutzdecke* (biological layer) creates itself, actively consuming bacteria.
 
-### 3. Sourcing
-- Rainwater harvesting (requires pre-filtration).
-- Natural springs (boil first).
-- Hot water heater tank (turn off power/gas first!).
-- Toilet tanks (NOT the bowl, and only if no chemical blocks used).`,
+### 3. Final Disinfection
+DIY filters do not kill viruses. Use:
+- **Boiling**: 1 minute at a rolling boil.
+- **SODIS**: Transparent PET bottles in the sun for 6 hours (UV rays kill pathogens).
+- **Bleach**: 2 drops of unscented bleach per liter. Wait 30 minutes.`,
     checklist: [
-      { id: 'w1', text: 'Determine daily household consumption', completed: false },
-      { id: 'w2', text: 'Purchase primary filter (Sawyer/LifeStraw)', completed: false },
-      { id: 'w3', text: 'Store 14 days of water in cool dark place', completed: false },
-      { id: 'w4', text: 'Acquire backup purification tablets', completed: false }
+      { id: 'w1', text: 'Locate alternative water sources (cisterns, wells)', completed: false },
+      { id: 'w2', text: 'Build a bio-sand filter prototype', completed: false },
+      { id: 'w3', text: 'Stock 5 gallons of bleach (cleaning and purification)', completed: false },
+      { id: 'w4', text: 'Learn to identify water-indicator plants (Willows, Reeds)', completed: false }
     ]
   },
   {
     id: 's2',
-    title: 'Food Stockpile',
+    title: 'Food Stockpiling (Maximum Resilience)',
     category: 'FOOD',
-    content: `### STRATEGY: "Deep Larder"
-Do not buy "survival food" you don't eat. Eat what you store, store what you eat.
+    content: `### STRATEGY: "Deep and Living Pantry"
+Food runs out. Knowledge of calorie preservation is eternal.
 
-### 1. The Staples (Long Term)
-- **White Rice**: 30+ years in Mylar bags with O2 absorbers.
-- **Dried Beans**: 30+ years. Complete protein when combined with rice.
-- **Honey/Sugar/Salt**: Indefinite shelf life.
-- **Pasta**: 20+ years.
-- **Canned Goods**: 2-5 years.
+### 1. The "5-Gallon Bucket" Method
+For 25+ year storage, use:
+- **Mylar Bags**: 7 mil thickness.
+- **O2 Absorbers**: 2000cc per bucket.
+- **Items**: White rice, beans, oats, sugar, salt.
+- **Sealing**: Use a hair straightener or clothes iron to seal the Mylar bag.
 
-### 2. Nutritional Balance
-Focus on high calorie density. Stress burns calories.
-- Oils (Olive, Coconut) for fats.
-- Multivitamins to prevent scurvy/deficiencies.
+### 2. Calories vs. Nutrition
+Combat/flight stress burns 3000-4000 kcal/day.
+- **Fats**: The hardest item to store (rancidity). Focus on Ghee (clarified butter) and Coconut Oil.
+- **Protein**: Canned meat (Spam, Tuna) and pickled eggs (limewater method).
+- **Vitamins**: Fresh bean sprouts (Sprouting) provide Vitamin C in 3 days without soil.
 
-### 3. Cooking Without Power
-- Propane camping stove (store fuel safely).
-- Rocket stove (burns twigs/debris).
-- Solar oven (stealthy, no smoke).`,
+### 3. Stealth Cooking
+Avoid smoke to not reveal your position.
+- **Solar Oven**: Silent, odorless.
+- **Thermal Blanket**: Boil the food and place it in an insulated box (Haybox) to finish cooking without using fuel.`,
     checklist: [
-      { id: 'f1', text: 'Calculate 2000 cal/person/day requirement', completed: false },
-      { id: 'f2', text: 'Buy 20lb bag of rice + bucket', completed: false },
-      { id: 'f3', text: 'Stockpile 2 weeks of canned meat', completed: false },
-      { id: 'f4', text: 'Secure manual can opener', completed: false }
+      { id: 'f1', text: 'Set up 3 months of rotation (FIFO - First In, First Out)', completed: false },
+      { id: 'f2', text: 'Learn to make Ghee to store fat long-term', completed: false },
+      { id: 'f3', text: 'Acquire 10 Mylar bags and 50 O2 absorbers', completed: false },
+      { id: 'f4', text: 'Stock 10lbs of salt (essential for meat preservation)', completed: false }
     ]
   },
   {
     id: 's3',
-    title: 'Bug-Out Bag (72h)',
+    title: 'Bug-out Bag & Grey Man Theory',
     category: 'SECURITY',
-    content: `### CONCEPT
-A kit to keep you alive while moving from Point A to Point B. Max weight: 20% of body weight.
+    content: `### THE CONCEPT OF MOBILITY AND INVISIBILTY
+Your kit must be discreet. A tactical backpack full of "molle" is a target for confiscation by police or looters.
 
-### THE 5 C's of SURVIVABILITY
-1. **Cutting**: Full tang fixed blade knife + Multitool.
-2. **Combustion**: Ferro rod, 2x Bic lighters, waterproof matches.
-3. **Cover**: Tarp, wool blanket, or bivy sack.
-4. **Container**: Single-walled stainless steel bottle (can boil water in it).
-5. **Cordage**: 100ft Paracord (550lb test).
+### 1. The Backpack (Defense Levels)
+- **Level 1 (Pockets)**: Lighter, pocket knife, small flashlight, cash. If you lose the bag, you survive.
+- **Level 2 (Backpack)**: The 5 C's of survival (Cutting, Combustion, Cover, Container, Cordage).
+- **Level 3 (Bug-out Location)**: Construction tools and seeds.
 
-### Additional Essentials
-- Map & Compass (Local area).
-- First Aid Kit (Trauma focused).
-- Headlamp + spare batteries.
-- Cash (Small bills).
-- Copies of Documents (Sealed).`,
+### 2. The "Grey Man" Style
+- **Clothing**: Ordinary clothes, neutral colors (navy blue, grey, brown). No logos.
+- **Behavior**: Move with purpose, but without haste. Do not make prolonged eye contact.
+- **Equipment**: Cover shiny items with matte electrical tape.
+
+### 3. Sourcing Items on the Run
+- **Aquarium Tubing**: For siphoning gas from abandoned vehicles.
+- **Microwave Magnet**: To create improvised compasses.
+- **Broken Glass**: Excellent scraper for wood and fire tinder.`,
     checklist: [
-      { id: 'b1', text: 'Acquire robust backpack (grey man style)', completed: false },
-      { id: 'b2', text: 'Pack 5 C\'s', completed: false },
-      { id: 'b3', text: 'Pack 3 days of freeze-dried food', completed: false },
-      { id: 'b4', text: 'Scan and encrypt important docs to USB', completed: false }
+      { id: 'b1', text: 'Reduce bag weight to 15% of your body weight', completed: false },
+      { id: 'b2', text: 'Test the kit on a 10km hike in the dark', completed: false },
+      { id: 'b3', text: 'Acquire a portable water filter (Sawyer Squeeze)', completed: false },
+      { id: 'b4', text: 'Encrypt documents on an SD card hidden in your belt', completed: false }
     ]
   },
   {
     id: 's4',
-    title: 'Communication Plan',
+    title: 'Comms & Signals (Low-Tech)',
     category: 'COMMS',
-    content: `### PACE Plan
-**P**rimary: Cell Phone (while grid is up).
-**A**lternate: Internet/Apps (Signal, Bridgefy for mesh).
-**C**ontingency: UHF/VHF Radio (Local squad comms).
-**E**mergency: HF Radio (Long distance news/contact).
+    content: `### COMMUNICATION WHEN THE GRID GOES DOWN
+Information is power. Silence is security.
 
-### Monitoring
-- Listen more than you transmit.
-- Keep radios charged (solar).
-- Know your frequencies (See Radio Panel).
+### 1. Visual Signals (Scarcity)
+- **Signal Mirror**: Can be seen from 20 miles away. Use an old CD or a powered-off phone screen.
+- **Hobo Signs**: Agree on symbols with your group (e.g., a scratch on a wall = "Safe Area").
+- **Improvised VS-17**: A neon orange or pink cloth for aerial signaling.
 
-### Signals
-- Whistle: 3 blasts = Distress.
-- Visual: Signal mirror, VS-17 panel.`,
+### 2. Radio and Signal Intelligence (SIGINT)
+- **Monitoring**: Never transmit without extreme necessity. Use DIY "Yagi" antennas (made with hangers) to focus signal and avoid being triangulated.
+- **Group Code**: Use a "One-time pad" (book of codes) for secure communications that even governments cannot crack without the physical key.
+
+### 3. Dead Drops
+Hide physical messages in wall cracks or hollow trees. Avoid direct communication that exposes both members.`,
     checklist: [
-      { id: 'c1', text: 'Agree on family meeting point', completed: false },
-      { id: 'c2', text: 'Buy Baofeng UV-5R or similar', completed: false },
-      { id: 'c3', text: 'Program local repeater frequencies', completed: false },
-      { id: 'c4', text: 'Print contact list (hard copy)', completed: false }
+      { id: 'c1', text: 'Create a One-time pad codebook with your family', completed: false },
+      { id: 'c2', text: 'Learn to build a Tape Measure J-Pole antenna', completed: false },
+      { id: 'c3', text: 'Practice Morse code (at least SOS)', completed: false },
+      { id: 'c4', text: 'Keep a crank/solar AM/FM radio', completed: false }
+    ]
+  },
+  {
+    id: 's5',
+    title: 'Bio-Sand Filtration (Advanced)',
+    category: 'WATER',
+    content: `### SEMI-PERMANENT FILTRATION SYSTEM
+For a stable base, you need larger volumes of water.
+
+### 1. Container Construction
+Use a 55-gallon blue food-grade drum.
+- **Bottom**: Drain layer with drilled PVC pipes for water outlet.
+- **Media**: 16 inches of fine silica sand (0.1 to 0.3mm).
+- **Diffuser**: A drilled plate at the top so water doesn't "bore" through the sand when poured.
+
+### 2. The Biological Layer (Schmutzdecke)
+This layer is an ecosystem of protozoa and "good" bacteria that attack pathogens.
+- **Maintenance**: Never let the sand dry out. Biological life needs moisture.
+- **Cleaning**: Every 6 months, scrape off the first inch of sand ("Scraping") and replace.
+
+### 3. Improvised Potability Test
+In the absence of a lab, use the "Transparency Test": if you can read a newspaper through 1 foot of water in a white bucket, it is physically clean, but still requires boiling.`,
+    checklist: [
+      { id: 'w5', text: 'Acquire food-grade 55-gallon drum', completed: false },
+      { id: 'w6', text: 'Wash 200lbs of fine sand until water runs clear', completed: false },
+      { id: 'w7', text: 'Install outlet faucet with rubber sealing', completed: false },
+      { id: 'w8', text: 'Keep system running for 2 weeks for maturation', completed: false }
+    ]
+  },
+  {
+    id: 's6',
+    title: 'Fire Protocols (Extreme)',
+    category: 'SKILLS',
+    content: `### HEAT AND SIGNALING WITHOUT RESOURCES
+At 32°F (0°C), hypothermia kills in a few hours. Fire is life.
+
+### 1. Ignition in Adverse Conditions
+- **Battery and Steel Wool**: Touch the terminals of a 9V battery (or 2 AAs) to steel wool. Instant reaction.
+- **Hand Drill (Friction)**: Requires extremely dry wood (Yucca, Cedar). Demands calloused hands and patience.
+- **Scavenging Flint**: Use a carbon steel knife against a piece of quartz or chert to generate sparks.
+
+### 2. Invisible Fire Structure (Dakota Fire Pit)
+Hide your light and smoke:
+- Dig two holes connected by an underground tunnel.
+- The fire burns in one hole while the other provides constant oxygen.
+- **Advantage**: Produces almost no smoke and light is not visible from a distance.
+
+### 3. Emergency Tinder (Char Cloth)
+Turn cotton t-shirt scraps into Char Cloth. It catches the smallest spark and turns into immediate ember.`,
+    checklist: [
+      { id: 'sk1', text: 'Practice the Dakota Fire Pit in your yard', completed: false },
+      { id: 'sk2', text: 'Make a batch of Char Cloth using a metal tin', completed: false },
+      { id: 'sk3', text: 'Learn to identify pine resin (natural accelerant)', completed: false },
+      { id: 'sk4', text: 'Master ignition with glasses/presbyopia lens', completed: false }
+    ]
+  },
+  {
+    id: 's7',
+    title: 'Debris & Thermal Shelter',
+    category: 'SKILLS',
+    content: `### SHELTER ENGINEERING IN SCARCITY
+The goal is 98.6°F (37°C). The shelter must be small to retain body heat.
+
+### 1. The Debris Hut (A-Frame)
+- **Spine**: A strong log supported in a V or tree branch.
+- **Ribs**: Branches leaning against the spine.
+- **Insulation**: 2 to 3 feet of dry leaves, moss, or grass over the ribs. **WARNING**: If the layer is thin, you will get wet and die of cold.
+
+### 2. The Thermal Bed (Vital)
+NEVER sleep directly on the ground. The soil sucks your heat.
+- Build a "bed" 8 inches high made of crumpled leaves or pine boughs.
+
+### 3. Urban Shelter
+- **Cardboard**: Best urban thermal insulator. Use multiple layers.
+- **Bubble Wrap**: Traps static air. Wrap yourself in it inside a large trash bag.`,
+    checklist: [
+      { id: 'sk5', text: 'Store 100ft of Paracord (essential cordage)', completed: false },
+      { id: 'sk6', text: 'Practice building a Lean-to in 15 minutes', completed: false },
+      { id: 'sk7', text: 'Learn to identify the prevailing wind direction', completed: false },
+      { id: 'sk8', text: 'Identify hazards (Widowmakers - dead branches above)', completed: false }
+    ]
+  },
+  {
+    id: 's8',
+    title: 'Bio-Fuel & DIY Energy',
+    category: 'ENERGY',
+    content: `### ENERGY INDEPENDENCE IN CHAOS
+Old diesel engines (mechanical) can run on almost any oil.
+
+### 1. Biodiesel Production (Scarcity Step)
+- **Ingredients**: Used cooking oil, Methanol (can be 99% racing fuel or HEET), and Lye (Sodium Hydroxide).
+- **The Chemistry**: Transesterification removes glycerin which clogs fuel injectors.
+- **Purification**: Without modern gear, use "Solar Sedimentation": leave the mix in PET bottles in the sun for 48h. Glycerin drops, fuel rises.
+
+### 2. Wood Gas (Gasifier)
+Convert wood into gas to run gasoline engines.
+- Requires two sealed metal buckets and copper tubing.
+- Wood burns without oxygen, releasing CO and H (syngas).
+
+### 3. Dead Batteries
+Recover lead-acid car batteries using Epsom salt (Magnesium Sulfate) and distilled water.`,
+    checklist: [
+      { id: 'e1', text: 'Stock 10lbs of Lye and 5 gallons of 99% Alcohol', completed: false },
+      { id: 'e2', text: 'Build a mini-solar still for water and fuel', completed: false },
+      { id: 'e3', text: 'Learn basic diesel generator mechanics', completed: false },
+      { id: 'e4', text: 'Identify vehicles without electronics (pre-1998)', completed: false }
+    ]
+  },
+  {
+    id: 's9',
+    title: 'Crisis Sanitation & Bio-Hazards',
+    category: 'SKILLS',
+    content: `### THE WAR AGAINST DYSENTERY
+In disasters, lack of hygiene kills more than hunger. When the sewage stops flowing, you need a plan.
+
+### 1. The "Two-Bucket" System (Strategic)
+Separation is the key to avoiding odor and disease propagation.
+- **Bucket 1 (Liquids)**: Urine only. Can be disposed of in absorbent soil far from water sources.
+- **Bucket 2 (Solids)**: Use a heavy-duty bag. After each use, cover with sawdust, campfire ash, or lime. This dries the waste and prevents flies (vectors) from carrying diseases to your food.
+
+### 2. Scarcity Hygiene
+- **Sponge Bath**: Use only 1 pint (500ml) of water. Focus on armpits, groin, and feet.
+- **DIY Handwash**: Hang a PET bottle with a small hole. Use a nail as a plug. Use coconut soap (most versatile).
+
+### 3. Waste Management
+- **DIY Incinerator**: Use a 55-gallon metal drum with side holes for high-temp burning. Burn only biologically hazardous waste.`,
+    checklist: [
+      { id: 'sk9', text: 'Acquire two 5-gallon buckets and snap-on seats', completed: false },
+      { id: 'sk10', text: 'Stock 20lbs of lime or 2 bags of dry sawdust', completed: false },
+      { id: 'sk11', text: 'Learn to make Lye soap from wood ashes', completed: false },
+      { id: 'sk12', text: 'Identify a disposal zone 150ft from any water', completed: false }
+    ]
+  },
+  {
+    id: 's10',
+    title: 'Trauma & Combat Medicine',
+    category: 'MEDICAL',
+    content: `### MEDICINE WHEN HELP IS NOT COMING
+Absolute focus on "Stop the Bleed".
+
+### 1. Massive Hemorrhages
+- **Tourniquet**: If blood is bright red and pulsing, use the tourniquet. **RULE**: "High and Tight" on the wounded limb. Note the time.
+- **Wound Packing**: In areas where a tourniquet cannot reach (armpit, groin), shove sterile gauze or a clean cloth as deep as possible and apply constant pressure for 10 minutes.
+
+### 2. Scarcity Infections
+Without antibiotics, any cut is dangerous.
+- **Raw Honey**: Pure, unprocessed honey is a potent antibacterial for dressings.
+- **Irrigation**: Wash wounds with pressurized potable water (using a syringe or poked bottle).
+
+### 3. Fatal Mistakes
+- Never attempt to remove impaled objects (knives, shards) outside of a hospital environment.`,
+    checklist: [
+      { id: 'm1', text: 'Have 1 original CAT Gen7 tourniquet per person', completed: false },
+      { id: 'm2', text: 'Assemble a tactical IFAK (Individual First Aid Kit)', completed: false },
+      { id: 'm3', text: 'Stock 1 quart of Iodine and 1lb of Raw Honey', completed: false },
+      { id: 'm4', text: 'Practice the Heimlich maneuver and CPR', completed: false }
+    ]
+  },
+  {
+    id: 's11',
+    title: 'Food Preservation (Off-Grid)',
+    category: 'FOOD',
+    content: `### MASTERING TIME AND DECAY
+Knowing how to preserve is as vital as knowing how to produce.
+
+### 1. Salting (Curing)
+Salt removes moisture where bacteria grow.
+- **Dry Curing**: Cover meat (beef/pork) with coarse salt, let drain for 24h, and hang in a ventilated area protected from insects.
+- **Fish**: The dry-salting technique guarantees protein for months.
+
+### 2. Solar Dehydration
+Build a wooden box with a black bottom and a glass or plastic cover.
+- Slice fruits and vegetables thin.
+- Ventilation is crucial (holes at top and base for a chimney effect).
+
+### 3. Fermentation (Living Preserves)
+- **Sauerkraut (Cabbage)**: Just shredded cabbage, salt, and time. Provides vital probiotics for immunity during high-stress times.`,
+    checklist: [
+      { id: 'f5', text: 'Stock 50lbs of coarse salt (non-iodized)', completed: false },
+      { id: 'f6', text: 'Build a solar dehydrator prototype', completed: false },
+      { id: 'f7', text: 'Practice water-bath canning techniques', completed: false },
+      { id: 'f8', text: 'Learn to identify spoiled meat (Botulism)', completed: false }
+    ]
+  },
+  {
+    id: 's12',
+    title: 'Residential Hardening (Fortress)',
+    category: 'SECURITY',
+    content: `### TRANSFORMING YOUR HOME INTO A FORTRESS
+Most modern homes are vulnerable to simple breaches.
+
+### 1. Layers of Protection
+- **Layer 1 (Exterior)**: Motion-sensor lighting. **TIP**: Conceal barbed wire within "thorny" landscaping like Bougainvillea or Barberry.
+- **Layer 2 (Entry Points)**: Replace hinge and strike plate screws with 3-inch (10cm) screws that reach the structural framing.
+- **Layer 3 (Windows)**: Apply 8mil Security Film to prevent glass from shattering upon impact.
+
+### 2. Low-Tech Alarma
+- **Aluminum Cans**: A fishing line with cans containing pebbles is the best perimeter alarm—silent to the intruder, loud to you.
+
+### 3. Intel Opacity
+"Grey Man" Home Policy: Your home should not look stocked. avoid noisy generators or light leakage when neighbors are in the dark.`,
+    checklist: [
+      { id: 'sec1', text: 'Replace screws in all exterior door frames', completed: false },
+      { id: 'sec2', text: 'Install window security film on all ground floors', completed: false },
+      { id: 'sec3', text: 'Designate a "Safe Room" for immediate retreat', completed: false },
+      { id: 'sec4', text: 'Remove bushes that provide concealment near doors', completed: false }
+    ]
+  },
+  {
+    id: 's13',
+    title: 'Faraday Cage DIY (EMP Shield)',
+    category: 'ENERGY',
+    content: `### PROTECTION AGAINST EMP (ELECTROMAGNETIC PULSE)
+A solar flare or nuclear event can fry all modern unprotected circuits.
+
+### 1. What to Protect
+- Comms gear (Baofeng, Handhelds).
+- LED Flashlights (internal circuits are sensitive).
+- USB drives with digital "Bug-out" documents.
+- Tablets with offline survival libraries (Kiwix).
+
+### 2. How to Build
+Use a metal trash can with a tight-fitting lid.
+- **Internal Insulation**: Line the interior with thick cardboard or wood. **CRITICAL**: The device must NOT touch the metal.
+- **Seal**: Ensure 360° metal-to-metal contact on the lid. Use aluminum tape for a perfect seal if necessary.
+
+### 3. The "Cell Phone" Test
+Place a phone inside and close the cage. Call it. If it goes straight to voicemail, your shield is functional.`,
+    checklist: [
+      { id: 'e5', text: 'Secure 1 metal trash can or ammo box', completed: false },
+      { id: 'e6', text: 'Line the inside with non-conductive cardboard', completed: false },
+      { id: 'e7', text: 'Store backup radios and batteries inside', completed: false },
+      { id: 'e8', text: 'Perform the reception signal test', completed: false }
+    ]
+  },
+  {
+    id: 's14',
+    title: 'Solar System (Critical Power)',
+    category: 'ENERGY',
+    content: `### OFF-GRID CHARGE MAINTENANCE
+Lights and radio are crucial for morale and intelligence gathering.
+
+### 1. Minimalist Sizing
+Don't try to power a fridge. Focus on essentials:
+- **100W Panel**: Sufficient for charging batteries and lights.
+- **Charge Controller**: Protects the battery from overcharging.
+- **Deep Cycle Battery**: Stores power for night use.
+
+### 2. Salvaged Batteries (Recovery)
+If you find old car batteries:
+- Clean terminals thoroughly.
+- Replace the electrolyte with a solution of Distilled Water and Epsom Salt (Magnesium Sulfate). This can give a "dead" battery a few more months of life.
+
+### 3. Night Lighting
+Use 12V LED strips directly from the battery. They are far more efficient than using an inverter for 110/220V bulbs.`,
+    checklist: [
+      { id: 'e9', text: 'Acquire a 50W or 100W portable solar panel', completed: false },
+      { id: 'e10', text: 'Have 1 spare set of MC4 connectors', completed: false },
+      { id: 'e11', text: 'Learn to use a Multimeter to test polarity', completed: false },
+      { id: 'e12', text: 'Stockpile 12V LED bulbs (automotive bulk)', completed: false }
+    ]
+  },
+  {
+    id: 's15',
+    title: 'Barter Economy (Trade Assets)',
+    category: 'SECURITY',
+    content: `### TRADE ASSETS WHEN CURRENCY FAILS
+Gold and Silver are good, but immediate utility items hold more value in a collapse.
+
+### 1. Fractional Precious Metals
+- **Silver**: Ideal for small, daily transactions (loaves of bread, eggs). Pre-1965 US Junk Silver is world-recognized.
+- **Gold**: For major extractions or critical bribes.
+
+### 2. High-Demand Assets
+Stockpile extras of:
+- **Vices**: Coffee, Cigarettes, Salt, Raw Honey.
+- **Utilities**: BIC Lighters, Sewing Needles/Thread, AA/AAA Batteries.
+- **Medical**: Antibiotics and Painkillers (the rarest "currencies").
+
+### 3. OpSec in Trading
+Never show your full stash. Trade in neutral locations. Revealing you have bulk coffee might invite a raid on your position.`,
+    checklist: [
+      { id: 'sec5', text: 'Gather 10 spare lighters and 5lbs of sealed coffee', completed: false },
+      { id: 'sec6', text: 'Acquire 10x 1oz Silver rounds or coins', completed: false },
+      { id: 'sec7', text: 'Stockpile fast-growing vegetable seeds (Radish, Lettuce)', completed: false },
+      { id: 'sec8', text: 'Understand the trade value of 1 gallon of Biodiesel', completed: false }
+    ]
+  },
+  {
+    id: 's16',
+    title: 'Analog Navigation',
+    category: 'SKILLS',
+    content: `### Analog Navigation
+Disasters can disable satellite signals or cellular networks.
+
+### 1. Map and Compass
+Learn to "orient the map" to the terrain. Know your local magnetic declination.
+
+### 2. Solar Orientation
+The Sun rises in the East and sets in the West. Use the stick shadow method to find true North.
+
+### 3. Landmarks
+Identify mountains, towers, or rivers. Create mental maps of your bug-out routes.`,
+    checklist: [
+      { id: 'sk13', text: 'Print topographical maps of your local area (hard copy)', completed: false },
+      { id: 'sk14', text: 'Acquire a baseplate compass (Suunto/Silva)', completed: false },
+      { id: 'sk15', text: 'Practice finding North at night (North Star/Southern Cross)', completed: false },
+      { id: 'sk16', text: 'Measure your pace count over 100 meters', completed: false }
     ]
   }
 ];

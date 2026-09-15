@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import { publishData } from '../publishData';
 import * as path from 'path';
 import * as https from 'https';
 
@@ -62,6 +63,7 @@ export class DefconCollector {
                 fs.mkdirSync(dir, { recursive: true });
             }
             fs.writeFileSync(this.outputPath, JSON.stringify(data, null, 2));
+            await publishData('defcon.json', data);
             this.lastRunAt = new Date();
             console.log(`✅ DEFCON_MONITOR: Wrote DEFCON ${level} "${codename}" → ${this.outputPath}`);
 

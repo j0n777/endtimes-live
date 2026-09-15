@@ -119,10 +119,10 @@ const ProphecyIntel: React.FC = () => {
       <div
         key={prophecy.id}
         id={prophecy.id}
-        className={`mb-6 ml-8 relative border rounded-lg p-4 transition-all duration-300 ${colorClass} ${isExpanded ? 'shadow-[0_0_15px_rgba(0,0,0,0.5)] border-l-4 border-l-' + (isIslamic ? 'red-500' : 'tactical-500') : 'hover:border-opacity-100 border-opacity-50'}`}
+        className={`mb-6 ml-4 md:ml-8 relative border rounded-lg p-3 md:p-4 transition-all duration-300 ${colorClass} ${isExpanded ? 'shadow-[0_0_15px_rgba(0,0,0,0.5)] border-l-4 border-l-' + (isIslamic ? 'red-500' : 'tactical-500') : 'hover:border-opacity-100 border-opacity-50'}`}
       >
         {/* Timeline Dot */}
-        <div className={`absolute -left-[45px] top-6 w-5 h-5 rounded-full border-4 border-[#050505] flex items-center justify-center
+        <div className={`absolute -left-[26px] md:-left-[42px] top-6 w-5 h-5 rounded-full border-4 border-[#050505] flex items-center justify-center
             ${prophecy.status === 'FULFILLED' ? 'bg-green-500' :
             prophecy.status === 'IN_PROGRESS' ? 'bg-yellow-500' :
               'bg-gray-600'}
@@ -131,12 +131,12 @@ const ProphecyIntel: React.FC = () => {
 
         {/* Header Clickable */}
         <div
-          className="cursor-pointer flex items-start justify-between gap-4"
+          className="cursor-pointer flex items-start justify-between gap-3 md:gap-4"
           onClick={() => setExpandedProphecy(isExpanded ? null : prophecy.id)}
         >
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border ${getStatusColor(prophecy.status)}`}>
+            <div className="flex flex-wrap items-center gap-1.5 md:gap-2 mb-1">
+              <span className={`text-[9px] md:text-[10px] font-bold uppercase tracking-widest px-1.5 md:px-2 py-0.5 rounded border ${getStatusColor(prophecy.status)}`}>
                 {prophecy.status.replace('_', ' ')}
               </span>
               {isIslamic && <span className="text-[10px] font-bold uppercase text-red-500 border border-red-500/30 px-2 py-0.5 rounded">WARNING</span>}

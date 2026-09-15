@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { SURVIVAL_GUIDES } from '../constants';
 import { SURVIVAL_GUIDES_PT } from '../locales/content.pt-BR';
 import { SurvivalGuide } from '../types';
-import { ChevronRight, CheckSquare, Square, Droplets, Utensils, Shield, Radio, Flame, Zap } from 'lucide-react';
+import { ChevronRight, CheckSquare, Square, Droplets, Utensils, Shield, Radio, Flame, Zap, Activity } from 'lucide-react';
 import { useLocale } from '../lib/i18n';
 
 /** Renders inline **bold** and *italic* within a text string as React nodes. */
@@ -105,6 +105,7 @@ const SurvivalManual: React.FC = () => {
       case 'WATER': return <Droplets className="w-4 h-4" />;
       case 'FOOD': return <Utensils className="w-4 h-4" />;
       case 'SECURITY': return <Shield className="w-4 h-4" />;
+      case 'MEDICAL': return <Activity className="w-4 h-4" />;
       case 'COMMS': return <Radio className="w-4 h-4" />;
       case 'ENERGY': return <Zap className="w-4 h-4" />;
       default: return <Flame className="w-4 h-4" />;
@@ -124,17 +125,35 @@ const SurvivalManual: React.FC = () => {
   };
 
   return (
-    <div className="flex h-full bg-[#050505] text-gray-200 font-mono">
+    <div className="flex flex-col md:flex-row h-full bg-[#050505] text-gray-200 font-mono">
       <SEOHead
         title={`Survival Protocol: ${selectedGuide.title}`}
         description={`Emergency preparedness guide for ${selectedGuide.category}. ${selectedGuide.content.substring(0, 100).replace(/[#*]/g, '')}...`}
         schema={survivalSchema}
         type="article"
       />
-      {/* Sidebar List */}
-      <div className="w-64 border-r border-tactical-800 flex flex-col overflow-y-auto">
+      {/* Mobile Selector */}
+      <div className="md:hidden p-4 border-b border-tactical-800 bg-tactical-900 shrink-0">
+        <label className="text-[10px] text-tactical-500 font-bold tracking-widest uppercase mb-1 block">
+          {t.protocols?.title || 'Protocol Selection'}
+        </label>
+        <select 
+          className="w-full bg-tactical-800 text-white p-2 rounded border border-tactical-700 text-sm outline-none focus:border-tactical-500"
+          value={selectedGuide.id}
+          onChange={(e) => setSelectedGuide(guides.find(g => g.id === e.target.value) || guides[0])}
+        >
+          {guides.map(guide => (
+            <option key={guide.id} value={guide.id}>
+              {guide.category} - {guide.title}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Sidebar List (Desktop) */}
+      <div className="hidden md:flex w-64 border-r border-tactical-800 flex-col overflow-y-auto shrink-0">
         <div className="p-4 border-b border-tactical-800 bg-tactical-900">
-          <h2 className="text-tactical-500 font-bold tracking-widest">{t.protocols.title}</h2>
+          <h2 className="text-tactical-500 font-bold tracking-widest">{t.protocols?.title || 'PROTOCOLS'}</h2>
         </div>
         {guides.map(guide => (
           <button
@@ -155,15 +174,15 @@ const SurvivalManual: React.FC = () => {
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
         <div className="max-w-3xl mx-auto">
-          <div className="flex items-center gap-4 mb-8 pb-4 border-b border-tactical-700">
+          <div className="flex items-center gap-3 md:gap-4 mb-6 md:mb-8 pb-4 border-b border-tactical-700">
             <div className="p-3 bg-tactical-800 rounded text-tactical-500">
               {getIcon(selectedGuide.category)}
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white tracking-wider">{selectedGuide.title}</h1>
-              <span className="text-xs text-tactical-500 bg-tactical-900 px-2 py-1 rounded border border-tactical-700">
+            <div className="flex-1">
+              <h1 className="text-xl md:text-2xl font-bold text-white tracking-wider leading-tight mb-2 md:mb-0">{selectedGuide.title}</h1>
+              <span className="inline-block text-[10px] md:text-xs text-tactical-500 bg-tactical-900 px-2 py-1 rounded border border-tactical-700">
                 PROTOCOL: {selectedGuide.category}_V1
               </span>
             </div>

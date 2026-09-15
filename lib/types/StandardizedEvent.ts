@@ -216,7 +216,7 @@ export interface SanitizationResult {
     warnings?: string[];
 }
 
-export interface GeocindgRequest {
+export interface GeocodingRequest {
     text: string; // Location text to geocode
     context?: {
         country?: string;

@@ -14,10 +14,20 @@ const LOCALES: Record<Locale, Translations> = { en, 'pt-BR': ptBR };
 const STORAGE_KEY = 'etm_locale';
 
 function detectLocale(): Locale {
-    const stored = localStorage.getItem(STORAGE_KEY) as Locale | null;
+    // 1. Check URL parameters
+    if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const l = params.get('lang') || params.get('locale');
+        if (l === 'pt' || l === 'pt-BR') return 'pt-BR';
+        if (l === 'en') return 'en';
+    }
+
+    // 2. Check LocalStorage
+    const stored = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) as Locale | null : null;
     if (stored && stored in LOCALES) return stored;
-    // Auto-detect from browser
-    const browser = navigator.language || 'en';
+
+    // 3. Auto-detect from browser
+    const browser = typeof window !== 'undefined' ? navigator.language || 'en' : 'en';
     if (browser.startsWith('pt')) return 'pt-BR';
     return 'en';
 }

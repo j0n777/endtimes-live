@@ -9,10 +9,8 @@ import { LocationData, GeocodingRequest, GeocodingResult } from '../types/Standa
  */
 
 const GEMINI_MODELS = [
-    'gemini-2.5-flash-lite',
-    'gemini-2.5-flash',
-    'gemini-3-flash-preview',
-    'gemini-2.0-flash'
+    'gemini-2.0-flash',
+    'gemini-1.5-flash'
 ];
 
 const ZAI_MODELS = [
@@ -51,30 +49,30 @@ export class GeocodingService {
         try {
             // 1. Try Gemini Models first
             if (this.gemini && request.priority !== 'low') {
-                for (const modelName of GEMINI_MODELS) {
-                    try {
-                        const aiResult = await this.geocodeWithGemini(request, modelName);
-                        if (aiResult.success) {
-                            return { ...aiResult, processingTime: Date.now() - startTime };
-                        }
-                    } catch (e: any) {
-                        console.warn(`Gemini (${modelName}) failed, trying next...`);
-                        if (e?.message?.includes('429')) continue;
+                const modelName = GEMINI_MODELS[0]; // Only try the best one to save time
+                try {
+                    const aiResult = await Promise.race([
+                        this.geocodeWithGemini(request, modelName),
+                        new Promise<GeocodingResult>((_, reject) => setTimeout(() => reject(new Error('Gemini timeout')), 15000))
+                    ]);
+                    if (aiResult.success) {
+                        return { ...aiResult, processingTime: Date.now() - startTime };
                     }
+                } catch (e: any) {
+                    console.warn(`Gemini (${modelName}) failed: ${e.message}`);
                 }
             }
 
             // 2. Try Z.ai Models as Fallback
-            if (this.zaiKey && request.priority !== 'low') {
-                for (const modelName of ZAI_MODELS) {
-                    try {
-                        const zaiResult = await this.geocodeWithZai(request, modelName);
-                        if (zaiResult.success) {
-                            return { ...zaiResult, processingTime: Date.now() - startTime };
-                        }
-                    } catch (e) {
-                        console.warn(`Z.ai (${modelName}) failed, trying next...`);
+            if (this.zaiKey && request.priority === 'high') { // Only for HIGH priority
+                const modelName = ZAI_MODELS[0];
+                try {
+                    const zaiResult = await this.geocodeWithZai(request, modelName);
+                    if (zaiResult.success) {
+                        return { ...zaiResult, processingTime: Date.now() - startTime };
                     }
+                } catch (e) {
+                    console.warn(`Z.ai (${modelName}) failed.`);
                 }
             }
 

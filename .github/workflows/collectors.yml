@@ -1,0 +1,57 @@
+# Worker de coleta do End Times Monitor rodando no GitHub Actions (14/09/2026).
+# Substitui o container endtimes_worker da VPS. Cada execução roda UM grupo
+# regional de coletores (scripts/run-once.ts) e publica defcon/cams/tles no
+# Supabase Storage. Ligado/desligado pela variável de repositório
+# COLLECTORS_ENABLED (Settings → Secrets and variables → Actions → Variables).
+name: collectors
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      group:
+        description: 'Offset do grupo (0,3,6,9,12); vazio = automático'
+        required: false
+        default: ''
+
+concurrency:
+  group: collectors
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    if: ${{ vars.COLLECTORS_ENABLED == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --legacy-peer-deps
+      - name: Coletar (um grupo)
+        run: npx tsx scripts/run-once.ts
+        env:
+          COLLECT_GROUP: ${{ github.event.inputs.group }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NASA_EONET_API_KEY: ${{ secrets.NASA_EONET_API_KEY }}
+          NASA_FIRMS_API_KEY: ${{ secrets.NASA_FIRMS_API_KEY }}
+          ACLED_EMAIL: ${{ secrets.ACLED_EMAIL }}
+          ACLED_API_KEY: ${{ secrets.ACLED_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_IDS: ${{ secrets.TELEGRAM_CHANNEL_IDS }}
+          NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
+          WEATHERBIT_API_KEY: ${{ secrets.WEATHERBIT_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          API_KEY: ${{ secrets.API_KEY }}
+          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
+          GDACS_ENABLED: ${{ secrets.GDACS_ENABLED }}
+          WHO_ENABLED: ${{ secrets.WHO_ENABLED }}
+          GDELT_ENABLED: ${{ secrets.GDELT_ENABLED }}
+          POLYMARKET_ENABLED: ${{ secrets.POLYMARKET_ENABLED }}
+          OPENSKY_USERNAME: ${{ secrets.OPENSKY_USERNAME }}
+          OPENSKY_PASSWORD: ${{ secrets.OPENSKY_PASSWORD }}
