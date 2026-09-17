@@ -287,7 +287,9 @@ const SituationMap: React.FC<SituationMapProps> = ({
   const satellitesGroupRef = useRef<L.LayerGroup>(L.layerGroup());
   const radarOverlayRef = useRef<L.TileLayer>(L.tileLayer('https://tilecache.rainviewer.com/v2/radar/now/256/{z}/{x}/{y}/2/1_1.png', { opacity: 0.6 }));
   const radiationOverlayRef = useRef<L.TileLayer>(L.tileLayer('https://s3.amazonaws.com/bgeigie.safecast.org/tiles/{z}/{x}/{y}.png', { opacity: 0.7, minZoom: 3, maxZoom: 16 }));
-  const darkTilesRef = useRef<L.TileLayer>(L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19 }));
+  // 17/09/2026: os basemaps gratuitos da CARTO passaram a exigir API key (tiles vinham com
+  // "API key required" pintado). ESRI Dark Gray Canvas é gratuito sem chave (atribuição obrigatória).
+  const darkTilesRef = useRef<L.TileLayer>(L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ' }));
   const satTilesRef = useRef<L.TileLayer>(L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles &copy; Esri' }));
 
   // 1. Initialize Map
