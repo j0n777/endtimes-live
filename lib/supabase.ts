@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 // key são públicas por definição (RLS protege os dados) e ficam fixas como fallback,
 // para o build funcionar em qualquer host sem .env. Um .env continua tendo prioridade.
 const DEFAULT_SUPABASE_URL = 'https://bimfztwwzuwwefxfkkwe.supabase.co';
-const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpbWZ6dHd3enV3d2VmeGZra3dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwNTg4NDUsImV4cCI6MjA4MzYzNDg0NX0.L3FKHnNr7ctlKhJmv4BwWEGhWw17VhIfRR51ozDn_qU';
+const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_PIiYLrLVVl_-NPeoQulKQA_E6lx5uXv'; // publishable key (pública por design; JWT anon legacy desativada em 17/09/2026)
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || DEFAULT_SUPABASE_ANON_KEY;
 
