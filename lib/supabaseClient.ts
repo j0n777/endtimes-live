@@ -1,38 +1,21 @@
+// Reexporta o cliente único de lib/supabase.ts.
+// Até 21/09/2026 este arquivo criava um segundo cliente e dava throw no topo do
+// módulo quando VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY não existiam. Como a
+// Lovable não injeta essas variáveis no build, o throw acontecia antes do
+// ReactDOM.createRoot().render() e a página ficava preta. lib/supabase.ts já tem
+// a URL e a publishable key públicas como fallback, então basta reaproveitá-lo.
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { supabase, supabaseUrl } from './supabase';
 
-// Helper to get environment variable (works in both Vite and Node.js)
-function getEnv(key: string): string | undefined {
-    // Try import.meta.env (Vite/browser)
-    if (typeof import.meta !== 'undefined' && import.meta.env) {
-        return import.meta.env[key];
-    }
-    // Try process.env (Node.js)
-    if (typeof process !== 'undefined' && process.env) {
-        return process.env[key];
-    }
-    return undefined;
-}
-
-// Supabase configuration
-const supabaseUrl = getEnv('VITE_SUPABASE_URL') ||
-    getEnv('NEXT_PUBLIC_SUPABASE_URL');
-
-const supabaseAnonKey = getEnv('VITE_SUPABASE_ANON_KEY') ||
-    getEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY');
-
-if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('⛔ Supabase config missing: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be defined in your .env file.');
-}
-
-// Client for frontend use (public operations)
-export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+export type { SupabaseClient };
+export { supabase };
 
 // Service client for backend/admin operations (requires service role key)
 // This will be used in Edge Functions/backend only
 export const createServiceClient = (serviceRoleKey?: string) => {
     const key = serviceRoleKey ||
-        getEnv('SUPABASE_SERVICE_ROLE_KEY') ||
-        getEnv('VITE_SUPABASE_SERVICE_ROLE_KEY');
+        import.meta.env.SUPABASE_SERVICE_ROLE_KEY ||
+        import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
 
     if (!key) {
         console.warn('⚠️ Service role key not provided, using anon key (limited permissions)');

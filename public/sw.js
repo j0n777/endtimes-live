@@ -65,7 +65,11 @@ async function networkFirst(request, cacheName) {
         }
 
         // Network actually failed or offline. Fall back to cache.
-        const cached = await cache.match(request) || await cache.match('/');
+        // O fallback para '/' só vale para navegação: devolver o index.html como
+        // resposta de um fetch de dados faz o app quebrar com
+        // "Unexpected token '<'" em vez de tratar o erro de rede.
+        const cached = await cache.match(request)
+            || (request.mode === 'navigate' ? await cache.match('/') : undefined);
         if (cached) return cached;
         
         // Last resort offline page (if even '/' isn't in cache yet)
@@ -109,6 +113,11 @@ self.addEventListener('fetch', (event) => {
         event.respondWith(cacheFirst(request, TILE_CACHE));
         return;
     }
+
+    // 3b. Qualquer outra origem (Supabase, esm.sh, fontes) → passa direto.
+    // Antes caía na regra 6 e o SW cacheava/servia respostas de API de um painel
+    // em tempo real — e devolvia HTML quando a chamada falhava.
+    if (url.origin !== self.location.origin) return;
 
     // 4. API / backend calls → Network-only (never cache dynamic data)
     if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/data/')) {
