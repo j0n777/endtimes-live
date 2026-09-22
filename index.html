@@ -24,7 +24,11 @@
 
             // When a new SW takes control (after a deployment), reload the page
             // so the browser fetches fresh assets instead of using stale chunks.
+            // Na primeira visita não havia controller: aí o claim() inicial não é
+            // um deploy novo e o reload só atrasaria o carregamento.
+            const hadController = Boolean(navigator.serviceWorker.controller);
             navigator.serviceWorker.addEventListener('controllerchange', () => {
+              if (!hadController) return;
               console.log('🔄 New Service Worker active — reloading for fresh assets…');
               window.location.reload();
             });

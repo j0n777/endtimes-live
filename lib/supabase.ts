@@ -6,7 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 // para o build funcionar em qualquer host sem .env. Um .env continua tendo prioridade.
 const DEFAULT_SUPABASE_URL = 'https://bimfztwwzuwwefxfkkwe.supabase.co';
 const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_PIiYLrLVVl_-NPeoQulKQA_E6lx5uXv'; // publishable key (pública por design; JWT anon legacy desativada em 17/09/2026)
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
+export const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || DEFAULT_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
