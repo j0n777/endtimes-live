@@ -22,6 +22,61 @@ const ZAI_MODELS = [
 let lastZaiRequestTime = 0;
 const ZAI_BASE_URL = 'https://api.z.ai/api/paas/v4/chat/completions';
 
+// Circuit breakers por processo (25/09/2026).
+// Sem isto, um provedor de IA fora do ar era tentado uma vez por evento: o
+// cooldown serial de 30s do Z.ai (geocodeWithZai) era pago item a item e o
+// scripts/run-once.ts estourava o watchdog de 9 min, encerrando com exit 2 —
+// era essa a falha diária do workflow collectors. Depois de MAX_CONSECUTIVE_FAILURES
+// falhas seguidas o provedor sai de cena até o fim da execução, e o geocoding
+// cai direto no Nominatim. Um erro de credencial derruba o provedor na hora:
+// repetir uma chave rejeitada nunca vai dar certo.
+const MAX_CONSECUTIVE_FAILURES = 3;
+// O run-once vive ~5 min, mas o scripts/run-all-collectors.ts é um loop longo:
+// sem expirar, o breaker ficaria aberto para sempre depois de uma queda passageira.
+const BREAKER_TTL_MS = 10 * 60 * 1000;
+
+const breakers = {
+    gemini: { failures: 0, openedAt: 0 },
+    zai: { failures: 0, openedAt: 0 }
+};
+
+type AIProvider = keyof typeof breakers;
+
+function isProviderAvailable(provider: AIProvider): boolean {
+    const breaker = breakers[provider];
+    if (!breaker.openedAt) return true;
+    if (Date.now() - breaker.openedAt < BREAKER_TTL_MS) return false;
+    breaker.openedAt = 0;
+    breaker.failures = 0;
+    return true;
+}
+
+function isCredentialError(message: string): boolean {
+    const m = message.toLowerCase();
+    return m.includes('api key not valid')
+        || m.includes('api_key_invalid')
+        || m.includes('invalid api key')
+        || m.includes('unauthorized')
+        || m.includes('permission denied');
+}
+
+function noteAIFailure(provider: AIProvider, message: string): void {
+    const breaker = breakers[provider];
+    breaker.failures++;
+
+    const fatal = isCredentialError(message);
+    if (!fatal && breaker.failures < MAX_CONSECUTIVE_FAILURES) return;
+    if (breaker.openedAt) return;
+
+    breaker.openedAt = Date.now();
+    const why = fatal ? 'credencial rejeitada' : `${breaker.failures} falhas seguidas`;
+    console.warn(`⛔ ${provider} desativado nesta execução (${why}). Geocoding segue pelo próximo provedor.`);
+}
+
+function noteAISuccess(provider: AIProvider): void {
+    breakers[provider].failures = 0;
+}
+
 export class GeocodingService {
     private gemini: GoogleGenAI | null = null;
     private zaiKey: string | null = null;
@@ -48,7 +103,7 @@ export class GeocodingService {
 
         try {
             // 1. Try Gemini Models first
-            if (this.gemini && request.priority !== 'low') {
+            if (this.gemini && isProviderAvailable('gemini') && request.priority !== 'low') {
                 const modelName = GEMINI_MODELS[0]; // Only try the best one to save time
                 try {
                     const aiResult = await Promise.race([
@@ -56,23 +111,29 @@ export class GeocodingService {
                         new Promise<GeocodingResult>((_, reject) => setTimeout(() => reject(new Error('Gemini timeout')), 15000))
                     ]);
                     if (aiResult.success) {
+                        noteAISuccess('gemini');
                         return { ...aiResult, processingTime: Date.now() - startTime };
                     }
+                    noteAIFailure('gemini', aiResult.error || 'no result');
                 } catch (e: any) {
                     console.warn(`Gemini (${modelName}) failed: ${e.message}`);
+                    noteAIFailure('gemini', e?.message || String(e));
                 }
             }
 
             // 2. Try Z.ai Models as Fallback
-            if (this.zaiKey && request.priority === 'high') { // Only for HIGH priority
+            if (this.zaiKey && isProviderAvailable('zai') && request.priority === 'high') { // Only for HIGH priority
                 const modelName = ZAI_MODELS[0];
                 try {
                     const zaiResult = await this.geocodeWithZai(request, modelName);
                     if (zaiResult.success) {
+                        noteAISuccess('zai');
                         return { ...zaiResult, processingTime: Date.now() - startTime };
                     }
-                } catch (e) {
+                    noteAIFailure('zai', zaiResult.error || 'no result');
+                } catch (e: any) {
                     console.warn(`Z.ai (${modelName}) failed.`);
+                    noteAIFailure('zai', e?.message || String(e));
                 }
             }
 
@@ -150,8 +211,13 @@ export class GeocodingService {
             const parsed = this.parseAIResponse(content);
             return this.processAIResult(parsed, request, `zai:${modelName}`);
         } catch (error: any) {
-            console.error(`Z.ai error (${modelName}):`, error?.response?.data || error.message);
-            return { success: false, error: 'Z.ai request failed' };
+            const detail = error?.response?.data;
+            console.error(`Z.ai error (${modelName}):`, detail || error.message);
+            // Propaga a mensagem real: o circuit breaker precisa dela para saber
+            // se foi credencial rejeitada (derruba na hora) ou falha passageira.
+            const reason = typeof detail === 'string' ? detail
+                : detail?.error?.message || detail?.message || error?.message || 'Z.ai request failed';
+            return { success: false, error: reason };
         }
     }
 
