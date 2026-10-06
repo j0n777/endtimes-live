@@ -2,8 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { dataUrl } from './lib/dataUrl';
 import { AlertTriangle, Radio, BookOpen, RefreshCw, Shield, Menu, X, Globe, DollarSign, Cpu, LandPlot, Rss, Settings, ChevronUp, ChevronDown, Trash2 } from 'lucide-react';
 import { useLocale } from './lib/i18n';
-import { calculateDefcon, DEFCON_META } from './utils/defconCalculator';
-import { calculateOmegaIndex, OMEGA_META } from './utils/omegaCalculator';
+import type { SignsPayload } from './lib/signs/types';
 import { StatusBar } from './components/StatusBar';
 import { MOCK_EVENTS } from './constants';
 import { ViewState, MonitorEvent, AdminConfig, DataSourceStatus, EventCategory } from './types';
@@ -43,23 +42,23 @@ const App: React.FC = () => {
   const [dataSourceStatuses, setDataSourceStatuses] = useState<DataSourceStatus[]>([]);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-  // DEFCON — OSINT source (defconlevel.com) takes priority, falls back to event-based calc
-  const [osintDefcon, setOsintDefcon] = useState<{ level: 1 | 2 | 3 | 4 | 5; codename: string; source: string } | null>(null);
+  // Índice Ω e Tensão Militar: calculados pelo worker a partir de fontes primárias
+  // (lib/signs) e publicados em signs.json. Sem o arquivo, a barra mostra "—" em vez
+  // de recalcular a partir do feed de notícias, que era o que travava o Ω no máximo.
+  const [signs, setSigns] = useState<SignsPayload | null>(null);
 
   useEffect(() => {
-    const fetchDefcon = async () => {
+    const fetchSigns = async () => {
       try {
-        const res = await fetch(dataUrl('defcon.json'));
+        const res = await fetch(dataUrl('signs.json'));
         if (res.ok) {
           const data = await res.json();
-          if (data?.level >= 1 && data?.level <= 5) {
-            setOsintDefcon({ level: data.level, codename: data.codename, source: data.source });
-          }
+          if (data?.version === 1 && Array.isArray(data?.signs)) setSigns(data);
         }
-      } catch { /* silently ignore — fallback to calculated */ }
+      } catch { /* mantém a última leitura */ }
     };
-    fetchDefcon();
-    const interval = setInterval(fetchDefcon, 30 * 60 * 1000);
+    fetchSigns();
+    const interval = setInterval(fetchSigns, 15 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -74,13 +73,6 @@ const App: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
-
-  const calculatedDefcon = useMemo(() => calculateDefcon(events), [events]) as 1 | 2 | 3 | 4 | 5;
-  const defconLevel = (osintDefcon?.level ?? calculatedDefcon) as 1 | 2 | 3 | 4 | 5;
-  const defconMeta = DEFCON_META[defconLevel];
-
-  const omegaLevel = useMemo(() => calculateOmegaIndex(events), [events]);
-  const omegaMeta = OMEGA_META[omegaLevel];
 
   // LAYER CONTROLS
   const [showTransport, setShowTransport] = useState<boolean>(false);
@@ -720,11 +712,7 @@ const App: React.FC = () => {
 
         {/* StatusBar */}
         <StatusBar
-          omegaLevel={omegaLevel}
-          omegaMeta={omegaMeta}
-          defconLevel={defconLevel}
-          defconMeta={defconMeta}
-          osintDefcon={osintDefcon}
+          signs={signs}
           filteredCount={filteredEvents.length}
           totalCount={events.length}
           activeSourceCount={dataSourceStatuses.filter(s => s.status === 'active').length}

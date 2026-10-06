@@ -1,15 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Layers, ExternalLink } from 'lucide-react';
-import { DefconLevel, DefconMeta } from '../utils/defconCalculator';
-import { OmegaLevel, OmegaMeta } from '../utils/omegaCalculator';
+import { OMEGA_META } from '../utils/omegaCalculator';
 import { useLocale } from '../lib/i18n';
+import { SignsPanel } from './SignsPanel';
+import type { SignsPayload } from '../lib/signs/types';
+
+// Tensão Militar: 1 baixa … 5 crítica (cresce com o número, ao contrário do DEFCON).
+const TENSION_STYLE = {
+  1: { text: 'text-sky-400', bar: 'bg-sky-600', pulse: false },
+  2: { text: 'text-blue-400', bar: 'bg-blue-500', pulse: false },
+  3: { text: 'text-yellow-400', bar: 'bg-yellow-500', pulse: false },
+  4: { text: 'text-orange-400', bar: 'bg-orange-500', pulse: true },
+  5: { text: 'text-red-400', bar: 'bg-red-500', pulse: true },
+} as const;
 
 interface StatusBarProps {
-  omegaLevel: OmegaLevel;
-  omegaMeta: OmegaMeta;
-  defconLevel: DefconLevel;
-  defconMeta: DefconMeta;
-  osintDefcon: { level: number; codename: string; source: string } | null;
+  signs: SignsPayload | null;
   filteredCount: number;
   totalCount: number;
   activeSourceCount: number;
@@ -19,11 +25,7 @@ interface StatusBarProps {
 }
 
 export const StatusBar: React.FC<StatusBarProps> = ({
-  omegaLevel,
-  omegaMeta,
-  defconLevel,
-  defconMeta,
-  osintDefcon,
+  signs,
   filteredCount,
   totalCount,
   activeSourceCount,
@@ -32,45 +34,54 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   setSidebarOpen,
 }) => {
   const { t, locale, setLocale } = useLocale();
+  const [signsOpen, setSignsOpen] = useState(false);
+
+  const omegaLevel = signs?.omega.level ?? null;
+  const omegaMeta = omegaLevel ? OMEGA_META[omegaLevel] : null;
+  const tensionLevel = signs?.tension.level ?? null;
+  const tensionStyle = tensionLevel ? TENSION_STYLE[tensionLevel] : null;
+  const topMarket = signs?.tension.markets[0];
+  const tensionTitle = topMarket
+    ? t.tension.tooltip
+        .replace('{p}', `${(topMarket.probability * 100).toFixed(1)}%`)
+        .replace('{q}', topMarket.question)
+    : t.tension.none;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 h-8 bg-black/90 border-t border-tactical-800/60 flex items-center px-3 gap-0 text-[10px] font-mono select-none backdrop-blur-sm">
 
-      {/* ── Omega Index ─────────────────────────────────────────── */}
-      <div
-        className={`flex items-center gap-1.5 pr-3 border-r border-tactical-800/50 cursor-help shrink-0`}
-        title={`Omega Index ${omegaLevel} — ${omegaMeta.codename}: ${omegaMeta.desc}`}
+      {/* ── Omega Index: abre o painel dos sinais ───────────────── */}
+      <button
+        onClick={() => setSignsOpen(open => !open)}
+        className={`flex items-center gap-1.5 pr-3 border-r border-tactical-800/50 shrink-0 hover:bg-tactical-900/40 transition-colors ${signsOpen ? 'bg-tactical-900/50' : ''}`}
+        title={omegaMeta ? `Omega Index ${omegaLevel} — ${omegaMeta.codename}: ${omegaMeta.desc}` : t.signs.title}
+        aria-expanded={signsOpen}
       >
         <span className="text-gray-600 font-bold">Ω</span>
-        <span className={`font-bold tracking-wider ${omegaMeta.textColor}`}>
-          {omegaLevel} · {omegaMeta.codename}
+        <span className={`font-bold tracking-wider ${omegaMeta ? omegaMeta.textColor : 'text-gray-600'}`}>
+          {omegaMeta ? `${omegaLevel} · ${omegaMeta.codename}` : '—'}
         </span>
-      </div>
+      </button>
 
-      {/* ── DEFCON ──────────────────────────────────────────────── */}
+      {/* ── Tensão Militar (substitui o DEFCON) ─────────────────── */}
       <div
-        className={`flex items-center gap-1.5 px-3 border-r border-tactical-800/50 cursor-help shrink-0`}
-        title={osintDefcon
-          ? `DEFCON ${defconLevel} — ${defconMeta.codename} (${t.defcon.osintTooltip})`
-          : `DEFCON ${defconLevel} — ${defconMeta.codename}: ${defconMeta.desc}`
-        }
+        className="flex items-center gap-1.5 px-3 border-r border-tactical-800/50 cursor-help shrink-0"
+        title={tensionTitle}
       >
         <div className="flex gap-0.5">
           {([1, 2, 3, 4, 5] as const).map(n => (
             <div
               key={n}
               className={`w-1 h-2.5 rounded-sm ${
-                n >= defconLevel ? defconMeta.dotColor : 'bg-gray-800'
-              } ${n === defconLevel && defconMeta.pulse ? 'animate-pulse' : ''}`}
+                tensionLevel && n <= tensionLevel && tensionStyle ? tensionStyle.bar : 'bg-gray-800'
+              } ${n === tensionLevel && tensionStyle?.pulse ? 'animate-pulse' : ''}`}
             />
           ))}
         </div>
-        <span className={`font-bold tracking-wider ${defconMeta.textColor}`}>
-          DEFCON {defconLevel}
+        <span className={`font-bold tracking-wider ${tensionStyle ? tensionStyle.text : 'text-gray-600'}`}>
+          <span className="hidden sm:inline">{t.tension.label} · </span>
+          {tensionLevel ? t.tension.levels[tensionLevel - 1] : '—'}
         </span>
-        {osintDefcon && (
-          <span className="text-gray-700 text-[9px]">OSINT</span>
-        )}
       </div>
 
       {/* ── Spacer ──────────────────────────────────────────────── */}
@@ -124,6 +135,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
         <span className="hidden sm:inline">{t.header.intel}</span>
       </button>
 
+      {signsOpen && <SignsPanel signs={signs} onClose={() => setSignsOpen(false)} />}
     </div>
   );
 };
