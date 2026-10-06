@@ -1,4 +1,4 @@
-// URL dos JSONs gerados pelo worker (defcon.json, cams.json, tles.json).
+// URL dos JSONs gerados pelo worker (signs.json, cams.json, tles.json).
 // 14/09/2026: o worker deixou de escrever num volume do nginx da VPS e passou a
 // publicar no bucket público 'data' do Supabase Storage, para o front poder ser
 // hospedado em qualquer lugar (Lovable). Em dev local ainda dá para servir de

@@ -24,7 +24,7 @@ import { RegionalNewsCollector, MonitorRegion } from './RegionalNewsCollector';
 import { NewsApiAICollector } from './NewsApiAICollector';
 import { AskNewsCollector } from './AskNewsCollector';
 import { YouTubeLiveCollector } from './YouTubeLiveCollector';
-import { DefconCollector } from './DefconCollector';
+import { SignsCollector } from './SignsCollector';
 import { SolarAlertCollector } from './SolarAlertCollector';
 import { MonitorEvent } from '../../types';
 
@@ -35,11 +35,11 @@ import { MonitorEvent } from '../../types';
 export class CollectorOrchestrator {
     private collectors: BaseCollector[];
     private supabase: SupabaseClient;
-    private defconCollector: DefconCollector;
+    private signsCollector: SignsCollector;
 
     constructor(supabase: SupabaseClient) {
         this.supabase = supabase;
-        this.defconCollector = new DefconCollector();
+        this.signsCollector = new SignsCollector();
 
         // Initialize all collectors
         this.collectors = [
@@ -241,9 +241,10 @@ export class CollectorOrchestrator {
             await this.executeCollectors(collectorsToRun);
         }
 
-        // DEFCON_MONITOR: run every ~30 min (throttled internally), piggybacks on group 0
-        if (bucket === 0) {
-            await this.defconCollector.run();
+        // SIGNS: índice Ω + Tensão Militar a partir de fontes primárias (lib/signs).
+        // Grupo 6 é o mais leve (3 coletores), então roda a cada ~25 min sem pesar.
+        if (bucket === 6) {
+            await this.signsCollector.run();
         }
     }
 
