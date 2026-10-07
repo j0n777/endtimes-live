@@ -16,6 +16,23 @@ import { NuclearAlert, calculateBlastZones, yieldToLabel } from '../services/nuc
 import { getCountryBoundingBox } from '../lib/utils/GeoJSONGenerator';
 import { countryShapes } from '../lib/utils/countryShapes';
 import { COUNTRY_CENTROIDS } from '../lib/utils/countryCentroids';
+import { useLocale } from '../lib/i18n';
+import { CHOKEPOINT_COLOR, chokepointLevel, escapeHtml, quakeStyle } from '../lib/layers/style';
+import type { ChokepointsPayload } from '../lib/layers/types';
+
+// NASA GIBS (domínio público, sem chave, CORS liberado). Usa o dia UTC anterior: o tempo
+// "default" é o dia corrente, ainda com faixas faltando (07/10/2026: ~1/4 dos bytes de ontem).
+const GIBS_DATE = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+const gibsLayer = (layer: string, level: number, ext: 'jpg' | 'png', opacity: number) =>
+  L.tileLayer(`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/${GIBS_DATE}/GoogleMapsCompatible_Level${level}/{z}/{y}/{x}.${ext}`, {
+    maxNativeZoom: level,
+    maxZoom: 18,
+    opacity,
+    attribution: `Imagery: NASA GIBS / VIIRS · ${GIBS_DATE}`,
+  });
+
+const fmt = (s: string, vars: Record<string, string | number>) =>
+  s.replace(/\{(\w+)\}/g, (_, k) => (k in vars ? String(vars[k]) : `{${k}}`));
 
 // Fix for missing types for leaflet.markercluster
 const L_any = L as any;
@@ -64,6 +81,11 @@ interface SituationMapProps {
   showWebSDR?: boolean;
   showSatellites?: boolean;
   showSafecast?: boolean;
+  // Camadas de dados (07/10/2026)
+  showDailySatellite?: boolean;
+  showNightLights?: boolean;
+  showQuakes?: boolean;
+  showChokepoints?: boolean;
 }
 
 // Helper: format source label for popup
@@ -269,7 +291,12 @@ const SituationMap: React.FC<SituationMapProps> = ({
   showWebSDR = false,
   showSatellites = false,
   showSafecast = false,
+  showDailySatellite = false,
+  showNightLights = false,
+  showQuakes = false,
+  showChokepoints = false,
 }) => {
+  const { t, locale } = useLocale();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   // Re-added clusterGroupRef
@@ -291,6 +318,11 @@ const SituationMap: React.FC<SituationMapProps> = ({
   // "API key required" pintado). ESRI Dark Gray Canvas é gratuito sem chave (atribuição obrigatória).
   const darkTilesRef = useRef<L.TileLayer>(L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ' }));
   const satTilesRef = useRef<L.TileLayer>(L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles &copy; Esri' }));
+  const dailySatRef = useRef<L.TileLayer>(gibsLayer('VIIRS_NOAA20_CorrectedReflectance_TrueColor', 9, 'jpg', 1));
+  // Banda dia/noite do VIIRS: luzes das cidades à noite — apagões aparecem como manchas escuras.
+  const nightLightsRef = useRef<L.TileLayer>(gibsLayer('VIIRS_NOAA20_DayNightBand', 7, 'png', 0.9));
+  const quakesGroupRef = useRef<L.LayerGroup>(L.layerGroup());
+  const chokepointsGroupRef = useRef<L.LayerGroup>(L.layerGroup());
 
   // 1. Initialize Map
   useEffect(() => {
@@ -505,6 +537,98 @@ const SituationMap: React.FC<SituationMapProps> = ({
       if (!map) return;
       if (showSatellites) satellitesGroupRef.current.addTo(map); else map.removeLayer(satellitesGroupRef.current);
     }, [showSatellites]);
+
+    useEffect(() => {
+      const map = mapInstanceRef.current;
+      if (!map) return;
+      if (showDailySatellite) dailySatRef.current.addTo(map); else map.removeLayer(dailySatRef.current);
+    }, [showDailySatellite]);
+
+    useEffect(() => {
+      const map = mapInstanceRef.current;
+      if (!map) return;
+      if (showNightLights) nightLightsRef.current.addTo(map); else map.removeLayer(nightLightsRef.current);
+    }, [showNightLights]);
+
+    // Terremotos M4.5+ dos últimos 7 dias, direto do feed da USGS (CORS liberado).
+    useEffect(() => {
+      const map = mapInstanceRef.current;
+      const group = quakesGroupRef.current;
+      if (!map) return;
+      if (!showQuakes) { map.removeLayer(group); return; }
+      group.addTo(map);
+      let cancelled = false;
+      const load = async () => {
+        try {
+          const res = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_week.geojson');
+          if (!res.ok || cancelled) return;
+          const data = await res.json();
+          group.clearLayers();
+          for (const f of data?.features ?? []) {
+            const [lon, lat, depth] = f.geometry?.coordinates ?? [];
+            const { mag, place, time, url } = f.properties ?? {};
+            if (!Number.isFinite(lat) || !Number.isFinite(lon) || !Number.isFinite(mag)) continue;
+            const { radius, color } = quakeStyle(mag, (Date.now() - time) / 3_600_000);
+            L.circleMarker([lat, lon], { radius, color, weight: 1.5, fillColor: color, fillOpacity: 0.35 })
+              .bindPopup(`
+                <div class="p-3 min-w-[220px] font-mono text-xs bg-black text-gray-200">
+                  <div class="text-[10px] text-gray-500 tracking-widest mb-1">${escapeHtml(t.map.quake.kicker)}</div>
+                  <h3 class="font-bold text-sm mb-1" style="color:${color}">M${escapeHtml(mag.toFixed(1))} · ${escapeHtml(place)}</h3>
+                  <div class="text-gray-400">${escapeHtml(new Date(time).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' }))}</div>
+                  <div class="text-gray-500 mb-2">${escapeHtml(fmt(t.map.quake.depth, { d: Number.isFinite(depth) ? Math.round(depth) : '—' }))}</div>
+                  <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="text-gray-400 underline hover:text-white">${escapeHtml(t.map.quake.open)} ↗</a>
+                </div>`, { className: 'tactical-popup' })
+              .addTo(group);
+          }
+        } catch { /* mantém a última leitura */ }
+      };
+      load();
+      const interval = setInterval(load, 10 * 60 * 1000);
+      return () => { cancelled = true; clearInterval(interval); };
+    }, [showQuakes, t, locale]);
+
+    // Gargalos marítimos: chokepoints.json publicado pelo worker (FMI PortWatch).
+    useEffect(() => {
+      const map = mapInstanceRef.current;
+      const group = chokepointsGroupRef.current;
+      if (!map) return;
+      if (!showChokepoints) { map.removeLayer(group); return; }
+      group.addTo(map);
+      let cancelled = false;
+      (async () => {
+        try {
+          const res = await fetch(dataUrl('chokepoints.json'));
+          if (!res.ok || cancelled) return;
+          const data: ChokepointsPayload = await res.json();
+          group.clearLayers();
+          const nf = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
+          for (const c of data?.chokepoints ?? []) {
+            const level = chokepointLevel(c.changePct, c.baselineAvg);
+            const color = CHOKEPOINT_COLOR[level];
+            const pct = `${c.changePct > 0 ? '+' : ''}${nf.format(c.changePct)}%`;
+            const alarming = level === 'collapse' || level === 'disrupted';
+            L.circleMarker([c.lat, c.lon], { radius: alarming ? 9 : 7, color, weight: 2, fillColor: color, fillOpacity: 0.35 })
+              .bindTooltip(`${escapeHtml(c.name)} ${level === 'low-traffic' ? '' : pct}`, {
+                permanent: alarming,
+                direction: 'right',
+                className: 'chokepoint-tooltip text-[10px]',
+              })
+              .bindPopup(`
+                <div class="p-3 min-w-[240px] font-mono text-xs bg-black text-gray-200">
+                  <div class="text-[10px] text-gray-500 tracking-widest mb-1">${escapeHtml(t.map.chokepoint.kicker)}</div>
+                  <h3 class="font-bold text-sm mb-1" style="color:${color}">${escapeHtml(c.name)} · ${escapeHtml(t.map.chokepoint.levels[level])}</h3>
+                  ${level === 'low-traffic' ? '' : `<div class="text-lg font-bold mb-1" style="color:${color}">${escapeHtml(pct)}</div>`}
+                  <div class="text-gray-300">${escapeHtml(fmt(t.map.chokepoint.recent, { n: data.windowDays, v: nf.format(c.recentAvg) }))}</div>
+                  <div class="text-gray-400">${escapeHtml(fmt(t.map.chokepoint.baseline, { span: data.baselineSpan, v: nf.format(c.baselineAvg) }))}</div>
+                  ${level === 'low-traffic' ? `<div class="text-gray-500 mt-1">${escapeHtml(t.map.chokepoint.lowTraffic)}</div>` : ''}
+                  <div class="text-gray-600 mt-2">${escapeHtml(fmt(t.map.chokepoint.lastDate, { d: c.lastDate }))} · <a href="${escapeHtml(data.sourceUrl)}" target="_blank" rel="noopener noreferrer" class="underline hover:text-white">${escapeHtml(data.source)} ↗</a></div>
+                </div>`, { className: 'tactical-popup' })
+              .addTo(group);
+          }
+        } catch { /* mantém a última leitura */ }
+      })();
+      return () => { cancelled = true; };
+    }, [showChokepoints, t, locale]);
 
   // 2. Handle Markers (WITH SMART CLUSTERING)
   useEffect(() => {

@@ -110,6 +110,20 @@
       background: #050505;
     }
 
+    /* Rótulos dos gargalos marítimos no tema do mapa */
+    .chokepoint-tooltip {
+      background: rgba(5, 5, 5, 0.85) !important;
+      color: #e5e7eb !important;
+      border: 1px solid #c19a6b !important;
+      border-radius: 2px !important;
+      box-shadow: none !important;
+      font-family: 'Share Tech Mono', monospace !important;
+    }
+
+    .chokepoint-tooltip.leaflet-tooltip-right::before {
+      border-right-color: #c19a6b !important;
+    }
+
     /* Marker Cluster Customization - Desert Theme */
     .marker-cluster-small,
     .marker-cluster-medium,

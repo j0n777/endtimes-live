@@ -93,6 +93,11 @@ const App: React.FC = () => {
   const [showSafecast, setShowSafecast] = useState<boolean>(false);
   const [showWebSDR, setShowWebSDR] = useState<boolean>(false);
   const [showSatellites, setShowSatellites] = useState<boolean>(false);
+  // Camadas de dados (07/10/2026): fontes públicas, sem chave — ver lib/layers
+  const [showDailySatellite, setShowDailySatellite] = useState<boolean>(false);
+  const [showNightLights, setShowNightLights] = useState<boolean>(false);
+  const [showQuakes, setShowQuakes] = useState<boolean>(false);
+  const [showChokepoints, setShowChokepoints] = useState<boolean>(false);
 
   // Military aircraft live polling — 30s initial delay, then every 8 min.
   // The delay prevents the aircraft fetch from running simultaneously with the
@@ -259,6 +264,10 @@ const App: React.FC = () => {
           showWebSDR={showWebSDR}
           showSatellites={showSatellites}
           showSafecast={showSafecast}
+          showDailySatellite={showDailySatellite}
+          showNightLights={showNightLights}
+          showQuakes={showQuakes}
+          showChokepoints={showChokepoints}
         />;
       case 'LIVE_FEED':
         return <IntelFeed events={events} />;
@@ -285,6 +294,10 @@ const App: React.FC = () => {
           showWebSDR={showWebSDR}
           showSatellites={showSatellites}
           showSafecast={showSafecast}
+          showDailySatellite={showDailySatellite}
+          showNightLights={showNightLights}
+          showQuakes={showQuakes}
+          showChokepoints={showChokepoints}
         />;
     }
   };
@@ -678,6 +691,26 @@ const App: React.FC = () => {
                 <button onClick={() => setShowWebSDR(!showWebSDR)} className={`flex items-center gap-2 w-full px-3 py-2 mt-1.5 rounded-sm text-xs font-mono border transition-colors ${showWebSDR ? 'border-orange-700/50 text-orange-400 bg-orange-900/10' : 'border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-400'}`}>
                   <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${showWebSDR ? 'bg-orange-500 animate-pulse' : 'bg-gray-700'}`} />
                   {t.sidebar.webSdrStations}
+                </button>
+              </div>
+
+              <div className="my-4 border-t border-tactical-800/60 pt-3">
+                <p className="text-[10px] text-gray-600 uppercase tracking-widest mb-2">{t.sidebar.dataLayers}</p>
+                <button onClick={() => setShowDailySatellite(!showDailySatellite)} className={`flex items-center gap-2 w-full px-3 py-2 mt-1.5 rounded-sm text-xs font-mono border transition-colors ${showDailySatellite ? 'border-sky-700/50 text-sky-400 bg-sky-900/10' : 'border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-400'}`}>
+                  <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${showDailySatellite ? 'bg-sky-500 animate-pulse' : 'bg-gray-700'}`} />
+                  {t.sidebar.dailySatellite}
+                </button>
+                <button onClick={() => setShowNightLights(!showNightLights)} className={`flex items-center gap-2 w-full px-3 py-2 mt-1.5 rounded-sm text-xs font-mono border transition-colors ${showNightLights ? 'border-amber-700/50 text-amber-400 bg-amber-900/10' : 'border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-400'}`}>
+                  <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${showNightLights ? 'bg-amber-500 animate-pulse' : 'bg-gray-700'}`} />
+                  {t.sidebar.nightLights}
+                </button>
+                <button onClick={() => setShowQuakes(!showQuakes)} className={`flex items-center gap-2 w-full px-3 py-2 mt-1.5 rounded-sm text-xs font-mono border transition-colors ${showQuakes ? 'border-red-700/50 text-red-400 bg-red-900/10' : 'border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-400'}`}>
+                  <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${showQuakes ? 'bg-red-500 animate-pulse' : 'bg-gray-700'}`} />
+                  {t.sidebar.quakes}
+                </button>
+                <button onClick={() => setShowChokepoints(!showChokepoints)} className={`flex items-center gap-2 w-full px-3 py-2 mt-1.5 rounded-sm text-xs font-mono border transition-colors ${showChokepoints ? 'border-teal-700/50 text-teal-400 bg-teal-900/10' : 'border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-400'}`}>
+                  <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${showChokepoints ? 'bg-teal-500 animate-pulse' : 'bg-gray-700'}`} />
+                  {t.sidebar.chokepoints}
                 </button>
               </div>
             </div>

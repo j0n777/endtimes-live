@@ -25,6 +25,7 @@ import { NewsApiAICollector } from './NewsApiAICollector';
 import { AskNewsCollector } from './AskNewsCollector';
 import { YouTubeLiveCollector } from './YouTubeLiveCollector';
 import { SignsCollector } from './SignsCollector';
+import { ChokepointsCollector } from './ChokepointsCollector';
 import { SolarAlertCollector } from './SolarAlertCollector';
 import { MonitorEvent } from '../../types';
 
@@ -36,10 +37,12 @@ export class CollectorOrchestrator {
     private collectors: BaseCollector[];
     private supabase: SupabaseClient;
     private signsCollector: SignsCollector;
+    private chokepointsCollector: ChokepointsCollector;
 
     constructor(supabase: SupabaseClient) {
         this.supabase = supabase;
         this.signsCollector = new SignsCollector();
+        this.chokepointsCollector = new ChokepointsCollector();
 
         // Initialize all collectors
         this.collectors = [
@@ -244,7 +247,7 @@ export class CollectorOrchestrator {
         // SIGNS: índice Ω + Tensão Militar a partir de fontes primárias (lib/signs).
         // Grupo 6 é o mais leve (3 coletores), então roda a cada ~25 min sem pesar.
         if (bucket === 6) {
-            await this.signsCollector.run();
+            await Promise.all([this.signsCollector.run(), this.chokepointsCollector.run()]);
         }
     }
 

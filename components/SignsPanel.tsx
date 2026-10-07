@@ -126,6 +126,15 @@ export const SignsPanel: React.FC<SignsPanelProps> = ({ signs, onClose }) => {
       <div className="border-t border-tactical-800/60 px-3 py-2 text-[10px] text-gray-500 leading-relaxed">
         <p className="italic">“{t.signs.disclaimer}”</p>
         <p className="mt-0.5">— {t.signs.disclaimerRef}</p>
+        {signs?.context?.co2 && (
+          <p className="mt-1.5">
+            {fill(t.signs.co2, {
+              v: nf.format(signs.context.co2.ppm),
+              date: signs.context.co2.date,
+              y: signs.context.co2.yearAgoPpm != null ? nf.format(signs.context.co2.yearAgoPpm) : '—',
+            })}
+          </p>
+        )}
         {signs && (
           <p className="mt-1.5 text-gray-600">
             {fill(t.signs.updated, {
