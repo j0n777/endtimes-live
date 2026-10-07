@@ -8,9 +8,12 @@
 // no seu sinal e o resto segue; nada aqui lança exceção para o chamador.
 import {
     DAY_MS, computeOmega, dayIndex, mean, parseCsvLine, percentileRank,
-    pickEscalationMarkets, rollingWindowCounts, tensionLevel, trendOf,
+    rollingWindowCounts, tensionLevel, trailingMeans, trendOf,
 } from './stats';
 import type { Co2Reading, SignId, SignReading, SignsPayload } from './types';
+import { countBetween, majorStormsFromCsv, mergeRecent, type StormCatalog } from './ibtracs';
+import { readDta } from './stata';
+import { publishData } from '../publishData';
 import { readXlsxSheet } from './xlsx';
 
 const TIMEOUT_MS = 45_000;
@@ -195,39 +198,57 @@ async function readHeavens(now: Date): Promise<SignReading> {
 }
 
 // ── Lc 21:25 — "bramido do mar e das ondas" ──────────────────────────────────
-// Ciclones tropicais com alerta laranja ou vermelho (GDACS) em 90 dias vs. a mesma
-// janela sazonal (ciclones têm temporada) nos anos anteriores. A busca do GDACS tem
-// dado desde 2012 (testado em 06/10/2026: 2012/2016/2020 respondem, 2008 dá 204) e só
-// com eventlist=TC — "TC;TS" devolve 204 em qualquer ano. Anos sem dado são
-// descartados; com menos de 4 anos o sinal fica fora do Ω como 'short-baseline'.
-const SEA_YEARS = 14;
-const SEA_MIN_YEARS = 4;
-async function readSea(now: Date): Promise<SignReading> {
-    const r = base('sea', 'GDACS', 'https://www.gdacs.org/');
-    const count = async (from: Date, to: Date): Promise<number | null> => {
-        const { status, body } = await fetchText(`https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?eventlist=TC&fromDate=${isoDay(from)}&toDate=${isoDay(to)}&alertlevel=Orange;Red`);
-        if (status === 204 || !body) return null;
-        return (JSON.parse(body)?.features ?? []).length;
-    };
-    const shift = (d: Date, years: number) => { const c = new Date(d); c.setUTCFullYear(c.getUTCFullYear() - years); return c; };
-    const from = daysAgo(now, 90);
-    const years = Array.from({ length: SEA_YEARS }, (_, i) => i + 1);
+// Ciclones tropicais que chegaram à categoria 3+ (NOAA IBTrACS) nos últimos 90 dias vs.
+// a mesma janela sazonal (ciclones têm temporada) em cada ano desde 1981. O IBTrACS
+// atualiza 3×/semana com até ~1 semana de atraso, e a parte recente é provisória.
+// Para não baixar o arquivo completo (145 MB) a cada rodada, o worker guarda no Storage
+// um catálogo compacto e só baixa o last3years (11 MB) quando a NOAA publica versão nova.
+const IBTRACS_CSV = 'https://www.ncei.noaa.gov/data/international-best-track-archive-for-climate-stewardship-ibtracs/v04r01/access/csv';
+const IBTRACS_PAGE = 'https://www.ncei.noaa.gov/products/international-best-track-archive';
+const STORM_CATALOG_FILE = 'ibtracs-major.json';
+const SEA_FIRST_YEAR = 1981;
 
-    const [current, previous, ...past] = await Promise.all([
-        count(from, now),
-        count(daysAgo(now, 180), from),
-        ...years.map(y => count(shift(from, y), shift(now, y)).catch(() => null)),
-    ]);
-    const sample = past.filter((n): n is number => n !== null);
-    const sampledYears = years.filter((_, i) => past[i] !== null).map(y => now.getUTCFullYear() - y);
-    // A janela atual sempre tem dado; 204 aqui significa zero ciclones nesse período.
-    r.value = current ?? 0;
+async function loadStormCatalog(): Promise<Record<string, string>> {
+    const storage = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    let catalog: StormCatalog | null = null;
+    if (storage) {
+        try {
+            const res = await fetch(`${storage}/storage/v1/object/public/data/${STORM_CATALOG_FILE}?t=${Date.now()}`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+            if (res.ok) catalog = await res.json();
+        } catch { /* sem catálogo: reconstrói abaixo */ }
+    }
+    const head = await fetch(`${IBTRACS_CSV}/ibtracs.last3years.list.v04r01.csv`, { method: 'HEAD', headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+    const modified = head.headers.get('last-modified');
+    if (catalog?.storms && (!modified || modified === catalog.sourceModified)) return catalog.storms;
+
+    let storms: Record<string, string>;
+    if (catalog?.storms) {
+        const { body } = await fetchText(`${IBTRACS_CSV}/ibtracs.last3years.list.v04r01.csv`);
+        const recent = majorStormsFromCsv(body);
+        storms = recent.firstDate ? mergeRecent(catalog.storms, recent.storms, recent.firstDate) : catalog.storms;
+    } else {
+        const { body } = await fetchText(`${IBTRACS_CSV}/ibtracs.since1980.list.v04r01.csv`);
+        storms = majorStormsFromCsv(body).storms;
+    }
+    await publishData(STORM_CATALOG_FILE, { version: 1, builtAt: new Date().toISOString(), sourceModified: modified, storms } satisfies StormCatalog);
+    return storms;
+}
+
+async function readSea(now: Date): Promise<SignReading> {
+    const r = base('sea', 'NOAA IBTrACS', IBTRACS_PAGE);
+    const dates = Object.values(await loadStormCatalog());
+    const shiftDay = (d: Date, years: number) => { const c = new Date(d); c.setUTCFullYear(c.getUTCFullYear() - years); return isoDay(c); };
+    const from = daysAgo(now, 90);
+    const upTo = isoDay(new Date(now.getTime() + DAY_MS));
+    const years = Array.from({ length: now.getUTCFullYear() - SEA_FIRST_YEAR }, (_, i) => i + 1);
+    const sample = years.map(y => countBetween(dates, shiftDay(from, y), shiftDay(new Date(now.getTime() + DAY_MS), y)));
+
+    r.value = countBetween(dates, isoDay(from), upTo);
     r.baselineMean = round1(mean(sample));
     r.percentile = percentileRank(r.value, sample);
-    r.trend = trendOf(r.value, previous ?? 0);
+    r.trend = trendOf(r.value, countBetween(dates, isoDay(daysAgo(now, 180)), isoDay(from)));
     r.period = '90d';
-    r.baselineSpan = sampledYears.length ? `${Math.min(...sampledYears)}–${Math.max(...sampledYears)}` : null;
-    if (sample.length < SEA_MIN_YEARS) r.status = 'short-baseline';
+    r.baselineSpan = `${SEA_FIRST_YEAR}–${now.getUTCFullYear() - 1}`;
     return r;
 }
 
@@ -279,7 +300,7 @@ const READERS: Array<{ id: SignId; read: (now: Date) => Promise<SignReading>; so
     { id: 'famine', read: readFamine, source: ['World Bank Pink Sheet', PINK_SHEET_PAGE] },
     { id: 'pestilence', read: readPestilence, source: ['WHO Disease Outbreak News', 'https://www.who.int/emergencies/disease-outbreak-news'] },
     { id: 'heavens', read: readHeavens, source: ['GFZ Potsdam (Kp)', 'https://kp.gfz-potsdam.de/en/'] },
-    { id: 'sea', read: readSea, source: ['GDACS', 'https://www.gdacs.org/'] },
+    { id: 'sea', read: readSea, source: ['NOAA IBTrACS', IBTRACS_PAGE] },
     { id: 'persecution', read: readPersecution, source: ['Portas Abertas — Lista Mundial da Perseguição', 'https://www.portasabertas.org.br/lista-mundial'] },
     { id: 'distress', read: readDistress, source: ['OFR Financial Stress Index', OFR_FSI_PAGE] },
 ];
@@ -306,15 +327,36 @@ async function readCo2(): Promise<Co2Reading | null> {
     }
 }
 
-async function readTension(now: Date) {
+// ── Tensão Militar ───────────────────────────────────────────────────────────
+// Sub-índice de AMEAÇAS do Geopolitical Risk Index (Caldara & Iacoviello): fração de
+// notícias em 10 jornais sobre ameaças de guerra, diário desde 1985, CC BY. Substitui
+// os mercados do Polymarket (07/10/2026), cujos termos não liberam uso comercial.
+const GPR_PAGE = 'https://www.matteoiacoviello.com/gpr.htm';
+const GPR_DAILY = 'https://www.matteoiacoviello.com/gpr_files/data_gpr_daily_recent.dta';
+const STATA_EPOCH = Date.UTC(1960, 0, 1);
+
+async function readTension(): Promise<SignsPayload['tension']> {
     try {
-        const events = await fetchJson('https://gamma-api.polymarket.com/events?tag_slug=geopolitics&active=true&closed=false&limit=100&order=volume&ascending=false');
-        const markets = pickEscalationMarkets(Array.isArray(events) ? events : [], now).slice(0, 5);
-        const maxProbability = markets.length ? markets[0].probability : null;
-        return { level: tensionLevel(maxProbability), maxProbability, markets };
+        const cols = readDta(await fetchBytes(GPR_DAILY));
+        if (!cols.date || !cols.GPRD_THREAT) throw new Error('colunas date/GPRD_THREAT ausentes');
+        const rows = cols.date
+            .map((d, i) => ({ d, v: cols.GPRD_THREAT[i] }))
+            .filter((r): r is { d: number; v: number } => r.d !== null && r.v !== null)
+            .sort((a, b) => a.d - b.d);
+        const means = trailingMeans(rows.map(r => r.v), 7);
+        if (means.length < 3650) throw new Error(`série GPR curta (${means.length} dias)`);
+        const latest = means[means.length - 1];
+        const percentile = percentileRank(latest, means.slice(0, -1));
+        return {
+            level: tensionLevel(percentile),
+            value: round1(latest),
+            percentile,
+            date: isoDay(new Date(STATA_EPOCH + rows[rows.length - 1].d * DAY_MS)),
+            sourceUrl: GPR_PAGE,
+        };
     } catch (err) {
-        console.warn(`⚠️ SIGNS: Polymarket falhou: ${err instanceof Error ? err.message : err}`);
-        return { level: null, maxProbability: null, markets: [] };
+        console.warn(`⚠️ SIGNS: GPR falhou: ${err instanceof Error ? err.message : err}`);
+        return { level: null, value: null, percentile: null, date: null, sourceUrl: GPR_PAGE };
     }
 }
 
@@ -331,7 +373,7 @@ export async function computeSigns(now = new Date()): Promise<SignsPayload> {
                 return reading;
             }
         })),
-        readTension(now),
+        readTension(),
         readCo2(),
     ]);
     return { version: 1, generatedAt: now.toISOString(), context: { co2 }, omega: computeOmega(signs), tension, signs };

@@ -11,7 +11,7 @@ const STALE_FILES = ['defcon.json']; // DefconCollector removido em 06/10/2026
 const RETIRED_COLLECTORS = [
     'TELEGRAM_BRAZIL', 'TELEGRAM_SOUTH_AMERICA', 'TELEGRAM_EUROPE', 'TELEGRAM_AFRICA',
     'TELEGRAM_RUSSIA_ASIA', 'TELEGRAM_NORTH_AMERICA', 'AVIATION_MILITARY', 'FLIGHT_RADAR',
-    'VIX', 'NEWSAPI_AI', 'ASKNews', 'ACLED', 'TWITTER',
+    'VIX', 'NEWSAPI_AI', 'ASKNews', 'ACLED', 'TWITTER', 'POLYMARKET',
 ];
 
 export async function runMaintenance(supabase: SupabaseClient, now = new Date()): Promise<void> {

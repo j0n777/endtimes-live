@@ -4,7 +4,7 @@
 export type CreditGroup = 'maps' | 'signs' | 'layers' | 'events' | 'method';
 
 /** Licenças que precisam de tradução; o resto (ODbL, CC BY…) é exibido como está. */
-export type LicenseKey = 'publicDomainUS' | 'publicDomainNASA' | 'govBR' | 'imfTerms' | 'celestrak' | 'gdelt' | 'outletTerms' | 'credited';
+export type LicenseKey = 'publicDomainUS' | 'publicDomainNASA' | 'govBR' | 'imfTerms' | 'celestrak' | 'gdelt' | 'outletTerms' | 'credited' | 'wmoRes40' | 'whoCount';
 
 export interface Credit {
     group: CreditGroup;
@@ -23,6 +23,9 @@ export const CREDITS: Credit[] = [
     { group: 'signs', name: 'World Bank Commodity Price Data (Pink Sheet)', license: 'CC BY 4.0', url: 'https://www.worldbank.org/en/research/commodity-markets' },
     { group: 'signs', name: 'Office of Financial Research — Financial Stress Index', license: { key: 'publicDomainUS' }, url: 'https://www.financialresearch.gov/financial-stress-index/' },
     { group: 'signs', name: 'GFZ Potsdam — Kp index (Matzka et al., 2021)', license: 'CC BY 4.0', url: 'https://kp.gfz-potsdam.de/' },
+    { group: 'signs', name: 'NOAA IBTrACS v04r01 (Knapp et al., 2010)', license: { key: 'wmoRes40' }, url: 'https://www.ncei.noaa.gov/products/international-best-track-archive' },
+    { group: 'signs', name: 'WHO Disease Outbreak News', license: { key: 'whoCount' }, url: 'https://www.who.int/emergencies/disease-outbreak-news' },
+    { group: 'signs', name: 'Geopolitical Risk Index — Caldara & Iacoviello (2022), American Economic Review', license: 'CC BY', url: 'https://www.matteoiacoviello.com/gpr.htm' },
     { group: 'signs', name: 'NOAA Global Monitoring Laboratory — Mauna Loa CO₂', license: { key: 'publicDomainUS' }, url: 'https://gml.noaa.gov/ccgg/trends/' },
 
     { group: 'layers', name: 'adsb.lol contributors', license: 'ODbL 1.0', url: 'https://adsb.lol/' },

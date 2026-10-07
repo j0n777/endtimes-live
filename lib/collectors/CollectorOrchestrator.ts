@@ -5,7 +5,6 @@ import { NASAEONETCollector } from './NASAEONETCollector';
 import { NASAFIRMSCollector } from './NASAFIRMSCollector';
 import { WHOCollector } from './WHOCollector';
 import { GDELTCollector } from './GDELTCollector';
-import { PolymarketCollector } from './PolymarketCollector';
 import { WeatherNWSCollector } from './WeatherNWSCollector';
 import { InmetCollector } from './InmetCollector';
 import { CyberAttacksCollector } from './CyberAttacksCollector';
@@ -46,7 +45,8 @@ export class CollectorOrchestrator {
             new NASAEONETCollector(supabase),
 
             // Intelligence
-            new PolymarketCollector(supabase),
+            // Polymarket desligado em 07/10/2026: os termos não liberam exibição comercial
+            // dos dados (a Tensão Militar passou para o índice GPR, em lib/signs).
             new WHOCollector(supabase),
             new GDELTCollector(supabase),
 
@@ -199,7 +199,7 @@ export class CollectorOrchestrator {
         // Group Collectors
         const groups: Record<number, string[]> = {
             0: ['NEWS_SOUTH_AMERICA', 'NEWS_BRAZIL', 'GDACS', 'INMET_WEATHER'], // Critical Local + Fast Alerts
-            3: ['NEWS_NORTH_AMERICA', 'POLYMARKET', 'YOUTUBE_LIVE_CAMS'], // Live cams
+            3: ['NEWS_NORTH_AMERICA', 'YOUTUBE_LIVE_CAMS'], // Live cams
             6: ['NEWS_EUROPE', 'MARITIME_NEWS'],
             9: ['NEWS_AFRICA', 'WHO_OUTBREAKS', 'INTERNET_SHUTDOWNS', 'INTERNET_BLACKOUT', 'WEATHER_NWS', 'EMBASSY_ALERTS'],
             12: ['NEWS_RUSSIA_ASIA', 'CYBER_ATTACKS', 'NASA_EONET', 'SOLAR_ALERTS'] // Deep intel

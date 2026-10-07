@@ -20,8 +20,8 @@ export const ptBR: Translations = {
   tension: {
     label: 'TENSÃO MILITAR',
     levels: ['BAIXA', 'MODERADA', 'ELEVADA', 'ALTA', 'CRÍTICA'],
-    tooltip: 'Maior probabilidade entre mercados de previsão de escalada militar (Polymarket): {p} — {q}',
-    none: 'Sem dados de mercados de escalada',
+    tooltip: 'Ameaças de guerra na imprensa (índice GPR de Caldara & Iacoviello), média de 7 dias: {v} · percentil {p} desde 1985 · {d}',
+    none: 'Sem dados do índice de ameaças',
   },
   credits: {
     title: 'FONTES E CRÉDITOS',
@@ -39,6 +39,8 @@ export const ptBR: Translations = {
       gdelt: 'Uso livre com citação',
       outletTerms: 'Termos de cada veículo',
       credited: 'Ideia e método creditados',
+      wmoRes40: 'Acesso aberto (Resolução 40 da OMM)',
+      whoCount: 'Só a contagem de alertas, com link',
     },
   },
   signs: {
@@ -76,7 +78,7 @@ export const ptBR: Translations = {
       famine: { name: 'Fome', ref: 'Apocalipse 6:6', quote: 'Um queniz de trigo por um denário, e três quenizes de cevada por um denário', value: 'Índice de preços de alimentos do Banco Mundial {v} ({period}; 2010 = 100) · média de 10 anos {b}' },
       pestilence: { name: 'Pestes', ref: 'Lucas 21:11', quote: 'e pestes e fomes', value: '{v} alertas de surto da OMS em 90 dias · média {b}' },
       heavens: { name: 'Sinais no sol', ref: 'Lucas 21:25', quote: 'haverá sinais no sol, na lua e nas estrelas', value: '{v} dias de tempestade geomagnética (Kp≥5) em 30 dias · média {b}' },
-      sea: { name: 'Bramido do mar', ref: 'Lucas 21:25', quote: 'pelo bramido do mar e das ondas', value: '{v} ciclones tropicais em alerta laranja/vermelho em 90 dias · média {b}' },
+      sea: { name: 'Bramido do mar', ref: 'Lucas 21:25', quote: 'pelo bramido do mar e das ondas', value: '{v} ciclones tropicais que chegaram à categoria 3+ em 90 dias · média sazonal desde 1981 {b}' },
       persecution: { name: 'Perseguição', ref: 'Mateus 24:9', quote: 'sereis odiados de todas as nações por causa do meu nome', value: 'A Portas Abertas publica a Lista Mundial da Perseguição uma vez por ano, sem API — ainda não dá para medir aqui.' },
       distress: { name: 'Angústia das nações', ref: 'Lucas 21:25', quote: 'sobre a terra haverá angústia das nações em perplexidade', value: 'Índice de estresse financeiro do OFR {v} ({period}; 0 = normal) · média desde 2000 {b}' },
     },

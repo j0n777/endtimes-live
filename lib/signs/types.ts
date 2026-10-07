@@ -34,14 +34,6 @@ export interface SignReading {
     error?: string;
 }
 
-export interface TensionMarket {
-    question: string;
-    probability: number;           // 0–1
-    monthChange: number | null;    // variação em 30 dias, em pontos de probabilidade
-    volume: number;
-    url: string;
-}
-
 export type IndexLevel = 1 | 2 | 3 | 4 | 5;
 
 // Contexto planetário mostrado no painel, fora do cálculo do Ω.
@@ -63,8 +55,10 @@ export interface SignsPayload {
     };
     tension: {
         level: IndexLevel | null;  // 1 = baixa … 5 = crítica
-        maxProbability: number | null;
-        markets: TensionMarket[];
+        value: number | null;      // GPR de ameaças, média dos últimos 7 dias
+        percentile: number | null; // vs. todas as médias de 7 dias desde 1985
+        date: string | null;       // último dia com dado (YYYY-MM-DD)
+        sourceUrl: string;
     };
     signs: SignReading[];
 }

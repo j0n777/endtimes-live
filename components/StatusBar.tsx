@@ -42,11 +42,12 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   const omegaMeta = omegaLevel ? OMEGA_META[omegaLevel] : null;
   const tensionLevel = signs?.tension.level ?? null;
   const tensionStyle = tensionLevel ? TENSION_STYLE[tensionLevel] : null;
-  const topMarket = signs?.tension.markets[0];
-  const tensionTitle = topMarket
+  const tension = signs?.tension;
+  const tensionTitle = tension?.value != null && tension.percentile != null
     ? t.tension.tooltip
-        .replace('{p}', `${(topMarket.probability * 100).toFixed(1)}%`)
-        .replace('{q}', topMarket.question)
+        .replace('{v}', tension.value.toLocaleString(locale))
+        .replace('{p}', String(Math.round(tension.percentile)))
+        .replace('{d}', tension.date ?? '—')
     : t.tension.none;
 
   return (

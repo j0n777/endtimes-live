@@ -18,8 +18,8 @@ export const en = {
   tension: {
     label: 'MILITARY TENSION',
     levels: ['LOW', 'MODERATE', 'ELEVATED', 'HIGH', 'CRITICAL'],
-    tooltip: 'Highest probability among military-escalation prediction markets (Polymarket): {p} — {q}',
-    none: 'No escalation market data',
+    tooltip: 'War threats in the press (Caldara & Iacoviello GPR index), 7-day average: {v} · percentile {p} since 1985 · {d}',
+    none: 'No threat-index data',
   },
   credits: {
     title: 'SOURCES & CREDITS',
@@ -37,6 +37,8 @@ export const en = {
       gdelt: 'Free use with citation',
       outletTerms: "Each outlet's terms",
       credited: 'Idea and method credited',
+      wmoRes40: 'Open access (WMO Resolution 40)',
+      whoCount: 'Only the count of alerts, with a link',
     },
   },
   signs: {
@@ -74,7 +76,7 @@ export const en = {
       famine: { name: 'Famine', ref: 'Revelation 6:6', quote: 'A measure of wheat for a penny, and three measures of barley for a penny', value: 'World Bank food price index {v} ({period}; 2010 = 100) · 10-year average {b}' },
       pestilence: { name: 'Pestilences', ref: 'Luke 21:11', quote: 'and famines, and pestilences', value: '{v} WHO outbreak alerts in 90 days · average {b}' },
       heavens: { name: 'Signs in the sun', ref: 'Luke 21:25', quote: 'there shall be signs in the sun, and in the moon, and in the stars', value: '{v} geomagnetic storm days (Kp≥5) in 30 days · average {b}' },
-      sea: { name: 'Roaring sea', ref: 'Luke 21:25', quote: 'the sea and the waves roaring', value: '{v} orange/red-alert tropical cyclones in 90 days · average {b}' },
+      sea: { name: 'Roaring sea', ref: 'Luke 21:25', quote: 'the sea and the waves roaring', value: '{v} tropical cyclones reaching category 3+ in 90 days · seasonal average since 1981 {b}' },
       persecution: { name: 'Persecution', ref: 'Matthew 24:9', quote: 'ye shall be hated of all nations for my name’s sake', value: 'Open Doors publishes the World Watch List once a year, with no API — not yet measurable here.' },
       distress: { name: 'Distress of nations', ref: 'Luke 21:25', quote: 'upon the earth distress of nations, with perplexity', value: 'OFR financial stress index {v} ({period}; 0 = normal) · average since 2000 {b}' },
     },
