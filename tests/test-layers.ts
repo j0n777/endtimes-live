@@ -1,7 +1,7 @@
 // Testes das funções puras das camadas do mapa (lib/layers).
 // Rodar: npx tsx tests/test-layers.ts
 import { summarizeChokepoints } from '../lib/layers/chokepoints';
-import { chokepointLevel, escapeHtml, quakeStyle } from '../lib/layers/style';
+import { chokepointLevel, escapeHtml, quakeStyle, safeUrl } from '../lib/layers/style';
 
 let failures = 0;
 function check(name: string, actual: unknown, expected: unknown) {
@@ -45,6 +45,10 @@ check('sismo: raio mínimo', quakeStyle(2.5, 1).radius, 4);
 // escapeHtml
 check('escape: tags e aspas', escapeHtml(`<img src=x onerror="a('b')">`), '&lt;img src=x onerror=&quot;a(&#39;b&#39;)&quot;&gt;');
 check('escape: nulo', escapeHtml(null), '');
+check('safeUrl: https', safeUrl('https://t.me/x?a=1&b="2"'), 'https://t.me/x?a=1&amp;b=%222%22');
+check('safeUrl: javascript', safeUrl('javascript:alert(1)'), '');
+check('safeUrl: data', safeUrl('data:text/html,<script>'), '');
+check('safeUrl: relativa/lixo', safeUrl('/foo'), '');
 
 console.log(failures ? `\n❌ ${failures} falha(s)` : '\n✅ todos os testes passaram');
 process.exit(failures ? 1 : 0);

@@ -32,3 +32,13 @@ export function quakeStyle(magnitude: number, ageHours: number) {
 export function escapeHtml(s: unknown): string {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 }
+
+/** URL externa pronta para href/src: só http(s), já escapada; qualquer outra coisa vira ''. */
+export function safeUrl(s: unknown): string {
+    try {
+        const u = new URL(String(s ?? ''));
+        return u.protocol === 'http:' || u.protocol === 'https:' ? escapeHtml(u.href) : '';
+    } catch {
+        return '';
+    }
+}
