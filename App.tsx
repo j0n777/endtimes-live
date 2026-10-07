@@ -14,7 +14,6 @@ import CommsPanel from './components/CommsPanel';
 import ProphecyIntel from './components/ProphecyIntel';
 import IntelFeed from './components/IntelFeed';
 import { LiveThreatFeed } from './components/LiveThreatFeed';
-// import AdminPanel from './components/AdminPanel';
 // REMOVED: Direct API calls - import { fetchRealTimeEvents } from './services/geminiService';
 // REMOVED: Direct API calls - import { fetchAllDataSources } from './services/data-sources';
 import { loadAllEvents, loadEventsByCategories, getCollectorStatuses, triggerDataCollection } from './services/frontendDataService';

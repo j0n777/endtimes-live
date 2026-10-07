@@ -17,7 +17,8 @@ dotenv.config({ path: '.env.local' });
 dotenv.config();
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+// Sem a chave secreta as escritas falhariam em silêncio (RLS bloqueia a anon); melhor falhar alto.
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!SUPABASE_URL || !SUPABASE_KEY) {
     console.error('❌ Missing Supabase URL or Key in environment variables.');
     process.exit(1);
