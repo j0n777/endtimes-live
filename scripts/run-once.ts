@@ -11,6 +11,7 @@ import dotenv from 'dotenv';
 import dns from 'node:dns';
 import { CollectorOrchestrator } from '../lib/collectors/CollectorOrchestrator';
 import { fetchTles } from './fetch-tles';
+import { runMaintenance } from '../lib/maintenance';
 
 if (dns.setDefaultResultOrder) dns.setDefaultResultOrder('ipv4first');
 dotenv.config({ path: '.env.local' });
@@ -38,6 +39,7 @@ async function main() {
     const watchdog = setTimeout(() => { console.error('⏱️  run-once: tempo máximo excedido, encerrando'); process.exit(2); }, MAX_RUN_MS);
     try {
         if (offset === 0 || process.env.COLLECT_TLES === '1') await fetchTles();
+        if (offset === 0) await runMaintenance(supabase);
         await orchestrator.runStaggeredCycle(offset);
         console.log('✅ run-once: rodada concluída');
     } finally {
