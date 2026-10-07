@@ -2,27 +2,18 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { BaseCollector } from './BaseCollector';
 import { GDACSCollector } from './GDACSCollector';
 import { NASAEONETCollector } from './NASAEONETCollector';
-import { ACLEDCollector } from './ACLEDCollector';
 import { NASAFIRMSCollector } from './NASAFIRMSCollector';
 import { WHOCollector } from './WHOCollector';
 import { GDELTCollector } from './GDELTCollector';
-import { PolymarketCollector } from './PolymarketCollector';
-import { TelegramCollector } from './TelegramCollector';
-import { TwitterCollector } from './TwitterCollector';
 import { WeatherNWSCollector } from './WeatherNWSCollector';
 import { InmetCollector } from './InmetCollector';
 import { CyberAttacksCollector } from './CyberAttacksCollector';
-import { VIXCollector } from './VIXCollector';
 import { EmbassyCollector } from './EmbassyCollector';
 import { InternetShutdownsCollector } from './InternetShutdownsCollector';
 import { InternetBlackoutCollector } from './InternetBlackoutCollector';
-import { FlightCollector } from './FlightCollector';
-import { AviationCollector } from './AviationCollector';
 import { MaritimeCollector } from './MaritimeCollector';
 // import { NewsRSSCollector } from './NewsRSSCollector'; // REPLACED
 import { RegionalNewsCollector, MonitorRegion } from './RegionalNewsCollector';
-import { NewsApiAICollector } from './NewsApiAICollector';
-import { AskNewsCollector } from './AskNewsCollector';
 import { YouTubeLiveCollector } from './YouTubeLiveCollector';
 import { SignsCollector } from './SignsCollector';
 import { ChokepointsCollector } from './ChokepointsCollector';
@@ -54,17 +45,13 @@ export class CollectorOrchestrator {
             new NASAEONETCollector(supabase),
 
             // Intelligence
-            new PolymarketCollector(supabase),
+            // Polymarket desligado em 07/10/2026: os termos não liberam exibição comercial
+            // dos dados (a Tensão Militar passou para o índice GPR, em lib/signs).
             new WHOCollector(supabase),
             new GDELTCollector(supabase),
 
-            // Regional Telegram Collectors (Specific Intel)
-            new TelegramCollector(supabase, 'BRAZIL', ['g1_noticias', 'metropoles', 'midianinja', 'folha']),
-            new TelegramCollector(supabase, 'SOUTH_AMERICA', ['infobae', 'mercopress', 'warzone593', 'latam_intel']),
-            new TelegramCollector(supabase, 'EUROPE', ['disclosetv', 'bellumpacta_news', 'bellingcat', 'geopolitics_live']),
-            new TelegramCollector(supabase, 'AFRICA', ['allafrica', 'africanews', 'sabcnews']),
-            new TelegramCollector(supabase, 'RUSSIA_ASIA', ['intel_slava_z', 'rybar', 'rt_news', 'scmpnews']),
-            new TelegramCollector(supabase, 'NORTH_AMERICA', ['insiderpaper', 'police_frequency', 'breaking911', 'disclosetv']),
+            // Telegram (t.me/s) desligado em 07/10/2026: os termos do Telegram proíbem acessar
+            // conteúdo de usuários para fins além do uso comum (telegram.org/tos/content-licensing).
 
             // Security/Tech
             new CyberAttacksCollector(supabase),
@@ -78,11 +65,10 @@ export class CollectorOrchestrator {
             new WeatherNWSCollector(supabase),
             new InmetCollector(supabase),
             new EmbassyCollector(supabase),
-            new VIXCollector(supabase),
+            // VIX via Yahoo Finance: os termos do Yahoo proíbem coleta automatizada (07/10/2026).
 
-            // Transport
-            new FlightCollector(),
-            new AviationCollector(supabase),
+            // Transport — OpenSky exige licença escrita para uso comercial (07/10/2026), e o
+            // FlightCollector caía em aviões simulados. Aeronaves militares vêm do adsb.lol no front.
             new MaritimeCollector(supabase),
 
             // Regional News (Staggered Groups)
@@ -94,17 +80,12 @@ export class CollectorOrchestrator {
             new RegionalNewsCollector(supabase, MonitorRegion.RUSSIA_ASIA),
             // new NewsRSSCollector(supabase), // DEPRECATED
 
-            new NewsApiAICollector(supabase),
-            new AskNewsCollector(supabase),
-
-            // Social (Unstable)
-            new TwitterCollector(supabase),
+            // NewsAPI.ai (plano grátis), AskNews e Twitter/Nitter: uso comercial vedado (07/10/2026).
 
             // Video Intelligence
             new YouTubeLiveCollector(supabase),
 
-            // Protected (Rate limits / API keys)
-            new ACLEDCollector(supabase),
+            // ACLED exige licença corporativa para uso comercial (07/10/2026).
             new NASAFIRMSCollector(supabase),
         ];
     }
@@ -217,11 +198,11 @@ export class CollectorOrchestrator {
     async runStaggeredCycle(minuteOffset: number) {
         // Group Collectors
         const groups: Record<number, string[]> = {
-            0: ['NEWS_SOUTH_AMERICA', 'NEWS_BRAZIL', 'TELEGRAM_SOUTH_AMERICA', 'TELEGRAM_BRAZIL', 'GDACS', 'VIX_INDEX', 'INMET_WEATHER'], // Critical Local + Fast Alerts
-            3: ['NEWS_NORTH_AMERICA', 'TELEGRAM_NORTH_AMERICA', 'POLYMARKET', 'AVIATION_MILITARY', 'FLIGHT_RADAR', 'YOUTUBE_LIVE_CAMS'], // Live cams + military flights
-            6: ['NEWS_EUROPE', 'TELEGRAM_EUROPE', 'MARITIME_NEWS'],
-            9: ['NEWS_AFRICA', 'TELEGRAM_AFRICA', 'WHO_OUTBREAKS', 'INTERNET_SHUTDOWNS', 'INTERNET_BLACKOUT', 'WEATHER_NWS', 'EMBASSY_ALERTS'],
-            12: ['NEWS_RUSSIA_ASIA', 'TELEGRAM_RUSSIA_ASIA', 'CYBER_ATTACKS', 'NASA_EONET', 'SOLAR_ALERTS'] // Deep intel
+            0: ['NEWS_SOUTH_AMERICA', 'NEWS_BRAZIL', 'GDACS', 'INMET_WEATHER'], // Critical Local + Fast Alerts
+            3: ['NEWS_NORTH_AMERICA', 'YOUTUBE_LIVE_CAMS'], // Live cams
+            6: ['NEWS_EUROPE', 'MARITIME_NEWS'],
+            9: ['NEWS_AFRICA', 'WHO_OUTBREAKS', 'INTERNET_SHUTDOWNS', 'INTERNET_BLACKOUT', 'WEATHER_NWS', 'EMBASSY_ALERTS'],
+            12: ['NEWS_RUSSIA_ASIA', 'CYBER_ATTACKS', 'NASA_EONET', 'SOLAR_ALERTS'] // Deep intel
         };
 
         // Determine which group to run based on current minute modulo 15

@@ -8,9 +8,13 @@
 // no seu sinal e o resto segue; nada aqui lança exceção para o chamador.
 import {
     DAY_MS, computeOmega, dayIndex, mean, parseCsvLine, percentileRank,
-    pickEscalationMarkets, rollingWindowCounts, tensionLevel, trendOf,
+    rollingWindowCounts, tensionLevel, trailingMeans, trendOf,
 } from './stats';
 import type { Co2Reading, SignId, SignReading, SignsPayload } from './types';
+import { countBetween, majorStormsFromCsv, mergeRecent, type StormCatalog } from './ibtracs';
+import { readDta } from './stata';
+import { publishData } from '../publishData';
+import { readXlsxSheet } from './xlsx';
 
 const TIMEOUT_MS = 45_000;
 const UA = 'EndTimesMonitor/1.0 (+https://endtimes.live)';
@@ -20,6 +24,12 @@ async function fetchText(url: string): Promise<{ status: number; body: string }>
     const body = res.status === 204 ? '' : await res.text();
     if (res.status !== 200 && res.status !== 204) throw new Error(`HTTP ${res.status} em ${new URL(url).host}`);
     return { status: res.status, body };
+}
+
+async function fetchBytes(url: string): Promise<Uint8Array> {
+    const res = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+    if (!res.ok) throw new Error(`HTTP ${res.status} em ${new URL(url).host}`);
+    return new Uint8Array(await res.arrayBuffer());
 }
 
 async function fetchJson(url: string): Promise<any> {
@@ -92,17 +102,24 @@ async function readWars(): Promise<SignReading> {
 }
 
 // ── Ap 6:6 — "um queniz de trigo por um denário" ─────────────────────────────
-// Índice FAO de Preços de Alimentos (nominal, 2014–2016 = 100) vs. os 10 anos anteriores.
-// A janela de 10 anos limita o viés de inflação; o índice real (deflacionado) só sai em xlsx.
+// Índice de preços de alimentos do Banco Mundial ("Pink Sheet", mensal desde 1960,
+// 2010 = 100, US$ nominais), CC BY 4.0, vs. os 10 anos anteriores (a janela de 10 anos
+// limita o viés de inflação).
+// Substitui o índice da FAO (07/10/2026), cujo conteúdo é só para uso não comercial.
+// O link da planilha muda a cada ano, então é lido da página de mercados.
+const PINK_SHEET_PAGE = 'https://www.worldbank.org/en/research/commodity-markets';
+
 async function readFamine(): Promise<SignReading> {
-    const r = base('famine', 'FAO Food Price Index', 'https://www.fao.org/worldfoodsituation/foodpricesindex/en/');
-    const { body } = await fetchText('https://www.fao.org/media/docs/worldfoodsituationlibraries/wfs-library/food_price_indices_data.csv');
-    const lines = body.replace(/^﻿/, '').split(/\r?\n/).map(parseCsvLine);
-    const headerAt = lines.findIndex(c => c[0] === 'Date');
-    if (headerAt < 0) throw new Error('cabeçalho Date não encontrado no CSV da FAO');
-    const series = lines.slice(headerAt + 1)
-        .filter(c => /^\d{4}-\d{2}$/.test(c[0]) && Number.isFinite(parseFloat(c[1])))
-        .map(c => ({ month: c[0], index: parseFloat(c[1]) }));
+    const r = base('famine', 'World Bank Pink Sheet', PINK_SHEET_PAGE);
+    const { body: page } = await fetchText(PINK_SHEET_PAGE);
+    const url = page.match(/https:\/\/thedocs\.worldbank\.org\/[^"'\s]+CMO-Historical-Data-Monthly\.xlsx/)?.[0];
+    if (!url) throw new Error('link da Pink Sheet mensal não encontrado');
+    const rows = readXlsxSheet(await fetchBytes(url), 'Monthly Indices');
+    const col = rows.slice(0, 15).map(row => row.findIndex(c => /^Food\b/.test(c.trim()))).find(c => c >= 0);
+    if (col === undefined) throw new Error('coluna Food não encontrada na Pink Sheet');
+    const series = rows
+        .filter(row => /^\d{4}M\d{2}$/.test(row[0]) && Number.isFinite(parseFloat(row[col])))
+        .map(row => ({ month: `${row[0].slice(0, 4)}-${row[0].slice(5)}`, index: parseFloat(row[col]) }));
     if (series.length < 124) throw new Error(`série curta (${series.length} meses)`);
 
     const latest = series[series.length - 1];
@@ -181,39 +198,57 @@ async function readHeavens(now: Date): Promise<SignReading> {
 }
 
 // ── Lc 21:25 — "bramido do mar e das ondas" ──────────────────────────────────
-// Ciclones tropicais com alerta laranja ou vermelho (GDACS) em 90 dias vs. a mesma
-// janela sazonal (ciclones têm temporada) nos anos anteriores. A busca do GDACS tem
-// dado desde 2012 (testado em 06/10/2026: 2012/2016/2020 respondem, 2008 dá 204) e só
-// com eventlist=TC — "TC;TS" devolve 204 em qualquer ano. Anos sem dado são
-// descartados; com menos de 4 anos o sinal fica fora do Ω como 'short-baseline'.
-const SEA_YEARS = 14;
-const SEA_MIN_YEARS = 4;
-async function readSea(now: Date): Promise<SignReading> {
-    const r = base('sea', 'GDACS', 'https://www.gdacs.org/');
-    const count = async (from: Date, to: Date): Promise<number | null> => {
-        const { status, body } = await fetchText(`https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?eventlist=TC&fromDate=${isoDay(from)}&toDate=${isoDay(to)}&alertlevel=Orange;Red`);
-        if (status === 204 || !body) return null;
-        return (JSON.parse(body)?.features ?? []).length;
-    };
-    const shift = (d: Date, years: number) => { const c = new Date(d); c.setUTCFullYear(c.getUTCFullYear() - years); return c; };
-    const from = daysAgo(now, 90);
-    const years = Array.from({ length: SEA_YEARS }, (_, i) => i + 1);
+// Ciclones tropicais que chegaram à categoria 3+ (NOAA IBTrACS) nos últimos 90 dias vs.
+// a mesma janela sazonal (ciclones têm temporada) em cada ano desde 1981. O IBTrACS
+// atualiza 3×/semana com até ~1 semana de atraso, e a parte recente é provisória.
+// Para não baixar o arquivo completo (145 MB) a cada rodada, o worker guarda no Storage
+// um catálogo compacto e só baixa o last3years (11 MB) quando a NOAA publica versão nova.
+const IBTRACS_CSV = 'https://www.ncei.noaa.gov/data/international-best-track-archive-for-climate-stewardship-ibtracs/v04r01/access/csv';
+const IBTRACS_PAGE = 'https://www.ncei.noaa.gov/products/international-best-track-archive';
+const STORM_CATALOG_FILE = 'ibtracs-major.json';
+const SEA_FIRST_YEAR = 1981;
 
-    const [current, previous, ...past] = await Promise.all([
-        count(from, now),
-        count(daysAgo(now, 180), from),
-        ...years.map(y => count(shift(from, y), shift(now, y)).catch(() => null)),
-    ]);
-    const sample = past.filter((n): n is number => n !== null);
-    const sampledYears = years.filter((_, i) => past[i] !== null).map(y => now.getUTCFullYear() - y);
-    // A janela atual sempre tem dado; 204 aqui significa zero ciclones nesse período.
-    r.value = current ?? 0;
+async function loadStormCatalog(): Promise<Record<string, string>> {
+    const storage = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    let catalog: StormCatalog | null = null;
+    if (storage) {
+        try {
+            const res = await fetch(`${storage}/storage/v1/object/public/data/${STORM_CATALOG_FILE}?t=${Date.now()}`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+            if (res.ok) catalog = await res.json();
+        } catch { /* sem catálogo: reconstrói abaixo */ }
+    }
+    const head = await fetch(`${IBTRACS_CSV}/ibtracs.last3years.list.v04r01.csv`, { method: 'HEAD', headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+    const modified = head.headers.get('last-modified');
+    if (catalog?.storms && (!modified || modified === catalog.sourceModified)) return catalog.storms;
+
+    let storms: Record<string, string>;
+    if (catalog?.storms) {
+        const { body } = await fetchText(`${IBTRACS_CSV}/ibtracs.last3years.list.v04r01.csv`);
+        const recent = majorStormsFromCsv(body);
+        storms = recent.firstDate ? mergeRecent(catalog.storms, recent.storms, recent.firstDate) : catalog.storms;
+    } else {
+        const { body } = await fetchText(`${IBTRACS_CSV}/ibtracs.since1980.list.v04r01.csv`);
+        storms = majorStormsFromCsv(body).storms;
+    }
+    await publishData(STORM_CATALOG_FILE, { version: 1, builtAt: new Date().toISOString(), sourceModified: modified, storms } satisfies StormCatalog);
+    return storms;
+}
+
+async function readSea(now: Date): Promise<SignReading> {
+    const r = base('sea', 'NOAA IBTrACS', IBTRACS_PAGE);
+    const dates = Object.values(await loadStormCatalog());
+    const shiftDay = (d: Date, years: number) => { const c = new Date(d); c.setUTCFullYear(c.getUTCFullYear() - years); return isoDay(c); };
+    const from = daysAgo(now, 90);
+    const upTo = isoDay(new Date(now.getTime() + DAY_MS));
+    const years = Array.from({ length: now.getUTCFullYear() - SEA_FIRST_YEAR }, (_, i) => i + 1);
+    const sample = years.map(y => countBetween(dates, shiftDay(from, y), shiftDay(new Date(now.getTime() + DAY_MS), y)));
+
+    r.value = countBetween(dates, isoDay(from), upTo);
     r.baselineMean = round1(mean(sample));
     r.percentile = percentileRank(r.value, sample);
-    r.trend = trendOf(r.value, previous ?? 0);
+    r.trend = trendOf(r.value, countBetween(dates, isoDay(daysAgo(now, 180)), isoDay(from)));
     r.period = '90d';
-    r.baselineSpan = sampledYears.length ? `${Math.min(...sampledYears)}–${Math.max(...sampledYears)}` : null;
-    if (sample.length < SEA_MIN_YEARS) r.status = 'short-baseline';
+    r.baselineSpan = `${SEA_FIRST_YEAR}–${now.getUTCFullYear() - 1}`;
     return r;
 }
 
@@ -227,36 +262,47 @@ async function readPersecution(): Promise<SignReading> {
 }
 
 // ── Lc 21:25 — "angústia das nações em perplexidade" ─────────────────────────
-// VIX (volatilidade implícita do S&P 500, o "índice do medo") vs. todo fechamento desde 1990.
+// Índice de Estresse Financeiro do OFR (Tesouro dos EUA; 0 = normal, positivo = estresse
+// acima da média), diário desde 2000, vs. todo o histórico. Obra do governo federal
+// americano, sem copyright. Substitui o VIX (07/10/2026), que exige licença da CBOE.
+const OFR_FSI_PAGE = 'https://www.financialresearch.gov/financial-stress-index/';
+
 async function readDistress(): Promise<SignReading> {
-    const r = base('distress', 'CBOE VIX', 'https://www.cboe.com/tradable_products/vix/');
-    const { body } = await fetchText('https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX_History.csv');
-    const series = body.trim().split('\n').slice(1).map(parseCsvLine)
-        .map(c => ({ date: c[0], close: parseFloat(c[4]) }))
-        .filter(s => Number.isFinite(s.close));
-    if (series.length < 1000) throw new Error('série VIX curta');
+    const r = base('distress', 'OFR Financial Stress Index', OFR_FSI_PAGE);
+    const { body } = await fetchText('https://www.financialresearch.gov/financial-stress-index/data/fsi.csv');
+    const lines = body.trim().split(/\r?\n/).map(parseCsvLine);
+    const col = lines[0]?.indexOf('OFR FSI') ?? -1;
+    if (col < 0) throw new Error('coluna "OFR FSI" não encontrada');
+    const series = lines.slice(1)
+        .map(c => ({ date: c[0], value: parseFloat(c[col]) }))
+        .filter(s => /^\d{4}-\d{2}-\d{2}$/.test(s.date) && Number.isFinite(s.value));
+    if (series.length < 1000) throw new Error('série do OFR FSI curta');
 
     const latest = series[series.length - 1];
-    const sample = series.slice(0, -1).map(s => s.close);
-    const [m, d, y] = latest.date.split('/');
-    r.value = round1(latest.close);
-    r.baselineMean = round1(mean(sample));
-    r.percentile = percentileRank(latest.close, sample);
-    r.trend = trendOf(latest.close, series[Math.max(0, series.length - 22)].close);
-    r.period = `${y}-${m}-${d}`;
-    r.baselineSpan = `${series[0].date.slice(-4)}–${y}`;
+    const sample = series.slice(0, -1).map(s => s.value);
+    const avg = mean(sample)!;
+    const sd = Math.sqrt(sample.reduce((a, v) => a + (v - avg) ** 2, 0) / sample.length);
+    // O índice oscila em torno de zero, então a tendência é pela diferença absoluta em
+    // ~1 mês (21 pregões), com tolerância de ¼ de desvio-padrão, não pela razão.
+    const delta = latest.value - series[Math.max(0, series.length - 22)].value;
+    r.value = round1(latest.value);
+    r.baselineMean = round1(avg);
+    r.percentile = percentileRank(latest.value, sample);
+    r.trend = delta > sd / 4 ? 'up' : delta < -sd / 4 ? 'down' : 'flat';
+    r.period = latest.date;
+    r.baselineSpan = `${series[0].date.slice(0, 4)}–${latest.date.slice(0, 4)}`;
     return r;
 }
 
 const READERS: Array<{ id: SignId; read: (now: Date) => Promise<SignReading>; source: [string, string] }> = [
     { id: 'earthquakes', read: readEarthquakes, source: ['USGS', 'https://earthquake.usgs.gov/earthquakes/map/'] },
     { id: 'wars', read: readWars, source: ['UCDP / Our World in Data', 'https://ourworldindata.org/grapher/deaths-in-armed-conflicts-by-type'] },
-    { id: 'famine', read: readFamine, source: ['FAO Food Price Index', 'https://www.fao.org/worldfoodsituation/foodpricesindex/en/'] },
+    { id: 'famine', read: readFamine, source: ['World Bank Pink Sheet', PINK_SHEET_PAGE] },
     { id: 'pestilence', read: readPestilence, source: ['WHO Disease Outbreak News', 'https://www.who.int/emergencies/disease-outbreak-news'] },
     { id: 'heavens', read: readHeavens, source: ['GFZ Potsdam (Kp)', 'https://kp.gfz-potsdam.de/en/'] },
-    { id: 'sea', read: readSea, source: ['GDACS', 'https://www.gdacs.org/'] },
+    { id: 'sea', read: readSea, source: ['NOAA IBTrACS', IBTRACS_PAGE] },
     { id: 'persecution', read: readPersecution, source: ['Portas Abertas — Lista Mundial da Perseguição', 'https://www.portasabertas.org.br/lista-mundial'] },
-    { id: 'distress', read: readDistress, source: ['CBOE VIX', 'https://www.cboe.com/tradable_products/vix/'] },
+    { id: 'distress', read: readDistress, source: ['OFR Financial Stress Index', OFR_FSI_PAGE] },
 ];
 
 // CO₂ atmosférico diário em Mauna Loa (NOAA GML). Contexto do painel, não é sinal do Ω.
@@ -281,15 +327,36 @@ async function readCo2(): Promise<Co2Reading | null> {
     }
 }
 
-async function readTension(now: Date) {
+// ── Tensão Militar ───────────────────────────────────────────────────────────
+// Sub-índice de AMEAÇAS do Geopolitical Risk Index (Caldara & Iacoviello): fração de
+// notícias em 10 jornais sobre ameaças de guerra, diário desde 1985, CC BY. Substitui
+// os mercados do Polymarket (07/10/2026), cujos termos não liberam uso comercial.
+const GPR_PAGE = 'https://www.matteoiacoviello.com/gpr.htm';
+const GPR_DAILY = 'https://www.matteoiacoviello.com/gpr_files/data_gpr_daily_recent.dta';
+const STATA_EPOCH = Date.UTC(1960, 0, 1);
+
+async function readTension(): Promise<SignsPayload['tension']> {
     try {
-        const events = await fetchJson('https://gamma-api.polymarket.com/events?tag_slug=geopolitics&active=true&closed=false&limit=100&order=volume&ascending=false');
-        const markets = pickEscalationMarkets(Array.isArray(events) ? events : [], now).slice(0, 5);
-        const maxProbability = markets.length ? markets[0].probability : null;
-        return { level: tensionLevel(maxProbability), maxProbability, markets };
+        const cols = readDta(await fetchBytes(GPR_DAILY));
+        if (!cols.date || !cols.GPRD_THREAT) throw new Error('colunas date/GPRD_THREAT ausentes');
+        const rows = cols.date
+            .map((d, i) => ({ d, v: cols.GPRD_THREAT[i] }))
+            .filter((r): r is { d: number; v: number } => r.d !== null && r.v !== null)
+            .sort((a, b) => a.d - b.d);
+        const means = trailingMeans(rows.map(r => r.v), 7);
+        if (means.length < 3650) throw new Error(`série GPR curta (${means.length} dias)`);
+        const latest = means[means.length - 1];
+        const percentile = percentileRank(latest, means.slice(0, -1));
+        return {
+            level: tensionLevel(percentile),
+            value: round1(latest),
+            percentile,
+            date: isoDay(new Date(STATA_EPOCH + rows[rows.length - 1].d * DAY_MS)),
+            sourceUrl: GPR_PAGE,
+        };
     } catch (err) {
-        console.warn(`⚠️ SIGNS: Polymarket falhou: ${err instanceof Error ? err.message : err}`);
-        return { level: null, maxProbability: null, markets: [] };
+        console.warn(`⚠️ SIGNS: GPR falhou: ${err instanceof Error ? err.message : err}`);
+        return { level: null, value: null, percentile: null, date: null, sourceUrl: GPR_PAGE };
     }
 }
 
@@ -306,7 +373,7 @@ export async function computeSigns(now = new Date()): Promise<SignsPayload> {
                 return reading;
             }
         })),
-        readTension(now),
+        readTension(),
         readCo2(),
     ]);
     return { version: 1, generatedAt: now.toISOString(), context: { co2 }, omega: computeOmega(signs), tension, signs };

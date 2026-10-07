@@ -53,7 +53,7 @@ const REGIONAL_FEEDS: Record<MonitorRegion, { name: string, url: string }[]> = {
         { name: 'Times of India', url: 'https://timesofindia.indiatimes.com/rssfeeds/296589292.cms' }
     ],
     [MonitorRegion.NORTH_AMERICA]: [
-        { name: 'NY Times (System)', url: 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml' },
+        // NYT removido em 07/10/2026: o RSS do NYT proíbe uso comercial sem permissão escrita.
         { name: 'CNN World', url: 'http://rss.cnn.com/rss/edition_world.rss' },
         { name: 'Washington Post', url: 'https://feeds.washingtonpost.com/rss/world' },
         { name: 'Global News CA', url: 'https://globalnews.ca/feed/' },

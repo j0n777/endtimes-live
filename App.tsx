@@ -673,7 +673,7 @@ const App: React.FC = () => {
                 <p className="text-[10px] text-gray-600 uppercase tracking-widest mb-2">{t.sidebar.tacticalOverlays}</p>
                 <button onClick={() => setShowSatelliteBase(!showSatelliteBase)} className={`flex items-center gap-2 w-full px-3 py-2 mt-1.5 rounded-sm text-xs font-mono border transition-colors ${showSatelliteBase ? 'border-emerald-700/50 text-emerald-400 bg-emerald-900/10' : 'border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-400'}`}>
                   <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${showSatelliteBase ? 'bg-emerald-500 animate-pulse' : 'bg-gray-700'}`} />
-                  {t.sidebar.esriSatellite}
+                  {t.sidebar.baseSatellite}
                 </button>
                 <button onClick={() => setShowSatellites(!showSatellites)} className={`flex items-center gap-2 w-full px-3 py-2 mt-1.5 rounded-sm text-xs font-mono border transition-colors ${showSatellites ? 'border-blue-700/50 text-blue-400 bg-blue-900/10' : 'border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-400'}`}>
                   <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${showSatellites ? 'bg-blue-500 animate-pulse' : 'bg-gray-700'}`} />

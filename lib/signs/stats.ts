@@ -1,5 +1,5 @@
 // Funções puras do índice Ω. Sem I/O: testadas em tests/test-signs-stats.ts.
-import type { IndexLevel, SignReading, SignTrend, TensionMarket } from './types';
+import type { IndexLevel, SignReading, SignTrend } from './types';
 
 export const DAY_MS = 86_400_000;
 
@@ -81,47 +81,29 @@ export function computeOmega(signs: SignReading[]) {
 }
 
 /** Tensão Militar pela maior probabilidade entre mercados de escalada: 1 baixa … 5 crítica. */
-export function tensionLevel(maxProbability: number | null): IndexLevel | null {
-    if (maxProbability === null) return null;
-    if (maxProbability >= 0.5) return 5;
-    if (maxProbability >= 0.3) return 4;
-    if (maxProbability >= 0.15) return 3;
-    if (maxProbability >= 0.05) return 2;
+/**
+ * Tensão Militar pelo percentil da média de 7 dias do GPR de ameaças contra todo o
+ * histórico desde 1985: metade dos dias fica em "baixa"; "crítica" só nos 3% mais altos.
+ */
+export function tensionLevel(percentile: number | null): IndexLevel | null {
+    if (percentile === null) return null;
+    if (percentile >= 97) return 5;
+    if (percentile >= 90) return 4;
+    if (percentile >= 75) return 3;
+    if (percentile >= 50) return 2;
     return 1;
 }
 
-// Perguntas de mercado que, se resolvidas "Yes", significam escalada militar.
-const ESCALATION = /\b(invade|invasion|war (with|on)|declare war|military (action|strike|clash)|strikes? on|attacks? on|nuclear (test|weapon|strike|detonation))\b/i;
-export const MIN_MARKET_VOLUME = 500_000;
-
-export function pickEscalationMarkets(events: any[], now: Date): TensionMarket[] {
-    const markets: TensionMarket[] = [];
-    for (const event of events) {
-        for (const m of event?.markets ?? []) {
-            if (!m?.active || m?.closed || !ESCALATION.test(m?.question ?? '')) continue;
-            if (Number(m.volume ?? 0) < MIN_MARKET_VOLUME) continue;
-            if (m.endDate && new Date(m.endDate).getTime() <= now.getTime()) continue;
-            let outcomes: string[];
-            let prices: string[];
-            try {
-                outcomes = JSON.parse(m.outcomes);
-                prices = JSON.parse(m.outcomePrices);
-            } catch {
-                continue;
-            }
-            if (outcomes?.[0] !== 'Yes') continue;
-            const probability = Number(prices?.[0]);
-            if (!Number.isFinite(probability)) continue;
-            markets.push({
-                question: m.question,
-                probability,
-                monthChange: m.oneMonthPriceChange === undefined || m.oneMonthPriceChange === null ? null : Number(m.oneMonthPriceChange),
-                volume: Number(m.volume),
-                url: `https://polymarket.com/event/${event.slug}`,
-            });
-        }
-    }
-    return markets.sort((a, b) => b.probability - a.probability);
+/** Médias móveis de `window` valores consecutivos (uma por posição a partir de window − 1). */
+export function trailingMeans(values: number[], window: number): number[] {
+    const out: number[] = [];
+    let sum = 0;
+    values.forEach((v, i) => {
+        sum += v;
+        if (i >= window) sum -= values[i - window];
+        if (i >= window - 1) out.push(sum / window);
+    });
+    return out;
 }
 
 /** Parser de CSV com aspas (OWID tem nomes como "Korea, North"). */

@@ -19,7 +19,8 @@ export default defineConfig(({ mode }) => {
             vendor: ['react', 'react-dom'],
             leaflet: ['leaflet'],
             icons: ['lucide-react'],
-            supabase: ['@supabase/supabase-js']
+            supabase: ['@supabase/supabase-js'],
+            maplibre: ['maplibre-gl', '@maplibre/maplibre-gl-leaflet']
           }
         }
       }

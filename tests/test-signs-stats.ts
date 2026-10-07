@@ -1,8 +1,8 @@
 // Testes das funções puras do índice Ω (lib/signs/stats.ts).
 // Rodar: npx tsx tests/test-signs-stats.ts
 import {
-    computeOmega, parseCsvLine, percentileRank, pickEscalationMarkets,
-    rollingWindowCounts, tensionLevel, trendOf,
+    computeOmega, parseCsvLine, percentileRank,
+    rollingWindowCounts, tensionLevel, trailingMeans, trendOf,
 } from '../lib/signs/stats';
 import type { SignReading } from '../lib/signs/types';
 
@@ -47,31 +47,17 @@ check('Ω: sinais em erro não entram', computeOmega([sign('x', 99, 'up', 'error
 check('Ω: short-baseline não entra', computeOmega([sign('x', 99, 'up', 'short-baseline'), ...calm.slice(1)]).usable, 6);
 check('Ω: menos de 5 sinais utilizáveis → sem nível', computeOmega(calm.slice(0, 4)).level, null);
 
-// tensionLevel
-check('tensão: 2%', tensionLevel(0.02), 1);
-check('tensão: 5%', tensionLevel(0.05), 2);
-check('tensão: 21,5%', tensionLevel(0.215), 3);
-check('tensão: 30%', tensionLevel(0.3), 4);
-check('tensão: 60%', tensionLevel(0.6), 5);
-check('tensão: sem mercados', tensionLevel(null), null);
+// tensionLevel (percentil da média de 7 dias do GPR de ameaças)
+check('tensão: p30', tensionLevel(30), 1);
+check('tensão: p50', tensionLevel(50), 2);
+check('tensão: p80', tensionLevel(80), 3);
+check('tensão: p90', tensionLevel(90), 4);
+check('tensão: p97', tensionLevel(97), 5);
+check('tensão: sem dado', tensionLevel(null), null);
 
-// pickEscalationMarkets
-const now = new Date('2026-10-06T00:00:00Z');
-const mk = (question: string, yes: string, extra: Record<string, unknown> = {}) => ({
-    question, active: true, closed: false, volume: '1000000', endDate: '2027-01-01T00:00:00Z',
-    outcomes: '["Yes","No"]', outcomePrices: JSON.stringify([yes, String(1 - Number(yes))]), oneMonthPriceChange: -0.02, ...extra,
-});
-const events = [{ slug: 'ev', markets: [
-    mk('Will the U.S. invade Iran before 2027?', '0.155'),
-    mk('NATO x Russia military clash by December 31, 2026?', '0.215'),
-    mk('Netanyahu out by March 31?', '0.9'),                                   // não é escalada
-    mk('Will China invade Taiwan by end of 2026?', '0.5', { volume: '1000' }),  // volume baixo
-    mk('US strike on Cuba by December 31?', '0.4', { closed: true }),           // fechado
-    mk('Will Russia invade Finland?', '0.3', { endDate: '2026-01-01T00:00:00Z' }), // vencido
-]}];
-check('mercados: filtra e ordena por probabilidade',
-    pickEscalationMarkets(events, now).map(m => [m.question.slice(0, 12), m.probability]),
-    [['NATO x Russi', 0.215], ['Will the U.S', 0.155]]);
+// trailingMeans
+check('médias móveis de 3', trailingMeans([1, 2, 3, 4, 5], 3), [2, 3, 4]);
+check('médias móveis: série menor que a janela', trailingMeans([1, 2], 3), []);
 
 // parseCsvLine
 check('csv: aspas com vírgula', parseCsvLine('"Korea, North",PRK,2025,10'), ['Korea, North', 'PRK', '2025', '10']);

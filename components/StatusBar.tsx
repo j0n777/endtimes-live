@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Layers, ExternalLink } from 'lucide-react';
+import { Layers, ExternalLink, Info } from 'lucide-react';
 import { OMEGA_META } from '../utils/omegaCalculator';
 import { useLocale } from '../lib/i18n';
 import { SignsPanel } from './SignsPanel';
+import { CreditsPanel } from './CreditsPanel';
 import type { SignsPayload } from '../lib/signs/types';
 
 // Tensão Militar: 1 baixa … 5 crítica (cresce com o número, ao contrário do DEFCON).
@@ -35,16 +36,18 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 }) => {
   const { t, locale, setLocale } = useLocale();
   const [signsOpen, setSignsOpen] = useState(false);
+  const [creditsOpen, setCreditsOpen] = useState(false);
 
   const omegaLevel = signs?.omega.level ?? null;
   const omegaMeta = omegaLevel ? OMEGA_META[omegaLevel] : null;
   const tensionLevel = signs?.tension.level ?? null;
   const tensionStyle = tensionLevel ? TENSION_STYLE[tensionLevel] : null;
-  const topMarket = signs?.tension.markets[0];
-  const tensionTitle = topMarket
+  const tension = signs?.tension;
+  const tensionTitle = tension?.value != null && tension.percentile != null
     ? t.tension.tooltip
-        .replace('{p}', `${(topMarket.probability * 100).toFixed(1)}%`)
-        .replace('{q}', topMarket.question)
+        .replace('{v}', tension.value.toLocaleString(locale))
+        .replace('{p}', String(Math.round(tension.percentile)))
+        .replace('{d}', tension.date ?? '—')
     : t.tension.none;
 
   return (
@@ -100,6 +103,18 @@ export const StatusBar: React.FC<StatusBarProps> = ({
         </div>
       )}
 
+      {/* ── Sources & credits ─────────────────────────────────────── */}
+      <button
+        onClick={() => setCreditsOpen(open => !open)}
+        className={`flex items-center gap-1.5 px-3 border-l border-tactical-800/50 transition-colors shrink-0 ${creditsOpen ? 'text-gray-300' : 'text-gray-600 hover:text-gray-300'}`}
+        aria-expanded={creditsOpen}
+        aria-label={t.credits.title}
+        title={t.credits.title}
+      >
+        <Info className="w-3 h-3" />
+        <span className="hidden sm:inline">{t.credits.button}</span>
+      </button>
+
       {/* ── Creator ─────────────────────────────────────────────── */}
       <a
         href="https://instagram.com/jonataribas"
@@ -109,7 +124,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
         title="@jonataribas — creator"
       >
         <ExternalLink className="w-2.5 h-2.5" />
-        <span>@jonataribas</span>
+        <span className="hidden sm:inline">@jonataribas</span>
       </a>
 
       {/* ── Language toggle ──────────────────────────────────────── */}
@@ -136,6 +151,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
       </button>
 
       {signsOpen && <SignsPanel signs={signs} onClose={() => setSignsOpen(false)} />}
+      {creditsOpen && <CreditsPanel onClose={() => setCreditsOpen(false)} />}
     </div>
   );
 };
