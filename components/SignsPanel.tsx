@@ -135,6 +135,22 @@ export const SignsPanel: React.FC<SignsPanelProps> = ({ signs, onClose }) => {
             })}
           </p>
         )}
+        {signs?.context?.ews?.map(r => (
+          <p key={r.cohort} className="mt-1">
+            {fill(t.signs.ews[r.cohort], { level: r.level, n: nf.format(r.airborne), e: nf.format(r.expected) })}
+          </p>
+        ))}
+        {!!signs?.context?.ews?.length && (
+          <a
+            href="https://ews.kylemcdonald.net/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-0.5 inline-flex items-center gap-1 text-gray-500 hover:text-gray-300"
+          >
+            {t.signs.ewsCredit}
+            <ExternalLink className="w-3 h-3" />
+          </a>
+        )}
         {signs && (
           <p className="mt-1.5 text-gray-600">
             {fill(t.signs.updated, {

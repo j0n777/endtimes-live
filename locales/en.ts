@@ -29,6 +29,11 @@ export const en = {
     loading: 'Loading signs…',
     updated: 'Updated {when}',
     co2: 'Context (not counted in Ω): atmospheric CO₂ {v} ppm on {date} at Mauna Loa (NOAA) · a year earlier {y} ppm',
+    ews: {
+      jets: 'Apocalypse Early Warning System: level {level}/5 — {n} business jets airborne vs {e} expected for this time of week',
+      military: 'Military aircraft airborne: {n} vs {e} expected (level {level}/5)',
+    },
+    ewsCredit: 'Apocalypse Early Warning System by Kyle McDonald · ADS-B Exchange data',
     percentile: 'percentile {p}',
     baseline: 'history {span}',
     source: 'Source',

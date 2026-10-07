@@ -51,10 +51,20 @@ export interface Co2Reading {
     yearAgoPpm: number | null;     // leitura mais próxima de 365 dias antes
 }
 
+// Apocalypse Early Warning System (Kyle McDonald, ews.kylemcdonald.net): aeronaves no ar
+// contra o esperado para a hora da semana, com nível 1–5 calibrado por ele.
+export interface EwsReading {
+    cohort: 'jets' | 'military';
+    level: number;
+    airborne: number;
+    expected: number;
+    asOf: string;
+}
+
 export interface SignsPayload {
     version: 1;
     generatedAt: string;
-    context?: { co2: Co2Reading | null };
+    context?: { co2: Co2Reading | null; ews?: EwsReading[] };
     omega: {
         level: IndexLevel | null;  // null = sinais utilizáveis insuficientes
         anomalous: SignId[];       // sinais no percentil ≥ 90
