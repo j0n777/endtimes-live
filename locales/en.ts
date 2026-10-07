@@ -71,12 +71,12 @@ export const en = {
     items: {
       earthquakes: { name: 'Earthquakes', ref: 'Luke 21:11', quote: 'great earthquakes shall be in divers places', value: '{v} M6+ earthquakes in 30 days · historical average {b}' },
       wars: { name: 'Wars', ref: 'Matthew 24:7', quote: 'nation shall rise against nation, and kingdom against kingdom', value: '{v} deaths in armed conflicts in {period} · average {b}' },
-      famine: { name: 'Famine', ref: 'Revelation 6:6', quote: 'A measure of wheat for a penny, and three measures of barley for a penny', value: 'FAO Food Price Index {v} ({period}) · 10-year average {b}' },
+      famine: { name: 'Famine', ref: 'Revelation 6:6', quote: 'A measure of wheat for a penny, and three measures of barley for a penny', value: 'World Bank food price index {v} ({period}; 2010 = 100) · 10-year average {b}' },
       pestilence: { name: 'Pestilences', ref: 'Luke 21:11', quote: 'and famines, and pestilences', value: '{v} WHO outbreak alerts in 90 days · average {b}' },
       heavens: { name: 'Signs in the sun', ref: 'Luke 21:25', quote: 'there shall be signs in the sun, and in the moon, and in the stars', value: '{v} geomagnetic storm days (Kp≥5) in 30 days · average {b}' },
       sea: { name: 'Roaring sea', ref: 'Luke 21:25', quote: 'the sea and the waves roaring', value: '{v} orange/red-alert tropical cyclones in 90 days · average {b}' },
       persecution: { name: 'Persecution', ref: 'Matthew 24:9', quote: 'ye shall be hated of all nations for my name’s sake', value: 'Open Doors publishes the World Watch List once a year, with no API — not yet measurable here.' },
-      distress: { name: 'Distress of nations', ref: 'Luke 21:25', quote: 'upon the earth distress of nations, with perplexity', value: 'VIX {v} ({period}) · average since 1990 {b}' },
+      distress: { name: 'Distress of nations', ref: 'Luke 21:25', quote: 'upon the earth distress of nations, with perplexity', value: 'OFR financial stress index {v} ({period}; 0 = normal) · average since 2000 {b}' },
     },
   },
   sidebar: {

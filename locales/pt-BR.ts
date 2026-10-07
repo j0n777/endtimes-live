@@ -73,12 +73,12 @@ export const ptBR: Translations = {
     items: {
       earthquakes: { name: 'Terremotos', ref: 'Lucas 21:11', quote: 'haverá em vários lugares grandes terremotos', value: '{v} terremotos M6+ em 30 dias · média histórica {b}' },
       wars: { name: 'Guerras', ref: 'Mateus 24:7', quote: 'se levantará nação contra nação, e reino contra reino', value: '{v} mortes em conflitos armados em {period} · média {b}' },
-      famine: { name: 'Fome', ref: 'Apocalipse 6:6', quote: 'Um queniz de trigo por um denário, e três quenizes de cevada por um denário', value: 'Índice FAO de Preços de Alimentos {v} ({period}) · média de 10 anos {b}' },
+      famine: { name: 'Fome', ref: 'Apocalipse 6:6', quote: 'Um queniz de trigo por um denário, e três quenizes de cevada por um denário', value: 'Índice de preços de alimentos do Banco Mundial {v} ({period}; 2010 = 100) · média de 10 anos {b}' },
       pestilence: { name: 'Pestes', ref: 'Lucas 21:11', quote: 'e pestes e fomes', value: '{v} alertas de surto da OMS em 90 dias · média {b}' },
       heavens: { name: 'Sinais no sol', ref: 'Lucas 21:25', quote: 'haverá sinais no sol, na lua e nas estrelas', value: '{v} dias de tempestade geomagnética (Kp≥5) em 30 dias · média {b}' },
       sea: { name: 'Bramido do mar', ref: 'Lucas 21:25', quote: 'pelo bramido do mar e das ondas', value: '{v} ciclones tropicais em alerta laranja/vermelho em 90 dias · média {b}' },
       persecution: { name: 'Perseguição', ref: 'Mateus 24:9', quote: 'sereis odiados de todas as nações por causa do meu nome', value: 'A Portas Abertas publica a Lista Mundial da Perseguição uma vez por ano, sem API — ainda não dá para medir aqui.' },
-      distress: { name: 'Angústia das nações', ref: 'Lucas 21:25', quote: 'sobre a terra haverá angústia das nações em perplexidade', value: 'VIX {v} ({period}) · média desde 1990 {b}' },
+      distress: { name: 'Angústia das nações', ref: 'Lucas 21:25', quote: 'sobre a terra haverá angústia das nações em perplexidade', value: 'Índice de estresse financeiro do OFR {v} ({period}; 0 = normal) · média desde 2000 {b}' },
     },
   },
   sidebar: {

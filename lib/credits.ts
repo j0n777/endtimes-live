@@ -20,6 +20,8 @@ export const CREDITS: Credit[] = [
 
     { group: 'signs', name: 'USGS Earthquake Hazards Program', license: { key: 'publicDomainUS' }, url: 'https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits' },
     { group: 'signs', name: 'Our World in Data', license: 'CC BY 4.0', url: 'https://ourworldindata.org/faqs' },
+    { group: 'signs', name: 'World Bank Commodity Price Data (Pink Sheet)', license: 'CC BY 4.0', url: 'https://www.worldbank.org/en/research/commodity-markets' },
+    { group: 'signs', name: 'Office of Financial Research — Financial Stress Index', license: { key: 'publicDomainUS' }, url: 'https://www.financialresearch.gov/financial-stress-index/' },
     { group: 'signs', name: 'GFZ Potsdam — Kp index (Matzka et al., 2021)', license: 'CC BY 4.0', url: 'https://kp.gfz-potsdam.de/' },
     { group: 'signs', name: 'NOAA Global Monitoring Laboratory — Mauna Loa CO₂', license: { key: 'publicDomainUS' }, url: 'https://gml.noaa.gov/ccgg/trends/' },
 

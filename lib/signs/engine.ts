@@ -11,6 +11,7 @@ import {
     pickEscalationMarkets, rollingWindowCounts, tensionLevel, trendOf,
 } from './stats';
 import type { Co2Reading, SignId, SignReading, SignsPayload } from './types';
+import { readXlsxSheet } from './xlsx';
 
 const TIMEOUT_MS = 45_000;
 const UA = 'EndTimesMonitor/1.0 (+https://endtimes.live)';
@@ -20,6 +21,12 @@ async function fetchText(url: string): Promise<{ status: number; body: string }>
     const body = res.status === 204 ? '' : await res.text();
     if (res.status !== 200 && res.status !== 204) throw new Error(`HTTP ${res.status} em ${new URL(url).host}`);
     return { status: res.status, body };
+}
+
+async function fetchBytes(url: string): Promise<Uint8Array> {
+    const res = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+    if (!res.ok) throw new Error(`HTTP ${res.status} em ${new URL(url).host}`);
+    return new Uint8Array(await res.arrayBuffer());
 }
 
 async function fetchJson(url: string): Promise<any> {
@@ -92,17 +99,24 @@ async function readWars(): Promise<SignReading> {
 }
 
 // ── Ap 6:6 — "um queniz de trigo por um denário" ─────────────────────────────
-// Índice FAO de Preços de Alimentos (nominal, 2014–2016 = 100) vs. os 10 anos anteriores.
-// A janela de 10 anos limita o viés de inflação; o índice real (deflacionado) só sai em xlsx.
+// Índice de preços de alimentos do Banco Mundial ("Pink Sheet", mensal desde 1960,
+// 2010 = 100, US$ nominais), CC BY 4.0, vs. os 10 anos anteriores (a janela de 10 anos
+// limita o viés de inflação).
+// Substitui o índice da FAO (07/10/2026), cujo conteúdo é só para uso não comercial.
+// O link da planilha muda a cada ano, então é lido da página de mercados.
+const PINK_SHEET_PAGE = 'https://www.worldbank.org/en/research/commodity-markets';
+
 async function readFamine(): Promise<SignReading> {
-    const r = base('famine', 'FAO Food Price Index', 'https://www.fao.org/worldfoodsituation/foodpricesindex/en/');
-    const { body } = await fetchText('https://www.fao.org/media/docs/worldfoodsituationlibraries/wfs-library/food_price_indices_data.csv');
-    const lines = body.replace(/^﻿/, '').split(/\r?\n/).map(parseCsvLine);
-    const headerAt = lines.findIndex(c => c[0] === 'Date');
-    if (headerAt < 0) throw new Error('cabeçalho Date não encontrado no CSV da FAO');
-    const series = lines.slice(headerAt + 1)
-        .filter(c => /^\d{4}-\d{2}$/.test(c[0]) && Number.isFinite(parseFloat(c[1])))
-        .map(c => ({ month: c[0], index: parseFloat(c[1]) }));
+    const r = base('famine', 'World Bank Pink Sheet', PINK_SHEET_PAGE);
+    const { body: page } = await fetchText(PINK_SHEET_PAGE);
+    const url = page.match(/https:\/\/thedocs\.worldbank\.org\/[^"'\s]+CMO-Historical-Data-Monthly\.xlsx/)?.[0];
+    if (!url) throw new Error('link da Pink Sheet mensal não encontrado');
+    const rows = readXlsxSheet(await fetchBytes(url), 'Monthly Indices');
+    const col = rows.slice(0, 15).map(row => row.findIndex(c => /^Food\b/.test(c.trim()))).find(c => c >= 0);
+    if (col === undefined) throw new Error('coluna Food não encontrada na Pink Sheet');
+    const series = rows
+        .filter(row => /^\d{4}M\d{2}$/.test(row[0]) && Number.isFinite(parseFloat(row[col])))
+        .map(row => ({ month: `${row[0].slice(0, 4)}-${row[0].slice(5)}`, index: parseFloat(row[col]) }));
     if (series.length < 124) throw new Error(`série curta (${series.length} meses)`);
 
     const latest = series[series.length - 1];
@@ -227,36 +241,47 @@ async function readPersecution(): Promise<SignReading> {
 }
 
 // ── Lc 21:25 — "angústia das nações em perplexidade" ─────────────────────────
-// VIX (volatilidade implícita do S&P 500, o "índice do medo") vs. todo fechamento desde 1990.
+// Índice de Estresse Financeiro do OFR (Tesouro dos EUA; 0 = normal, positivo = estresse
+// acima da média), diário desde 2000, vs. todo o histórico. Obra do governo federal
+// americano, sem copyright. Substitui o VIX (07/10/2026), que exige licença da CBOE.
+const OFR_FSI_PAGE = 'https://www.financialresearch.gov/financial-stress-index/';
+
 async function readDistress(): Promise<SignReading> {
-    const r = base('distress', 'CBOE VIX', 'https://www.cboe.com/tradable_products/vix/');
-    const { body } = await fetchText('https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX_History.csv');
-    const series = body.trim().split('\n').slice(1).map(parseCsvLine)
-        .map(c => ({ date: c[0], close: parseFloat(c[4]) }))
-        .filter(s => Number.isFinite(s.close));
-    if (series.length < 1000) throw new Error('série VIX curta');
+    const r = base('distress', 'OFR Financial Stress Index', OFR_FSI_PAGE);
+    const { body } = await fetchText('https://www.financialresearch.gov/financial-stress-index/data/fsi.csv');
+    const lines = body.trim().split(/\r?\n/).map(parseCsvLine);
+    const col = lines[0]?.indexOf('OFR FSI') ?? -1;
+    if (col < 0) throw new Error('coluna "OFR FSI" não encontrada');
+    const series = lines.slice(1)
+        .map(c => ({ date: c[0], value: parseFloat(c[col]) }))
+        .filter(s => /^\d{4}-\d{2}-\d{2}$/.test(s.date) && Number.isFinite(s.value));
+    if (series.length < 1000) throw new Error('série do OFR FSI curta');
 
     const latest = series[series.length - 1];
-    const sample = series.slice(0, -1).map(s => s.close);
-    const [m, d, y] = latest.date.split('/');
-    r.value = round1(latest.close);
-    r.baselineMean = round1(mean(sample));
-    r.percentile = percentileRank(latest.close, sample);
-    r.trend = trendOf(latest.close, series[Math.max(0, series.length - 22)].close);
-    r.period = `${y}-${m}-${d}`;
-    r.baselineSpan = `${series[0].date.slice(-4)}–${y}`;
+    const sample = series.slice(0, -1).map(s => s.value);
+    const avg = mean(sample)!;
+    const sd = Math.sqrt(sample.reduce((a, v) => a + (v - avg) ** 2, 0) / sample.length);
+    // O índice oscila em torno de zero, então a tendência é pela diferença absoluta em
+    // ~1 mês (21 pregões), com tolerância de ¼ de desvio-padrão, não pela razão.
+    const delta = latest.value - series[Math.max(0, series.length - 22)].value;
+    r.value = round1(latest.value);
+    r.baselineMean = round1(avg);
+    r.percentile = percentileRank(latest.value, sample);
+    r.trend = delta > sd / 4 ? 'up' : delta < -sd / 4 ? 'down' : 'flat';
+    r.period = latest.date;
+    r.baselineSpan = `${series[0].date.slice(0, 4)}–${latest.date.slice(0, 4)}`;
     return r;
 }
 
 const READERS: Array<{ id: SignId; read: (now: Date) => Promise<SignReading>; source: [string, string] }> = [
     { id: 'earthquakes', read: readEarthquakes, source: ['USGS', 'https://earthquake.usgs.gov/earthquakes/map/'] },
     { id: 'wars', read: readWars, source: ['UCDP / Our World in Data', 'https://ourworldindata.org/grapher/deaths-in-armed-conflicts-by-type'] },
-    { id: 'famine', read: readFamine, source: ['FAO Food Price Index', 'https://www.fao.org/worldfoodsituation/foodpricesindex/en/'] },
+    { id: 'famine', read: readFamine, source: ['World Bank Pink Sheet', PINK_SHEET_PAGE] },
     { id: 'pestilence', read: readPestilence, source: ['WHO Disease Outbreak News', 'https://www.who.int/emergencies/disease-outbreak-news'] },
     { id: 'heavens', read: readHeavens, source: ['GFZ Potsdam (Kp)', 'https://kp.gfz-potsdam.de/en/'] },
     { id: 'sea', read: readSea, source: ['GDACS', 'https://www.gdacs.org/'] },
     { id: 'persecution', read: readPersecution, source: ['Portas Abertas — Lista Mundial da Perseguição', 'https://www.portasabertas.org.br/lista-mundial'] },
-    { id: 'distress', read: readDistress, source: ['CBOE VIX', 'https://www.cboe.com/tradable_products/vix/'] },
+    { id: 'distress', read: readDistress, source: ['OFR Financial Stress Index', OFR_FSI_PAGE] },
 ];
 
 // CO₂ atmosférico diário em Mauna Loa (NOAA GML). Contexto do painel, não é sinal do Ω.
