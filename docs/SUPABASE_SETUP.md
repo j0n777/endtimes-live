@@ -5,11 +5,8 @@
 - Project created: `End Times Monitor`
 
 ## 🔐 Credentials
-```
-URL: https://bimfztwwzuwwefxfkkwe.supabase.co
-Anon Key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpbWZ6dHd3enV3d2VmeGZra3dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzY1MjgyMTEsImV4cCI6MjA1MjEwNDIxMX0.Pii9LrLVVl_-NPeoQulKQA_E6lx5uXv
-Service Role: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpbWZ6dHd3enV3d2VmeGZra3dlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNjUyODIxMSwiZXhwIjoyMDUyMTA0MjExfQ.nlKbtfMNAVHGbEPsryisoQ_UAx-UIta
-```
+Pegue a URL e as chaves em Supabase Dashboard → Settings → API Keys. Nunca commite a
+chave secreta (`sb_secret_…`/service role): ela fica só no GitHub Secret `SUPABASE_SERVICE_ROLE_KEY`.
 
 ## 🚀 Setup Steps
 
@@ -21,7 +18,7 @@ cp .env.local.example .env.local
 Edit `.env.local` and add:
 ```
 VITE_SUPABASE_URL=https://bimfztwwzuwwefxfkkwe.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpbWZ6dHd3enV3d2VmeGZra3dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzY1MjgyMTEsImV4cCI6MjA1MjEwNDIxMX0.Pii9LrLVVl_-NPeoQulKQA_E6lx5uXv
+VITE_SUPABASE_ANON_KEY=<publishable key: sb_publishable_…>
 ```
 
 ### 2. Run Database Schema

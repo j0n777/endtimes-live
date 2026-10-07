@@ -17,7 +17,7 @@ import { getCountryBoundingBox } from '../lib/utils/GeoJSONGenerator';
 import { countryShapes } from '../lib/utils/countryShapes';
 import { COUNTRY_CENTROIDS } from '../lib/utils/countryCentroids';
 import { useLocale } from '../lib/i18n';
-import { CHOKEPOINT_COLOR, chokepointLevel, escapeHtml, quakeStyle } from '../lib/layers/style';
+import { CHOKEPOINT_COLOR, chokepointLevel, escapeHtml, quakeStyle, safeUrl } from '../lib/layers/style';
 import type { ChokepointsPayload } from '../lib/layers/types';
 
 // NASA GIBS (domínio público, sem chave, CORS liberado). Usa o dia UTC anterior: o tempo
@@ -118,8 +118,10 @@ const createPopupContent = (event: MonitorEvent, color: string) => {
   const date = new Date(event.timestamp).toLocaleString();
   // Strip HTML tags from description to prevent embedded <img> tags duplicating the media
   const descText = (event.description || '').replace(/<[^>]*>/g, '').trim().substring(0, 200);
-  const imageHtml = event.mediaUrl && event.mediaType !== 'video'
-    ? `<img src="${event.mediaUrl}" alt="" style="width:100%;max-height:120px;object-fit:cover;border-radius:4px;margin-top:8px;margin-bottom:4px;" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'" />`
+  const mediaSrc = safeUrl(event.mediaUrl);
+  const sourceHref = safeUrl(event.sourceUrl);
+  const imageHtml = mediaSrc && event.mediaType !== 'video'
+    ? `<img src="${mediaSrc}" alt="" style="width:100%;max-height:120px;object-fit:cover;border-radius:4px;margin-top:8px;margin-bottom:4px;" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'" />`
     : '';
   const title = cleanTitle(event);
   const sourceLabel = formatSourceLabel(event);
@@ -128,9 +130,9 @@ const createPopupContent = (event: MonitorEvent, color: string) => {
          <span class="text-gray-600">Source:</span> ${sourceLabel.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
        </div>`
     : '';
-  const sourceLinkHtml = event.sourceUrl && sourceLabel
+  const sourceLinkHtml = sourceHref && sourceLabel
     ? `<div class="text-[10px] text-gray-500 mt-2 pt-1.5 border-t border-gray-700/60">
-         <span class="text-gray-600">Source:</span> <a href="${event.sourceUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline">${sourceLabel.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</a>
+         <span class="text-gray-600">Source:</span> <a href="${sourceHref}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline">${sourceLabel.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</a>
        </div>`
     : sourceHtml;
 
@@ -138,14 +140,14 @@ const createPopupContent = (event: MonitorEvent, color: string) => {
     <div class="p-3 min-w-[250px]">
       <div class="flex items-center gap-2 mb-2">
         <span class="w-3 h-3 rounded-full" style="background-color: ${color}"></span>
-        <span class="text-xs font-bold text-gray-400">${event.category}</span>
+        <span class="text-xs font-bold text-gray-400">${escapeHtml(event.category)}</span>
         <span class="ml-auto text-xs text-gray-500">${date}</span>
       </div>
-      <h3 class="font-bold text-white text-sm mb-1">${title}</h3>
+      <h3 class="font-bold text-white text-sm mb-1">${escapeHtml(title)}</h3>
       ${imageHtml}
-      ${descText ? `<p class="text-xs text-gray-300 mt-2 mb-2">${descText}</p>` : ''}
+      ${descText ? `<p class="text-xs text-gray-300 mt-2 mb-2">${escapeHtml(descText)}</p>` : ''}
       <div class="text-xs text-emerald-500 font-mono">
-        ${event.location || 'Unknown Location'}
+        ${escapeHtml(event.location || 'Unknown Location')}
       </div>
       ${sourceLinkHtml}
     </div>
@@ -159,20 +161,20 @@ function createConflictZonePopup(zone: ConflictZone): string {
   const typeLabel = CONFLICT_TYPE_LABELS[zone.type as keyof typeof CONFLICT_TYPE_LABELS] || zone.type;
   const startDate = zone.start_date ? new Date(zone.start_date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
   const belligerentTags = (zone.belligerents || []).map(b =>
-    `<span style="background:rgba(255,255,255,0.08);color:#e5e7eb;font-size:10px;padding:2px 8px;border-radius:2px;white-space:nowrap;">${b}</span>`
+    `<span style="background:rgba(255,255,255,0.08);color:#e5e7eb;font-size:10px;padding:2px 8px;border-radius:2px;white-space:nowrap;">${escapeHtml(b)}</span>`
   ).join('');
   const developments = (zone.key_developments || []).map((d, i) =>
-    `<li style="color:${i === 0 ? '#f87171' : '#9ca3af'};margin-bottom:3px;">${d}</li>`
+    `<li style="color:${i === 0 ? '#f87171' : '#9ca3af'};margin-bottom:3px;">${escapeHtml(d)}</li>`
   ).join('');
 
   return `
     <div style="min-width:360px;max-width:440px;background:#080d0a;border:1px solid ${sevColor}66;border-radius:4px;font-family:'Courier New',monospace;overflow:hidden;">
       <div style="background:linear-gradient(to right,${sevColor}33,transparent);padding:12px 16px;border-bottom:1px solid ${sevColor}33;display:flex;align-items:center;justify-content:space-between;gap:8px;">
         <div>
-          <div style="color:#6b7280;font-size:9px;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:2px;">${typeLabel}</div>
-          <h2 style="color:#fff;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin:0;">${zone.name}</h2>
+          <div style="color:#6b7280;font-size:9px;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:2px;">${escapeHtml(typeLabel)}</div>
+          <h2 style="color:#fff;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin:0;">${escapeHtml(zone.name)}</h2>
         </div>
-        <span style="background:${sevColor};color:#fff;font-size:9px;font-weight:700;padding:3px 9px;border-radius:2px;letter-spacing:0.12em;white-space:nowrap;">${zone.severity}</span>
+        <span style="background:${sevColor};color:#fff;font-size:9px;font-weight:700;padding:3px 9px;border-radius:2px;letter-spacing:0.12em;white-space:nowrap;">${escapeHtml(zone.severity)}</span>
       </div>
 
       <div style="padding:10px 16px;display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
@@ -182,16 +184,16 @@ function createConflictZonePopup(zone: ConflictZone): string {
         </div>
         ${zone.casualties_estimate ? `<div>
           <div style="color:#4b5563;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;">VÍTIMAS</div>
-          <div style="color:#f87171;font-size:11px;margin-top:2px;">${zone.casualties_estimate}</div>
+          <div style="color:#f87171;font-size:11px;margin-top:2px;">${escapeHtml(zone.casualties_estimate)}</div>
         </div>` : ''}
         ${zone.displaced_estimate ? `<div>
           <div style="color:#4b5563;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;">DESLOCADOS</div>
-          <div style="color:#fb923c;font-size:11px;margin-top:2px;">${zone.displaced_estimate}</div>
+          <div style="color:#fb923c;font-size:11px;margin-top:2px;">${escapeHtml(zone.displaced_estimate)}</div>
         </div>` : ''}
       </div>
 
       ${zone.description ? `<div style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
-        <p style="color:#9ca3af;font-size:11px;line-height:1.6;margin:0;">${zone.description}</p>
+        <p style="color:#9ca3af;font-size:11px;line-height:1.6;margin:0;">${escapeHtml(zone.description)}</p>
       </div>` : ''}
 
       ${belligerentTags ? `<div style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
@@ -233,7 +235,7 @@ function createNuclearPopup(alert: NuclearAlert): string {
       <div style="background:linear-gradient(to right,#7c3aed44,transparent);padding:12px 16px;border-bottom:1px solid #7c3aed33;display:flex;align-items:center;justify-content:space-between;gap:8px;">
         <div>
           <div style="color:#a78bfa;font-size:10px;letter-spacing:0.15em;margin-bottom:2px;">☢ ALERTA NUCLEAR</div>
-          <h2 style="color:#fff;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin:0;">${alert.title}</h2>
+          <h2 style="color:#fff;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin:0;">${escapeHtml(alert.title)}</h2>
         </div>
         ${verifiedBadge}
       </div>
@@ -245,15 +247,15 @@ function createNuclearPopup(alert: NuclearAlert): string {
         </div>
         <div>
           <div style="color:#4b5563;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;">ARMA</div>
-          <div style="color:#e5e7eb;font-size:11px;margin-top:2px;">${alert.weapon_name || '—'}</div>
+          <div style="color:#e5e7eb;font-size:11px;margin-top:2px;">${escapeHtml(alert.weapon_name || '—')}</div>
         </div>
         <div>
           <div style="color:#4b5563;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;">ATACANTE</div>
-          <div style="color:#f87171;font-size:11px;margin-top:2px;">${alert.attacker || '—'}</div>
+          <div style="color:#f87171;font-size:11px;margin-top:2px;">${escapeHtml(alert.attacker || '—')}</div>
         </div>
         <div>
           <div style="color:#4b5563;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;">ALVO</div>
-          <div style="color:#a78bfa;font-size:11px;margin-top:2px;">${alert.target_city || alert.target_country || '—'}</div>
+          <div style="color:#a78bfa;font-size:11px;margin-top:2px;">${escapeHtml(alert.target_city || alert.target_country || '—')}</div>
         </div>
         <div style="grid-column:span 2;">
           <div style="color:#4b5563;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;">DATA/HORA</div>
@@ -268,11 +270,11 @@ function createNuclearPopup(alert: NuclearAlert): string {
 
       ${assessment ? `<div style="padding:10px 16px;">
         <div style="color:#4b5563;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">AVALIAÇÃO ESTRATÉGICA</div>
-        ${assessment.immediate_effects ? `<p style="color:#f87171;font-size:10px;margin:0 0 4px 0;"><span style="color:#6b7280;">Efeitos imediatos:</span> ${assessment.immediate_effects}</p>` : ''}
-        ${assessment.population_at_risk ? `<p style="color:#fb923c;font-size:10px;margin:0 0 4px 0;"><span style="color:#6b7280;">Risco à população:</span> ${assessment.population_at_risk}</p>` : ''}
-        ${assessment.regional_impact ? `<p style="color:#facc15;font-size:10px;margin:0 0 4px 0;"><span style="color:#6b7280;">Impacto regional:</span> ${assessment.regional_impact}</p>` : ''}
-        ${assessment.strategic_implications ? `<p style="color:#a78bfa;font-size:10px;margin:0 0 4px 0;"><span style="color:#6b7280;">Implicações estratégicas:</span> ${assessment.strategic_implications}</p>` : ''}
-        ${assessment.recommended_actions ? `<p style="color:#34d399;font-size:10px;margin:0;"><span style="color:#6b7280;">Ações recomendadas:</span> ${assessment.recommended_actions}</p>` : ''}
+        ${assessment.immediate_effects ? `<p style="color:#f87171;font-size:10px;margin:0 0 4px 0;"><span style="color:#6b7280;">Efeitos imediatos:</span> ${escapeHtml(assessment.immediate_effects)}</p>` : ''}
+        ${assessment.population_at_risk ? `<p style="color:#fb923c;font-size:10px;margin:0 0 4px 0;"><span style="color:#6b7280;">Risco à população:</span> ${escapeHtml(assessment.population_at_risk)}</p>` : ''}
+        ${assessment.regional_impact ? `<p style="color:#facc15;font-size:10px;margin:0 0 4px 0;"><span style="color:#6b7280;">Impacto regional:</span> ${escapeHtml(assessment.regional_impact)}</p>` : ''}
+        ${assessment.strategic_implications ? `<p style="color:#a78bfa;font-size:10px;margin:0 0 4px 0;"><span style="color:#6b7280;">Implicações estratégicas:</span> ${escapeHtml(assessment.strategic_implications)}</p>` : ''}
+        ${assessment.recommended_actions ? `<p style="color:#34d399;font-size:10px;margin:0;"><span style="color:#6b7280;">Ações recomendadas:</span> ${escapeHtml(assessment.recommended_actions)}</p>` : ''}
       </div>` : ''}
     </div>
   `;
@@ -368,10 +370,10 @@ const SituationMap: React.FC<SituationMapProps> = ({
           const marker = L.marker([sdr.coordinates.lat, sdr.coordinates.lng], { icon })
             .bindPopup(`
               <div class="p-3 min-w-[200px] font-mono text-xs bg-black text-gray-200">
-                <h3 class="font-bold text-blue-400 text-sm mb-1">${sdr.name}</h3>
-                <div class="text-gray-400 mb-2">${sdr.location}</div>
-                <div class="text-gray-500 mb-3">Frequências: ${sdr.frequency_range}</div>
-                <a href="${sdr.url}" target="_blank" class="block w-full text-center text-white bg-blue-600 px-2 py-1.5 rounded hover:bg-blue-500 transition">ABRIR WEBSDR</a>
+                <h3 class="font-bold text-blue-400 text-sm mb-1">${escapeHtml(sdr.name)}</h3>
+                <div class="text-gray-400 mb-2">${escapeHtml(sdr.location)}</div>
+                <div class="text-gray-500 mb-3">Frequências: ${escapeHtml(sdr.frequency_range)}</div>
+                <a href="${safeUrl(sdr.url)}" target="_blank" rel="noopener noreferrer" class="block w-full text-center text-white bg-blue-600 px-2 py-1.5 rounded hover:bg-blue-500 transition">ABRIR WEBSDR</a>
               </div>
             `, { className: 'tactical-popup' });
           webSdrGroupRef.current.addLayer(marker);
@@ -402,7 +404,7 @@ const SituationMap: React.FC<SituationMapProps> = ({
             if (popup && popup.isOpen()) {
               popup.setContent(`
                 <div class="p-2 font-mono text-xs bg-black text-gray-200">
-                  <div class="text-purple-400 font-bold mb-1">${pos.name}</div>
+                  <div class="text-purple-400 font-bold mb-1">${escapeHtml(pos.name)}</div>
                   <div class="text-gray-400">Altitude: ${Math.round(pos.alt)} km</div>
                 </div>
               `);
@@ -411,7 +413,7 @@ const SituationMap: React.FC<SituationMapProps> = ({
             const m = L.marker([pos.lat, pos.lng], { icon })
               .bindPopup(`
                 <div class="p-2 font-mono text-xs bg-black text-gray-200">
-                  <div class="text-purple-400 font-bold mb-1">${pos.name}</div>
+                  <div class="text-purple-400 font-bold mb-1">${escapeHtml(pos.name)}</div>
                   <div class="text-gray-400">Altitude: ${Math.round(pos.alt)} km</div>
                 </div>
               `, { className: 'tactical-popup' });
@@ -576,7 +578,7 @@ const SituationMap: React.FC<SituationMapProps> = ({
                   <h3 class="font-bold text-sm mb-1" style="color:${color}">M${escapeHtml(mag.toFixed(1))} · ${escapeHtml(place)}</h3>
                   <div class="text-gray-400">${escapeHtml(new Date(time).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' }))}</div>
                   <div class="text-gray-500 mb-2">${escapeHtml(fmt(t.map.quake.depth, { d: Number.isFinite(depth) ? Math.round(depth) : '—' }))}</div>
-                  <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="text-gray-400 underline hover:text-white">${escapeHtml(t.map.quake.open)} ↗</a>
+                  <a href="${safeUrl(url)}" target="_blank" rel="noopener noreferrer" class="text-gray-400 underline hover:text-white">${escapeHtml(t.map.quake.open)} ↗</a>
                 </div>`, { className: 'tactical-popup' })
               .addTo(group);
           }
@@ -960,9 +962,9 @@ const SituationMap: React.FC<SituationMapProps> = ({
 
       const altFt = ac.altitude ? `${ac.altitude.toLocaleString()} ft` : 'N/A';
       const spdKts = ac.speed ? `${ac.speed} kts` : 'N/A';
-      const typeStr = ac.type ? `<span class="text-gray-400">${ac.type}</span> · ` : '';
-      const countryStr = ac.country ? `<span class="text-gray-400">${ac.country}</span> · ` : '';
-      const regStr = ac.registration ? `<span class="text-gray-500">${ac.registration}</span>` : '';
+      const typeStr = ac.type ? `<span class="text-gray-400">${escapeHtml(ac.type)}</span> · ` : '';
+      const countryStr = ac.country ? `<span class="text-gray-400">${escapeHtml(ac.country)}</span> · ` : '';
+      const regStr = ac.registration ? `<span class="text-gray-500">${escapeHtml(ac.registration)}</span>` : '';
       const emergBadge = ac.isEmergency
         ? `<span class="text-red-400 font-bold animate-pulse ml-1">⚠ EMERGENCY</span>` : '';
 
@@ -970,7 +972,7 @@ const SituationMap: React.FC<SituationMapProps> = ({
         <div class="p-2 min-w-[200px]">
           <div class="flex items-center gap-2 mb-1">
             <span style="color:#94a3b8; font-size:16px;">✈</span>
-            <span class="font-bold text-white text-sm">${ac.callsign}${emergBadge}</span>
+            <span class="font-bold text-white text-sm">${escapeHtml(ac.callsign)}${emergBadge}</span>
           </div>
           <div class="text-xs text-gray-400 space-y-0.5">
             <div>${typeStr}${countryStr}${regStr}</div>
@@ -1076,8 +1078,8 @@ const SituationMap: React.FC<SituationMapProps> = ({
           text-align:center;
           line-height:1.3;
         ">
-          ${zone.name}<br>
-          <span style="color:${color}99;font-size:8px;font-weight:400;">${typeLabel}</span>
+          ${escapeHtml(zone.name)}<br>
+          <span style="color:${color}99;font-size:8px;font-weight:400;">${escapeHtml(typeLabel)}</span>
         </div>`,
         iconAnchor: [0, 0],
       });

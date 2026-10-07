@@ -235,12 +235,6 @@ export abstract class BaseCollector {
      */
     private async storeEvents(events: MonitorEvent[]): Promise<void> {
         try {
-            // Clear old events from this collector
-            await this.supabase
-                .rpc('clear_collector_events', {
-                    p_collector_name: this.config.name
-                });
-
             // ⭐ AUTO-GEOCODING: Fix (0,0) coordinates before storage
             const geocodingService = getGeocodingService();
             const CONCURRENCY_LIMIT = 3;
@@ -315,6 +309,13 @@ export abstract class BaseCollector {
                     },
                 };
             });
+
+            // Só apaga os eventos antigos deste coletor depois da geocodificação (que espera
+            // 1 s por evento): antes, um timeout no meio deixava o coletor sem nenhum evento.
+            await this.supabase
+                .rpc('clear_collector_events', {
+                    p_collector_name: this.config.name
+                });
 
             const { error } = await this.supabase
                 .from('events')

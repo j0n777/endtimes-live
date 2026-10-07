@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { ExternalLink, Minus, TrendingDown, TrendingUp, X } from 'lucide-react';
 import { useLocale } from '../lib/i18n';
 import { OMEGA_META } from '../utils/omegaCalculator';
 import type { SignReading, SignsPayload } from '../lib/signs/types';
+import type { EwsPayload } from '../lib/ews/types';
+import { dataUrl } from '../lib/dataUrl';
 
 interface SignsPanelProps {
   signs: SignsPayload | null;
@@ -27,6 +29,17 @@ export const SignsPanel: React.FC<SignsPanelProps> = ({ signs, onClose }) => {
   const { t, locale } = useLocale();
   const nf = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
   const omega = signs?.omega.level ? OMEGA_META[signs.omega.level] : null;
+  const [ews, setEws] = useState<EwsPayload | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetch(dataUrl('ews.json'))
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (alive && Array.isArray(d?.cohorts)) setEws(d); })
+      .catch(() => { /* sem alerta de jatos nesta abertura */ });
+    return () => { alive = false; };
+  }, []);
+  const ewsLive = ews?.cohorts.filter(c => c.airborne != null) ?? [];
 
   return (
     <div
@@ -135,21 +148,23 @@ export const SignsPanel: React.FC<SignsPanelProps> = ({ signs, onClose }) => {
             })}
           </p>
         )}
-        {signs?.context?.ews?.map(r => (
-          <p key={r.cohort} className="mt-1">
-            {fill(t.signs.ews[r.cohort], { level: r.level, n: nf.format(r.airborne), e: nf.format(r.expected) })}
+        {ewsLive.map(c => (
+          <p key={c.id} className="mt-1">
+            {c.level != null
+              ? fill(t.signs.ews[c.id], { level: c.level, n: nf.format(c.airborne ?? 0), e: nf.format(c.expected ?? 0) })
+              : fill(t.signs.ewsCalibrating[c.id], { n: nf.format(c.airborne ?? 0), w: c.weeks, m: ews?.minWeeks ?? 3 })}
           </p>
         ))}
-        {!!signs?.context?.ews?.length && (
-          <a
-            href="https://ews.kylemcdonald.net/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-0.5 inline-flex items-center gap-1 text-gray-500 hover:text-gray-300"
-          >
-            {t.signs.ewsCredit}
-            <ExternalLink className="w-3 h-3" />
-          </a>
+        {ewsLive.length > 0 && (
+          <p className="mt-0.5 text-gray-500">
+            <a href="https://ews.kylemcdonald.net/" target="_blank" rel="noopener noreferrer" className="hover:text-gray-300">
+              {t.signs.ewsMethod} ↗
+            </a>
+            {' · '}
+            <a href="https://adsb.lol/" target="_blank" rel="noopener noreferrer" className="hover:text-gray-300">
+              {t.signs.ewsData} ↗
+            </a>
+          </p>
         )}
         {signs && (
           <p className="mt-1.5 text-gray-600">

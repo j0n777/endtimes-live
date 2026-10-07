@@ -30,10 +30,15 @@ export const en = {
     updated: 'Updated {when}',
     co2: 'Context (not counted in Ω): atmospheric CO₂ {v} ppm on {date} at Mauna Loa (NOAA) · a year earlier {y} ppm',
     ews: {
-      jets: 'Apocalypse Early Warning System: level {level}/5 — {n} business jets airborne vs {e} expected for this time of week',
+      jets: 'Apocalypse alert: level {level}/5 — {n} business jets airborne vs {e} expected for this hour of the week',
       military: 'Military aircraft airborne: {n} vs {e} expected (level {level}/5)',
     },
-    ewsCredit: 'Apocalypse Early Warning System by Kyle McDonald · ADS-B Exchange data',
+    ewsCalibrating: {
+      jets: 'Apocalypse alert: {n} business jets airborne now · calibrating the baseline ({w} of {m} weeks)',
+      military: 'Military aircraft airborne: {n} · calibrating the baseline ({w} of {m} weeks)',
+    },
+    ewsMethod: 'Method: Apocalypse Early Warning System by Kyle McDonald',
+    ewsData: 'data: adsb.lol (ODbL)',
     percentile: 'percentile {p}',
     baseline: 'history {span}',
     source: 'Source',

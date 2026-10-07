@@ -32,10 +32,15 @@ export const ptBR: Translations = {
     updated: 'Atualizado {when}',
     co2: 'Contexto (fora do Ω): CO₂ atmosférico {v} ppm em {date} em Mauna Loa (NOAA) · um ano antes {y} ppm',
     ews: {
-      jets: 'Alerta de apocalipse: nível {level}/5 — {n} jatos executivos no ar contra {e} esperados para este horário da semana',
+      jets: 'Alerta de apocalipse: nível {level}/5 — {n} jatos executivos no ar contra {e} esperados para esta hora da semana',
       military: 'Aeronaves militares no ar: {n} contra {e} esperadas (nível {level}/5)',
     },
-    ewsCredit: 'Apocalypse Early Warning System, de Kyle McDonald · dados ADS-B Exchange',
+    ewsCalibrating: {
+      jets: 'Alerta de apocalipse: {n} jatos executivos no ar agora · calibrando a linha de base ({w} de {m} semanas)',
+      military: 'Aeronaves militares no ar: {n} · calibrando a linha de base ({w} de {m} semanas)',
+    },
+    ewsMethod: 'Método: Apocalypse Early Warning System, de Kyle McDonald',
+    ewsData: 'dados: adsb.lol (ODbL)',
     percentile: 'percentil {p}',
     baseline: 'histórico {span}',
     source: 'Fonte',
