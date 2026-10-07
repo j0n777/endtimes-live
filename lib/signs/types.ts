@@ -44,9 +44,17 @@ export interface TensionMarket {
 
 export type IndexLevel = 1 | 2 | 3 | 4 | 5;
 
+// Contexto planetário mostrado no painel, fora do cálculo do Ω.
+export interface Co2Reading {
+    ppm: number;                   // média diária em Mauna Loa (NOAA GML)
+    date: string;                  // YYYY-MM-DD
+    yearAgoPpm: number | null;     // leitura mais próxima de 365 dias antes
+}
+
 export interface SignsPayload {
     version: 1;
     generatedAt: string;
+    context?: { co2: Co2Reading | null };
     omega: {
         level: IndexLevel | null;  // null = sinais utilizáveis insuficientes
         anomalous: SignId[];       // sinais no percentil ≥ 90

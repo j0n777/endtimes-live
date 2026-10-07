@@ -10,7 +10,7 @@ import {
     DAY_MS, computeOmega, dayIndex, mean, parseCsvLine, percentileRank,
     pickEscalationMarkets, rollingWindowCounts, tensionLevel, trendOf,
 } from './stats';
-import type { SignId, SignReading, SignsPayload } from './types';
+import type { Co2Reading, SignId, SignReading, SignsPayload } from './types';
 
 const TIMEOUT_MS = 45_000;
 const UA = 'EndTimesMonitor/1.0 (+https://endtimes.live)';
@@ -259,6 +259,28 @@ const READERS: Array<{ id: SignId; read: (now: Date) => Promise<SignReading>; so
     { id: 'distress', read: readDistress, source: ['CBOE VIX', 'https://www.cboe.com/tradable_products/vix/'] },
 ];
 
+// CO₂ atmosférico diário em Mauna Loa (NOAA GML). Contexto do painel, não é sinal do Ω.
+async function readCo2(): Promise<Co2Reading | null> {
+    try {
+        const { body } = await fetchText('https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_daily_mlo.csv');
+        const rows = body.split('\n')
+            .filter(l => l && !l.startsWith('#'))
+            .map(l => l.split(','))
+            .map(c => ({ date: `${c[0]}-${c[1].trim().padStart(2, '0')}-${c[2].trim().padStart(2, '0')}`, ppm: parseFloat(c[4]) }))
+            .filter(r => Number.isFinite(r.ppm) && r.ppm > 0);
+        const latest = rows[rows.length - 1];
+        if (!latest) return null;
+        const target = dayIndex(latest.date) - 365;
+        const yearAgo = rows.reduce<typeof latest | null>((best, r) =>
+            Math.abs(dayIndex(r.date) - target) < Math.abs(dayIndex(best?.date ?? '1900-01-01') - target) ? r : best, null);
+        const yearAgoPpm = yearAgo && Math.abs(dayIndex(yearAgo.date) - target) <= 7 ? yearAgo.ppm : null;
+        return { ppm: latest.ppm, date: latest.date, yearAgoPpm };
+    } catch (err) {
+        console.warn(`⚠️ SIGNS: CO₂ falhou: ${err instanceof Error ? err.message : err}`);
+        return null;
+    }
+}
+
 async function readTension(now: Date) {
     try {
         const events = await fetchJson('https://gamma-api.polymarket.com/events?tag_slug=geopolitics&active=true&closed=false&limit=100&order=volume&ascending=false');
@@ -272,7 +294,7 @@ async function readTension(now: Date) {
 }
 
 export async function computeSigns(now = new Date()): Promise<SignsPayload> {
-    const [signs, tension] = await Promise.all([
+    const [signs, tension, co2] = await Promise.all([
         Promise.all(READERS.map(async ({ id, read, source }) => {
             try {
                 return await read(now);
@@ -285,6 +307,7 @@ export async function computeSigns(now = new Date()): Promise<SignsPayload> {
             }
         })),
         readTension(now),
+        readCo2(),
     ]);
-    return { version: 1, generatedAt: now.toISOString(), omega: computeOmega(signs), tension, signs };
+    return { version: 1, generatedAt: now.toISOString(), context: { co2 }, omega: computeOmega(signs), tension, signs };
 }
