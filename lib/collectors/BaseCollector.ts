@@ -30,6 +30,20 @@ export interface CollectorStatus {
  * Base class for all data collectors
  * Handles: caching, rate limiting, retries, circuit breaker
  */
+// Conteúdo de terceiros (07/10/2026): num site com plano pago, guarda-se só o título, um
+// trecho curto e o link para a fonte, sem hospedar ou exibir imagens dos veículos (a Lei
+// 9.610/98 só dispensa autorização para a reprodução de notícias pela própria imprensa).
+// Vídeos do YouTube entram por embed, que os termos do YouTube permitem.
+const SNIPPET_MAX = 280;
+const MEDIA_ALLOWED = new Set(['YOUTUBE_LIVE_CAMS']);
+
+export function newsSnippet(description: string | undefined): string {
+    const text = (description || '').replace(/<[^>]*>?/g, ' ').replace(/\s+/g, ' ').trim();
+    if (text.length <= SNIPPET_MAX) return text;
+    const cut = text.slice(0, SNIPPET_MAX);
+    return `${cut.slice(0, Math.max(cut.lastIndexOf(' '), SNIPPET_MAX - 40))}…`;
+}
+
 export abstract class BaseCollector {
     protected config: CollectorConfig;
     protected supabase: SupabaseClient;
@@ -294,12 +308,12 @@ export abstract class BaseCollector {
                     severity: event.severity === 'CRITICAL' ? 'HIGH' : event.severity,
                     priority: event.priority || (event.severity === 'HIGH' || event.severity === 'CRITICAL' ? 1 : 3), // Default priority if missing
                     title: event.title,
-                    description: event.description || '',
+                    description: newsSnippet(event.description),
                     location: event.location || '',
                     source_name: event.sourceName,
                     source_type: event.sourceType,
                     source_url: event.sourceUrl || '',
-                    media_url: event.mediaUrl || null,
+                    media_url: MEDIA_ALLOWED.has(this.config.name) ? event.mediaUrl || null : null,
                     media_type: event.mediaType || null,
                     event_timestamp: event.timestamp,
                     collector_name: this.config.name,
