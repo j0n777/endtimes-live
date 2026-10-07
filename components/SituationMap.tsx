@@ -23,13 +23,18 @@ import type { ChokepointsPayload } from '../lib/layers/types';
 // NASA GIBS (domínio público, sem chave, CORS liberado). Usa o dia UTC anterior: o tempo
 // "default" é o dia corrente, ainda com faixas faltando (07/10/2026: ~1/4 dos bytes de ontem).
 const GIBS_DATE = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
-const gibsLayer = (layer: string, level: number, ext: 'jpg' | 'png', opacity: number) =>
-  L.tileLayer(`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/${GIBS_DATE}/GoogleMapsCompatible_Level${level}/{z}/{y}/{x}.${ext}`, {
+const gibsLayer = (layer: string, level: number, ext: 'jpg' | 'jpeg' | 'png', opacity: number, time = GIBS_DATE, credit = `VIIRS · ${GIBS_DATE}`) =>
+  L.tileLayer(`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/${time}/GoogleMapsCompatible_Level${level}/{z}/{y}/{x}.${ext}`, {
     maxNativeZoom: level,
     maxZoom: 18,
     opacity,
-    attribution: `Imagery: NASA GIBS / VIIRS · ${GIBS_DATE}`,
+    attribution: `Imagery: NASA GIBS / ${credit}`,
   });
+
+// Mapa base (07/10/2026): os tiles da Esri exigem software ou assinatura ArcGIS e vetam uso
+// comercial do Living Atlas. OpenFreeMap: grátis, sem chave, uso comercial permitido,
+// atribuição obrigatória (openfreemap.org).
+const OPENFREEMAP_ATTRIBUTION = '<a href="https://openfreemap.org" target="_blank" rel="noopener noreferrer">OpenFreeMap</a> © <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener noreferrer">OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>';
 
 const fmt = (s: string, vars: Record<string, string | number>) =>
   s.replace(/\{(\w+)\}/g, (_, k) => (k in vars ? String(vars[k]) : `{${k}}`));
@@ -314,12 +319,16 @@ const SituationMap: React.FC<SituationMapProps> = ({
   // Refs for the new dynamically toggled map layers
   const webSdrGroupRef = useRef<L.LayerGroup>(L.layerGroup());
   const satellitesGroupRef = useRef<L.LayerGroup>(L.layerGroup());
-  const radarOverlayRef = useRef<L.TileLayer>(L.tileLayer('https://tilecache.rainviewer.com/v2/radar/now/256/{z}/{x}/{y}/2/1_1.png', { opacity: 0.6 }));
+  // Chuva em tempo quase real: NASA IMERG a cada 30 min (~6 h de atraso), domínio público.
+  // Substitui a RainViewer, que é só para uso pessoal/educacional (e cujo /radar/now já dava 400).
+  const radarOverlayRef = useRef<L.TileLayer>(gibsLayer('IMERG_Precipitation_Rate_30min', 6, 'png', 0.7, 'default', 'GPM IMERG'));
   const radiationOverlayRef = useRef<L.TileLayer>(L.tileLayer('https://s3.amazonaws.com/bgeigie.safecast.org/tiles/{z}/{x}/{y}.png', { opacity: 0.7, minZoom: 3, maxZoom: 16 }));
-  // 17/09/2026: os basemaps gratuitos da CARTO passaram a exigir API key (tiles vinham com
-  // "API key required" pintado). ESRI Dark Gray Canvas é gratuito sem chave (atribuição obrigatória).
-  const darkTilesRef = useRef<L.TileLayer>(L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxZoom: 16, attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ' }));
-  const satTilesRef = useRef<L.TileLayer>(L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles &copy; Esri' }));
+  // 17/09/2026: CARTO passou a exigir API key e o mapa foi para a Esri; 07/10/2026: Esri trocada
+  // pelo OpenFreeMap por causa dos termos de uso comercial (ver OPENFREEMAP_ATTRIBUTION).
+  // Criado depois do primeiro render: o MapLibre pesa ~290 KB (gzip) e vem em chunk separado.
+  const darkTilesRef = useRef<L.Layer | null>(null);
+  // Satélite sem nuvens: NASA Blue Marble Next Generation (~500 m/pixel, domínio público).
+  const satTilesRef = useRef<L.TileLayer>(gibsLayer('BlueMarble_NextGeneration', 8, 'jpeg', 1, 'default', 'Blue Marble'));
   const dailySatRef = useRef<L.TileLayer>(gibsLayer('VIIRS_NOAA20_CorrectedReflectance_TrueColor', 9, 'jpg', 1));
   // Banda dia/noite do VIIRS: luzes das cidades à noite — apagões aparecem como manchas escuras.
   const nightLightsRef = useRef<L.TileLayer>(gibsLayer('VIIRS_NOAA20_DayNightBand', 7, 'png', 0.9));
@@ -336,7 +345,7 @@ const SituationMap: React.FC<SituationMapProps> = ({
       center: [30, 15],
       zoom: 2.5,
       zoomControl: false,
-      attributionControl: false,
+      attributionControl: true,
       worldCopyJump: true,
       // ⭐ PERFORMANCE: Use canvas rendering instead of SVG
       preferCanvas: true,
@@ -352,7 +361,19 @@ const SituationMap: React.FC<SituationMapProps> = ({
 
     // Map Instance Setup
     mapInstanceRef.current = map;
-    darkTilesRef.current.addTo(map);
+    // Créditos dos mapas (OpenFreeMap/OSM exigem atribuição; NASA pede citação).
+    map.attributionControl.setPrefix(false).setPosition('topright');
+    Promise.all([
+      import('@maplibre/maplibre-gl-leaflet'),
+      // @ts-expect-error -- CSS sem declaração de tipos; o Vite injeta a folha de estilo
+      import('maplibre-gl/dist/maplibre-gl.css'),
+    ])
+      .then(([{ maplibreGL }]) => {
+        if (mapInstanceRef.current !== map) return;
+        darkTilesRef.current = maplibreGL({ style: 'https://tiles.openfreemap.org/styles/dark', attributionControl: { customAttribution: OPENFREEMAP_ATTRIBUTION } });
+        if (!map.hasLayer(satTilesRef.current)) darkTilesRef.current.addTo(map);
+      })
+      .catch(err => console.error('Mapa base (OpenFreeMap) falhou:', err));
 
     // 4. Fetch and populate WebSDR layer (Layer is isolated in Ref, visibility controlled by showWebSDR check)
     fetch('/data/webSdrData.json')
@@ -507,11 +528,11 @@ const SituationMap: React.FC<SituationMapProps> = ({
       const map = mapInstanceRef.current;
       if (!map) return;
       if (showSatelliteBase) {
-        map.removeLayer(darkTilesRef.current);
+        if (darkTilesRef.current) map.removeLayer(darkTilesRef.current);
         satTilesRef.current.addTo(map);
       } else {
         map.removeLayer(satTilesRef.current);
-        darkTilesRef.current.addTo(map);
+        darkTilesRef.current?.addTo(map);
       }
     }, [showSatelliteBase]);
   
