@@ -10,7 +10,7 @@ import {
     DAY_MS, computeOmega, dayIndex, mean, parseCsvLine, percentileRank,
     pickEscalationMarkets, rollingWindowCounts, tensionLevel, trendOf,
 } from './stats';
-import type { Co2Reading, SignId, SignReading, SignsPayload } from './types';
+import type { Co2Reading, EwsReading, SignId, SignReading, SignsPayload } from './types';
 
 const TIMEOUT_MS = 45_000;
 const UA = 'EndTimesMonitor/1.0 (+https://endtimes.live)';
@@ -281,6 +281,29 @@ async function readCo2(): Promise<Co2Reading | null> {
     }
 }
 
+// Só os números agregados; o JSON público não tem CORS, por isso é lido aqui no coletor.
+const EWS_FEEDS = [
+    { cohort: 'jets', url: 'https://pub-49bb6a6f314c47be9b481c25e5f6ca9e.r2.dev/dashboard.json' },
+    { cohort: 'military', url: 'https://pub-49bb6a6f314c47be9b481c25e5f6ca9e.r2.dev/military-dashboard.json' },
+] as const;
+
+async function readEws(): Promise<EwsReading[]> {
+    const readings = await Promise.all(EWS_FEEDS.map(async ({ cohort, url }): Promise<EwsReading | null> => {
+        try {
+            const c = (await fetchJson(url))?.current;
+            const level = Number(c?.emergencyLevel);
+            const airborne = Number(c?.concurrentCount);
+            const expected = Number(c?.baselineMean);
+            if (![level, airborne, expected].every(Number.isFinite) || typeof c?.asOf !== 'string') return null;
+            return { cohort, level, airborne, expected: Math.round(expected), asOf: c.asOf };
+        } catch (err) {
+            console.warn(`⚠️ SIGNS: EWS ${cohort} falhou: ${err instanceof Error ? err.message : err}`);
+            return null;
+        }
+    }));
+    return readings.filter((r): r is EwsReading => r !== null);
+}
+
 async function readTension(now: Date) {
     try {
         const events = await fetchJson('https://gamma-api.polymarket.com/events?tag_slug=geopolitics&active=true&closed=false&limit=100&order=volume&ascending=false');
@@ -294,7 +317,7 @@ async function readTension(now: Date) {
 }
 
 export async function computeSigns(now = new Date()): Promise<SignsPayload> {
-    const [signs, tension, co2] = await Promise.all([
+    const [signs, tension, co2, ews] = await Promise.all([
         Promise.all(READERS.map(async ({ id, read, source }) => {
             try {
                 return await read(now);
@@ -308,6 +331,7 @@ export async function computeSigns(now = new Date()): Promise<SignsPayload> {
         })),
         readTension(now),
         readCo2(),
+        readEws(),
     ]);
-    return { version: 1, generatedAt: now.toISOString(), context: { co2 }, omega: computeOmega(signs), tension, signs };
+    return { version: 1, generatedAt: now.toISOString(), context: { co2, ews }, omega: computeOmega(signs), tension, signs };
 }
