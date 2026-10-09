@@ -39,6 +39,7 @@ export const en = {
       credited: 'Idea and method credited',
       wmoRes40: 'Open access (WMO Resolution 40)',
       whoCount: 'Only the count of alerts, with a link',
+      nonCommercial: 'Non-commercial use, with attribution',
     },
   },
   signs: {
@@ -79,6 +80,7 @@ export const en = {
       sea: { name: 'Roaring sea', ref: 'Luke 21:25', quote: 'the sea and the waves roaring', value: '{v} tropical cyclones reaching category 3+ in 90 days · seasonal average since 1981 {b}' },
       persecution: { name: 'Persecution', ref: 'Matthew 24:9', quote: 'ye shall be hated of all nations for my name’s sake', value: 'Open Doors publishes the World Watch List once a year, with no API — not yet measurable here.' },
       distress: { name: 'Distress of nations', ref: 'Luke 21:25', quote: 'upon the earth distress of nations, with perplexity', value: 'OFR financial stress index {v} ({period}; 0 = normal) · average since 2000 {b}' },
+      gospel: { name: 'Gospel preached to all nations', ref: 'Matthew 24:14', quote: 'this gospel of the kingdom shall be preached in all the world for a witness unto all nations', value: '{v}% of the world population still lives in unreached people groups ({groups} groups) · Data provided by Joshua Project' },
     },
   },
   sidebar: {
@@ -93,10 +95,13 @@ export const en = {
     weatherRadar: 'Rainfall (NASA IMERG, ~6 h delay)',
     globalRadiation: 'Global Radiation',
     webSdrStations: 'WebSDR Stations',
+    period: 'PERIOD',
+    periods: { '24h': '24 h', '7d': '7 days', '30d': '30 days', '90d': '90 days' },
+    periodHint: 'Map events and earthquakes. A mix of every category is shown; filter categories below to see more of one.',
     dataLayers: 'DATA LAYERS',
     dailySatellite: "Yesterday's satellite (NASA)",
     nightLights: 'Night lights (NASA VIIRS)',
-    quakes: 'Earthquakes M4.5+ · 7 days (USGS)',
+    quakes: 'Earthquakes M4.5+ (USGS)',
     chokepoints: 'Maritime chokepoints (IMF)',
     categories: 'Event Categories',
     categoriesHint: 'Toggle categories to filter events on the Intelligence Map. Grayed out categories are suppressed from view.',
@@ -123,6 +128,15 @@ export const en = {
   protocols: {
     title: 'PROTOCOLS',
     checklistProgress: (done: number, total: number) => `${done}/${total} COMPLETE`,
+    guidesTab: 'SURVIVAL GUIDES',
+    radioTab: 'RADIO & FREQUENCIES',
+    radioLicenseTitle: 'BEFORE YOU TRANSMIT',
+    radioLicense: [
+      'Listening (a receiver, scanner or WebSDR) is generally free; transmitting needs authorization from your country\'s regulator, and the rules change from country to country.',
+      'Brazil: amateur radio requires the COER certificate issued by Anatel (requirements updated by Act 3,448/2026). Check Anatel or LABRE for exams and fees.',
+      'United States: FRS radios need no individual license; GMRS and amateur radio require an FCC license.',
+      'In a real emergency, use the emergency channels and follow your local civil defense.',
+    ],
   },
   comms: {
     title: 'SIGNAL INTELLIGENCE // FREQUÊNCIAS',

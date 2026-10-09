@@ -6,6 +6,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 const DAY_MS = 86_400_000;
 const KEEP_DAYS = 7;          // janelas por minuto/dia do BaseCollector cabem com folga
 const KEEP_DAYS_YEARLY = 366; // coletores com cota anual (ACLED) contam 365 dias
+const EVENT_KEEP_DAYS = 90;
 const STALE_FILES = ['defcon.json']; // DefconCollector removido em 06/10/2026
 // Coletores desligados por licença em 07/10/2026: os eventos deles não seriam mais substituídos.
 const RETIRED_COLLECTORS = [
@@ -47,6 +48,16 @@ export async function runMaintenance(supabase: SupabaseClient, now = new Date())
         .in('collector_name', RETIRED_COLLECTORS);
     if (retiredError) console.warn(`⚠️ MANUTENÇÃO: limpeza de eventos de coletores desligados falhou: ${retiredError.message}`);
     else if (retired) console.log(`🧹 MANUTENÇÃO: events −${retired} de coletores desligados`);
+
+    // Eventos de coletor com mais de 90 dias (o maior período do filtro do mapa). Os sem
+    // coletor (profecias e perseguição inseridas à mão por scripts) ficam.
+    const { count: old, error: oldError } = await supabase
+        .from('events')
+        .delete({ count: 'exact' })
+        .not('collector_name', 'is', null)
+        .lt('event_timestamp', new Date(now.getTime() - EVENT_KEEP_DAYS * DAY_MS).toISOString());
+    if (oldError) console.warn(`⚠️ MANUTENÇÃO: limpeza de eventos antigos falhou: ${oldError.message}`);
+    else if (old) console.log(`🧹 MANUTENÇÃO: events −${old} com mais de ${EVENT_KEEP_DAYS} dias`);
 
     const { error } = await supabase.storage.from('data').remove(STALE_FILES);
     if (error) console.warn(`⚠️ MANUTENÇÃO: remoção de arquivos obsoletos falhou: ${error.message}`);

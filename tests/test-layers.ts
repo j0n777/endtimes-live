@@ -1,7 +1,8 @@
 // Testes das funções puras das camadas do mapa (lib/layers).
 // Rodar: npx tsx tests/test-layers.ts
 import { summarizeChokepoints } from '../lib/layers/chokepoints';
-import { chokepointLevel, escapeHtml, quakeStyle, safeUrl } from '../lib/layers/style';
+import { chokepointLevel, escapeHtml, quakeFeedUrl, quakeStyle, safeUrl } from '../lib/layers/style';
+import { balanceByCategory } from '../lib/events/balance';
 
 let failures = 0;
 function check(name: string, actual: unknown, expected: unknown) {
@@ -49,6 +50,20 @@ check('safeUrl: https', safeUrl('https://t.me/x?a=1&b="2"'), 'https://t.me/x?a=1
 check('safeUrl: javascript', safeUrl('javascript:alert(1)'), '');
 check('safeUrl: data', safeUrl('data:text/html,<script>'), '');
 check('safeUrl: relativa/lixo', safeUrl('/foo'), '');
+
+// quakeFeedUrl
+check('usgs: 7 dias usa o feed da semana', quakeFeedUrl('7d'), 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_week.geojson');
+check('usgs: 90 dias usa a consulta FDSN', quakeFeedUrl('90d', new Date('2026-10-09T12:00:00Z')),
+    'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minmagnitude=4.5&orderby=time&starttime=2026-07-11');
+
+// balanceByCategory: rodízio entre categorias, mais recentes primeiro
+const ev = (category: string, timestamp: string) => ({ category, timestamp });
+const mix = [
+    ev('NEWS', '2026-10-09'), ev('NEWS', '2026-10-08'), ev('NEWS', '2026-10-07'), ev('NEWS', '2026-10-06'),
+    ev('QUAKE', '2026-10-01'), ev('SOLAR', '2026-10-05'), ev('SOLAR', '2026-10-04'),
+];
+check('mistura: um de cada antes de repetir', balanceByCategory(mix, 4).map(e => e.category + e.timestamp.slice(-2)), ['NEWS09', 'SOLAR05', 'QUAKE01', 'NEWS08']);
+check('mistura: limite maior que o total devolve tudo', balanceByCategory(mix, 99).length, 7);
 
 console.log(failures ? `\n❌ ${failures} falha(s)` : '\n✅ todos os testes passaram');
 process.exit(failures ? 1 : 0);

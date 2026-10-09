@@ -1,5 +1,9 @@
 import { supabase } from '../lib/supabaseClient';
+import { balanceByCategory } from '../lib/events/balance';
 import { MonitorEvent, EventCategory } from '../types';
+
+// Busca até 600 eventos do período e equilibra entre categorias (lib/events/balance).
+const FETCH_POOL = 600;
 
 /**
  * Frontend Data Service - Supabase Only
@@ -139,23 +143,25 @@ export async function loadEventDetails(
  * Load all events (for backwards compatibility)
  * Uses lightweight query
  */
-export async function loadAllEvents(): Promise<MonitorEvent[]> {
+export async function loadAllEvents(since?: string, limit: number = 150): Promise<MonitorEvent[]> {
     try {
-        const { data, error } = await supabase
+        let query = supabase
             .from('events')
-            .select('id, title, description, category, severity, source_type, source_name, location, lat, lng, event_timestamp, source_url, casualties, media_url, media_type')
+            .select('id, title, description, category, severity, source_type, source_name, location, lat, lng, event_timestamp, source_url, casualties, media_url, media_type');
+        if (since) query = query.gte('event_timestamp', since);
+        const { data, error } = await query
             // Prophecy Persistence: Ensure we catch older fulfilled prophecies if needed, 
             // but currently we just fetch top 150 by priority/recency.
             //.order('priority', { ascending: true }) // Disabled to ensure recent events show up first
             .order('event_timestamp', { ascending: false }) // Use event_timestamp (reliable) instead of detected_at
-            .limit(150);
+            .limit(FETCH_POOL);
 
         if (error) {
             console.error('Error loading all events:', error);
             return [];
         }
 
-        return (data || []).map(event => ({
+        return balanceByCategory((data || []).map(event => ({
             id: event.id,
             title: event.title,
             description: event.description || '',
@@ -173,7 +179,7 @@ export async function loadAllEvents(): Promise<MonitorEvent[]> {
             mediaUrl: event.media_url,
             mediaType: event.media_type,
             conflictLevel: event.casualties ? `${event.casualties} casualties` : undefined
-        }));
+        })), limit);
 
     } catch (error) {
         console.error('Failed to load all events:', error);
@@ -189,23 +195,26 @@ export async function loadAllEvents(): Promise<MonitorEvent[]> {
  */
 export async function loadEventsByCategories(
     categories: EventCategory[],
+    since?: string,
     limit: number = 150
 ): Promise<MonitorEvent[]> {
-    if (!categories || categories.length === 0) return loadAllEvents();
+    if (!categories || categories.length === 0) return loadAllEvents(since, limit);
     try {
-        const { data, error } = await supabase
+        let query = supabase
             .from('events')
             .select('id, title, description, category, severity, source_type, source_name, location, lat, lng, event_timestamp, source_url, casualties, media_url, media_type')
-            .in('category', categories)
+            .in('category', categories);
+        if (since) query = query.gte('event_timestamp', since);
+        const { data, error } = await query
             .order('event_timestamp', { ascending: false })
-            .limit(limit);
+            .limit(FETCH_POOL);
 
         if (error) {
             console.error('Error loading events by categories:', error);
             return [];
         }
 
-        return (data || []).map(event => ({
+        return balanceByCategory((data || []).map(event => ({
             id: event.id,
             title: event.title,
             description: event.description || '',
@@ -220,7 +229,7 @@ export async function loadEventsByCategories(
             mediaUrl: event.media_url,
             mediaType: event.media_type,
             conflictLevel: event.casualties ? `${event.casualties} casualties` : undefined
-        }));
+        })), limit);
 
     } catch (error) {
         console.error('Failed to load events by categories:', error);

@@ -13,6 +13,7 @@ import {
 import type { Co2Reading, SignId, SignReading, SignsPayload } from './types';
 import { countBetween, majorStormsFromCsv, mergeRecent, type StormCatalog } from './ibtracs';
 import { readDta } from './stata';
+import { unreachedShare } from './gospel';
 import { publishData } from '../publishData';
 import { readXlsxSheet } from './xlsx';
 
@@ -294,6 +295,21 @@ async function readDistress(): Promise<SignReading> {
     return r;
 }
 
+// ── Mt 24:14 — "será pregado em todo o mundo" ─────────────────────────────────
+// Ver lib/signs/gospel.ts. Mostrado como progresso, fora do Ω ('short-baseline').
+const JOSHUA_PROJECT = 'https://joshuaproject.net/';
+
+async function readGospel(now: Date): Promise<SignReading> {
+    const r = base('gospel', 'Data provided by Joshua Project', JOSHUA_PROJECT);
+    const { body } = await fetchText('https://joshuaproject.net/resources/datasets/1');
+    const { percent, groups } = unreachedShare(body);
+    r.value = percent;
+    r.extra = { groups };
+    r.period = isoDay(now);
+    r.status = 'short-baseline';
+    return r;
+}
+
 const READERS: Array<{ id: SignId; read: (now: Date) => Promise<SignReading>; source: [string, string] }> = [
     { id: 'earthquakes', read: readEarthquakes, source: ['USGS', 'https://earthquake.usgs.gov/earthquakes/map/'] },
     { id: 'wars', read: readWars, source: ['UCDP / Our World in Data', 'https://ourworldindata.org/grapher/deaths-in-armed-conflicts-by-type'] },
@@ -303,6 +319,7 @@ const READERS: Array<{ id: SignId; read: (now: Date) => Promise<SignReading>; so
     { id: 'sea', read: readSea, source: ['NOAA IBTrACS', IBTRACS_PAGE] },
     { id: 'persecution', read: readPersecution, source: ['Portas Abertas — Lista Mundial da Perseguição', 'https://www.portasabertas.org.br/lista-mundial'] },
     { id: 'distress', read: readDistress, source: ['OFR Financial Stress Index', OFR_FSI_PAGE] },
+    { id: 'gospel', read: readGospel, source: ['Data provided by Joshua Project', JOSHUA_PROJECT] },
 ];
 
 // CO₂ atmosférico diário em Mauna Loa (NOAA GML). Contexto do painel, não é sinal do Ω.

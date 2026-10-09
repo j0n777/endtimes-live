@@ -41,6 +41,7 @@ export const ptBR: Translations = {
       credited: 'Ideia e método creditados',
       wmoRes40: 'Acesso aberto (Resolução 40 da OMM)',
       whoCount: 'Só a contagem de alertas, com link',
+      nonCommercial: 'Uso não comercial, com crédito',
     },
   },
   signs: {
@@ -81,6 +82,7 @@ export const ptBR: Translations = {
       sea: { name: 'Bramido do mar', ref: 'Lucas 21:25', quote: 'pelo bramido do mar e das ondas', value: '{v} ciclones tropicais que chegaram à categoria 3+ em 90 dias · média sazonal desde 1981 {b}' },
       persecution: { name: 'Perseguição', ref: 'Mateus 24:9', quote: 'sereis odiados de todas as nações por causa do meu nome', value: 'A Portas Abertas publica a Lista Mundial da Perseguição uma vez por ano, sem API — ainda não dá para medir aqui.' },
       distress: { name: 'Angústia das nações', ref: 'Lucas 21:25', quote: 'sobre a terra haverá angústia das nações em perplexidade', value: 'Índice de estresse financeiro do OFR {v} ({period}; 0 = normal) · média desde 2000 {b}' },
+      gospel: { name: 'Evangelho pregado a todas as nações', ref: 'Mateus 24:14', quote: 'este evangelho do Reino será pregado em todo o mundo, em testemunho a todas as gentes', value: '{v}% da população mundial ainda vive em povos não alcançados ({groups} povos) · Data provided by Joshua Project' },
     },
   },
   sidebar: {
@@ -95,10 +97,13 @@ export const ptBR: Translations = {
     weatherRadar: 'Chuva (NASA IMERG, ~6 h de atraso)',
     globalRadiation: 'Radiação Global (Safecast)',
     webSdrStations: 'Estações WebSDR',
+    period: 'PERÍODO',
+    periods: { '24h': '24 h', '7d': '7 dias', '30d': '30 dias', '90d': '90 dias' },
+    periodHint: 'Eventos do mapa e terremotos. Aparece um pouco de cada categoria; filtre as categorias abaixo para ver mais de uma só.',
     dataLayers: 'CAMADAS DE DADOS',
     dailySatellite: 'Satélite de ontem (NASA)',
     nightLights: 'Luzes noturnas (NASA VIIRS)',
-    quakes: 'Terremotos M4.5+ · 7 dias (USGS)',
+    quakes: 'Terremotos M4.5+ (USGS)',
     chokepoints: 'Gargalos marítimos (FMI)',
     categories: 'Categorias de Eventos',
     categoriesHint: 'Ative ou desative categorias para filtrar eventos no mapa. Categorias acinzentadas estão ocultas.',
@@ -125,6 +130,15 @@ export const ptBR: Translations = {
   protocols: {
     title: 'PROTOCOLOS',
     checklistProgress: (done: number, total: number) => `${done}/${total} CONCLUÍDOS`,
+    guidesTab: 'GUIAS DE SOBREVIVÊNCIA',
+    radioTab: 'RÁDIO E FREQUÊNCIAS',
+    radioLicenseTitle: 'ANTES DE TRANSMITIR',
+    radioLicense: [
+      'Escutar (receptor, scanner ou WebSDR) costuma ser livre; transmitir exige autorização do órgão regulador do seu país, e as regras mudam de país para país.',
+      'Brasil: radioamador exige o certificado COER, emitido pela Anatel (requisitos atualizados pelo Ato 3.448/2026). Consulte a Anatel ou a LABRE sobre provas e taxas.',
+      'Estados Unidos: rádios FRS dispensam licença individual; GMRS e radioamador exigem licença da FCC.',
+      'Em emergência real, use os canais de emergência e siga a Defesa Civil local.',
+    ],
   },
   comms: {
     title: 'COMUNICAÇÕES // FREQUÊNCIAS DE RÁDIO',

@@ -17,7 +17,8 @@ import { getCountryBoundingBox } from '../lib/utils/GeoJSONGenerator';
 import { countryShapes } from '../lib/utils/countryShapes';
 import { COUNTRY_CENTROIDS } from '../lib/utils/countryCentroids';
 import { useLocale } from '../lib/i18n';
-import { CHOKEPOINT_COLOR, chokepointLevel, escapeHtml, quakeStyle, safeUrl } from '../lib/layers/style';
+import { CHOKEPOINT_COLOR, chokepointLevel, escapeHtml, quakeFeedUrl, quakeStyle, safeUrl } from '../lib/layers/style';
+import { DEFAULT_PERIOD, type EventPeriod } from '../lib/events/balance';
 import type { ChokepointsPayload } from '../lib/layers/types';
 
 // NASA GIBS (domínio público, sem chave, CORS liberado). Usa o dia UTC anterior: o tempo
@@ -90,6 +91,7 @@ interface SituationMapProps {
   showDailySatellite?: boolean;
   showNightLights?: boolean;
   showQuakes?: boolean;
+  period?: EventPeriod;
   showChokepoints?: boolean;
 }
 
@@ -301,6 +303,7 @@ const SituationMap: React.FC<SituationMapProps> = ({
   showDailySatellite = false,
   showNightLights = false,
   showQuakes = false,
+  period = DEFAULT_PERIOD,
   showChokepoints = false,
 }) => {
   const { t, locale } = useLocale();
@@ -573,7 +576,7 @@ const SituationMap: React.FC<SituationMapProps> = ({
       if (showNightLights) nightLightsRef.current.addTo(map); else map.removeLayer(nightLightsRef.current);
     }, [showNightLights]);
 
-    // Terremotos M4.5+ dos últimos 7 dias, direto do feed da USGS (CORS liberado).
+    // Terremotos M4.5+ do período escolhido, direto da USGS (CORS liberado).
     useEffect(() => {
       const map = mapInstanceRef.current;
       const group = quakesGroupRef.current;
@@ -583,7 +586,7 @@ const SituationMap: React.FC<SituationMapProps> = ({
       let cancelled = false;
       const load = async () => {
         try {
-          const res = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_week.geojson');
+          const res = await fetch(quakeFeedUrl(period));
           if (!res.ok || cancelled) return;
           const data = await res.json();
           group.clearLayers();
@@ -608,7 +611,7 @@ const SituationMap: React.FC<SituationMapProps> = ({
       load();
       const interval = setInterval(load, 10 * 60 * 1000);
       return () => { cancelled = true; clearInterval(interval); };
-    }, [showQuakes, t, locale]);
+    }, [showQuakes, period, t, locale]);
 
     // Gargalos marítimos: chokepoints.json publicado pelo worker (FMI PortWatch).
     useEffect(() => {
