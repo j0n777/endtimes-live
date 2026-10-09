@@ -94,9 +94,9 @@
     <!-- Divider -->
     <rect x="-104" y="-12" width="1" height="24" fill="#374151"/>
 
-    <!-- DEFCON indicator -->
+    <!-- Signs indicator -->
     <rect x="-95" y="-16" width="120" height="32" rx="2" fill="#0d1710" stroke="#374151" stroke-width="1"/>
-    <text x="-35" y="6" text-anchor="middle" font-family="monospace" font-size="13" fill="#facc15" letter-spacing="2">DEFCON 3</text>
+    <text x="-35" y="6" text-anchor="middle" font-family="monospace" font-size="13" fill="#facc15" letter-spacing="2">9 SIGNS</text>
 
     <!-- Divider -->
     <rect x="35" y="-12" width="1" height="24" fill="#374151"/>

@@ -63,6 +63,7 @@ export const en = {
     percentile: 'percentile {p}',
     baseline: 'history {span}',
     source: 'Source',
+    learnMore: 'Learn more',
     status: {
       'short-baseline': 'short history — not counted in Ω',
       unavailable: 'no source with history yet',

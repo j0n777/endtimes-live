@@ -1,90 +1,72 @@
-# End Times Monitor Robots.txt
-# https://endtimes.live
-# Real-time global intelligence platform
+# End Times Monitor — https://endtimes.live
+# Mesma política do Jornal Bitcoin: libera buscadores e os robôs que citam páginas em
+# respostas de IA; bloqueia os robôs que só coletam texto para treinar modelos.
 
 User-agent: *
 Allow: /
-
-# Sitemap location
-Sitemap: https://endtimes.live/sitemap.xml
-
-# Block technical paths
-Disallow: /assets/*.map$
 Disallow: /api/
+Disallow: /assets/*.map$
 
-# Allow all major search engines
-User-agent: Googlebot
-Allow: /
-Crawl-delay: 0
-
-User-agent: Googlebot-Image
-Allow: /
-
-User-agent: Googlebot-News
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: DuckDuckBot
-Allow: /
-
-User-agent: Baiduspider
-Allow: /
-
-User-agent: YandexBot
-Allow: /
-
-# AI Crawlers - Allow for better AI model understanding
-User-agent: GPTBot
+# Busca e citação em respostas de IA (ChatGPT Search, Claude, Perplexity, DuckDuckGo AI)
+User-agent: OAI-SearchBot
 Allow: /
 
 User-agent: ChatGPT-User
 Allow: /
 
-User-agent: Claude-Web
+User-agent: Claude-SearchBot
 Allow: /
 
-User-agent: anthropic-ai
-Allow: /
-
-User-agent: Anthropic-AI
-Allow: /
-
-User-agent: Google-Extended
+User-agent: Claude-User
 Allow: /
 
 User-agent: PerplexityBot
 Allow: /
 
-User-agent: Bytespider
+User-agent: Perplexity-User
 Allow: /
 
-User-agent: CCBot
+User-agent: DuckAssistBot
 Allow: /
 
-User-agent: Applebot
+User-agent: Google-CloudVertexBot
 Allow: /
+
+# Coleta para treino de modelos (não afeta a presença nas respostas acima)
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
 
 User-agent: Applebot-Extended
-Allow: /
+Disallow: /
 
-User-agent: cohere-ai
-Allow: /
+User-agent: Amazonbot
+Disallow: /
 
 User-agent: Meta-ExternalAgent
-Allow: /
+Disallow: /
 
-User-agent: OAI-SearchBot
-Allow: /
+User-agent: FacebookBot
+Disallow: /
 
-User-agent: YouBot
-Allow: /
+User-agent: CCBot
+Disallow: /
 
-User-agent: AI2Bot
-Allow: /
+User-agent: Bytespider
+Disallow: /
 
-# Social Media Crawlers
+# Prévias de link em redes sociais
 User-agent: Twitterbot
 Allow: /
 
@@ -97,11 +79,10 @@ Allow: /
 User-agent: Discordbot
 Allow: /
 
-User-agent: Slackbot
+User-agent: WhatsApp
 Allow: /
 
 User-agent: TelegramBot
 Allow: /
 
-User-agent: WhatsApp
-Allow: /
+Sitemap: https://endtimes.live/sitemap.xml

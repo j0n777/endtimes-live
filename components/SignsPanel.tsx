@@ -5,6 +5,7 @@ import { OMEGA_META } from '../utils/omegaCalculator';
 import type { SignReading, SignsPayload } from '../lib/signs/types';
 import type { EwsPayload } from '../lib/ews/types';
 import { dataUrl } from '../lib/dataUrl';
+import { signInfoPath } from '../lib/seo/slugs';
 
 interface SignsPanelProps {
   signs: SignsPayload | null;
@@ -120,6 +121,9 @@ export const SignsPanel: React.FC<SignsPanelProps> = ({ signs, onClose }) => {
                   <span className="text-yellow-600/90">{t.signs.status[s.status]}</span>
                 )}
                 {measured && s.baselineSpan && <span>{fill(t.signs.baseline, { span: s.baselineSpan })}</span>}
+                <a href={signInfoPath(locale === 'pt-BR' ? 'pt' : 'en', s.id)} className="text-tactical-500 hover:text-tactical-400 shrink-0">
+                  {t.signs.learnMore}
+                </a>
                 <span className="flex-1" />
                 <a
                   href={s.sourceUrl}

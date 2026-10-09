@@ -65,6 +65,7 @@ export const ptBR: Translations = {
     percentile: 'percentil {p}',
     baseline: 'histórico {span}',
     source: 'Fonte',
+    learnMore: 'Saiba mais',
     status: {
       'short-baseline': 'histórico curto — fora do Ω',
       unavailable: 'ainda sem fonte com histórico',
