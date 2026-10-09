@@ -26,6 +26,7 @@ import { BottomFilterBar } from './components/BottomFilterBar';
 import { GlobalSearch } from './components/GlobalSearch';
 import { SEOHead } from './components/SEOHead';
 import { Search } from 'lucide-react';
+import { DEFAULT_PERIOD, EVENT_PERIODS, periodStart, type EventPeriod } from './lib/events/balance';
 
 const App: React.FC = () => {
   const { t } = useLocale();
@@ -82,6 +83,8 @@ const App: React.FC = () => {
   const [conflictZones, setConflictZones] = useState<ConflictZone[]>([]);
   const [showNuclearAlerts, setShowNuclearAlerts] = useState<boolean>(true);
   const [nuclearAlerts, setNuclearAlerts] = useState<NuclearAlert[]>([]);
+  // Período dos eventos e dos terremotos (09/10/2026): padrão 7 dias, ver lib/events/balance.
+  const [period, setPeriod] = useState<EventPeriod>(DEFAULT_PERIOD);
   const [visibleCategories, setVisibleCategories] = useState<Set<EventCategory>>(
     new Set(Object.values(EventCategory))
   );
@@ -146,7 +149,7 @@ const App: React.FC = () => {
       await triggerDataCollection();
 
       // Load events
-      const data = await loadAllEvents();
+      const data = await loadAllEvents(periodStart(period));
       setEvents(data);
 
       const counts: Record<string, number> = {};
@@ -188,6 +191,7 @@ const App: React.FC = () => {
   }, [events, showTransport]);
 
   const isInitialMount = useRef(true);
+  const periodRef = useRef(period);
 
   // Per-category server-side refetch — when user selects a subset of categories,
   // fetch the 150 most recent events FOR THOSE CATEGORIES from Supabase.
@@ -197,20 +201,21 @@ const App: React.FC = () => {
     const allCategories = new Set(Object.values(EventCategory));
     const isAllSelected = visibleCategories.size >= allCategories.size;
 
-    if (isAllSelected && isInitialMount.current) {
+    if (isAllSelected && isInitialMount.current && periodRef.current === period) {
       isInitialMount.current = false;
       return; // No change from initial load — global 150 already loaded
     }
     isInitialMount.current = false;
+    periodRef.current = period;
 
     // Debounce: wait 400ms after last toggle before querying
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
         const selectedCats = [...visibleCategories] as EventCategory[];
-        const data = selectedCats.length > 0
-          ? await loadEventsByCategories(selectedCats)
-          : await loadAllEvents();
+        const data = selectedCats.length > 0 && !isAllSelected
+          ? await loadEventsByCategories(selectedCats, periodStart(period))
+          : await loadAllEvents(periodStart(period));
         setEvents(data);
       } catch (e) {
         console.error('Category filter refetch failed:', e);
@@ -220,7 +225,7 @@ const App: React.FC = () => {
     }, 400);
 
     return () => clearTimeout(timer);
-  }, [visibleCategories]);
+  }, [visibleCategories, period]);
 
   // Navigation Logic
   interface NavButtonProps {
@@ -266,6 +271,7 @@ const App: React.FC = () => {
           showDailySatellite={showDailySatellite}
           showNightLights={showNightLights}
           showQuakes={showQuakes}
+          period={period}
           showChokepoints={showChokepoints}
         />;
       case 'LIVE_FEED':
@@ -296,6 +302,7 @@ const App: React.FC = () => {
           showDailySatellite={showDailySatellite}
           showNightLights={showNightLights}
           showQuakes={showQuakes}
+          period={period}
           showChokepoints={showChokepoints}
         />;
     }
@@ -642,6 +649,25 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-5">
+            {/* Período dos eventos e terremotos */}
+            <div>
+              <p className="text-[10px] text-gray-600 uppercase tracking-widest mb-2">{t.sidebar.period}</p>
+              <div className="grid grid-cols-4 gap-1" role="radiogroup" aria-label={t.sidebar.period}>
+                {EVENT_PERIODS.map(p => (
+                  <button
+                    key={p}
+                    role="radio"
+                    aria-checked={period === p}
+                    onClick={() => setPeriod(p)}
+                    className={`px-2 py-1.5 rounded-sm text-xs font-mono border transition-colors ${period === p ? 'border-tactical-500/70 text-tactical-400 bg-tactical-800/40' : 'border-gray-800 text-gray-500 hover:border-gray-700 hover:text-gray-400'}`}
+                  >
+                    {t.sidebar.periods[p]}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-gray-600 mt-1.5 leading-relaxed">{t.sidebar.periodHint}</p>
+            </div>
+
             {/* Layers */}
             <div>
               <p className="text-[10px] text-gray-600 uppercase tracking-widest mb-2">{t.sidebar.activeLayers}</p>

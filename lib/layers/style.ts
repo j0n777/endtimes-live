@@ -42,3 +42,14 @@ export function safeUrl(s: unknown): string {
         return '';
     }
 }
+
+/**
+ * Terremotos M4.5+ da USGS para o período escolhido: os feeds prontos cobrem dia, semana
+ * e mês; 90 dias usa a consulta FDSN (mesmo GeoJSON, também com CORS liberado).
+ */
+export function quakeFeedUrl(period: '24h' | '7d' | '30d' | '90d', now = new Date()): string {
+    const feed = { '24h': 'day', '7d': 'week', '30d': 'month' } as const;
+    if (period !== '90d') return `https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_${feed[period]}.geojson`;
+    const start = new Date(now.getTime() - 90 * 86_400_000).toISOString().slice(0, 10);
+    return `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minmagnitude=4.5&orderby=time&starttime=${start}`;
+}
