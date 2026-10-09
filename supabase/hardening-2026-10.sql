@@ -7,14 +7,14 @@
 -- 1a. Tamanho do banco (limite do plano gratuito: 500 MB)
 SELECT pg_size_pretty(pg_database_size(current_database())) AS tamanho_banco;
 
--- 1b. Maiores tabelas e linhas estimadas
-SELECT c.relname AS tabela,
+-- 1b. Maiores tabelas de todos os schemas (logs do pg_cron e do pg_net costumam inchar)
+SELECT n.nspname || '.' || c.relname AS tabela,
        pg_size_pretty(pg_total_relation_size(c.oid)) AS tamanho_total,
        c.reltuples::bigint AS linhas_estimadas
 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-WHERE n.nspname = 'public' AND c.relkind = 'r'
+WHERE n.nspname NOT IN ('pg_catalog', 'information_schema') AND c.relkind IN ('r', 'm')
 ORDER BY pg_total_relation_size(c.oid) DESC
-LIMIT 15;
+LIMIT 20;
 
 -- 1c. Storage (limite do plano gratuito: 1 GB)
 SELECT bucket_id, count(*) AS arquivos,
@@ -69,6 +69,10 @@ BEGIN
     SELECT p.oid::regprocedure FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
     WHERE n.nspname = 'public' AND p.prosecdef
       AND NOT EXISTS (SELECT 1 FROM unnest(coalesce(p.proconfig, '{}')) c WHERE c LIKE 'search_path=%')
+      -- Funções de extensões (ex.: PostGIS) pertencem ao supabase_admin; alterá-las dá
+      -- "must be owner of function" e aborta a transação inteira.
+      AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e')
+      AND pg_has_role(p.proowner, 'USAGE')
   LOOP
     EXECUTE format('ALTER FUNCTION %s SET search_path = public, pg_temp', f);
   END LOOP;
