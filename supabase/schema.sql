@@ -1,8 +1,6 @@
 -- END TIMES MONITOR - Database Schema
--- Supabase PostgreSQL + PostGIS
-
--- Enable PostGIS for geospatial queries
-CREATE EXTENSION IF NOT EXISTS postgis;
+-- Supabase PostgreSQL. Sem PostGIS: nenhuma consulta usa geometria (lat/lng são números)
+-- e a extensão deixava public.spatial_ref_sys exposta sem RLS (09/10/2026).
 
 -- =====================================================
 -- EVENTS TABLE (Core)
@@ -37,12 +35,6 @@ CREATE TABLE IF NOT EXISTS events (
 -- =====================================================
 -- INDEXES FOR PERFORMANCE
 -- =====================================================
-
--- Geospatial index for bbox queries (CRITICAL for map performance)
-CREATE INDEX IF NOT EXISTS events_location_gist_idx 
-ON events USING GIST (
-  ST_SetSRID(ST_MakePoint(lng, lat), 4326)
-);
 
 -- Performance indexes
 CREATE INDEX IF NOT EXISTS events_severity_idx ON events (severity);
