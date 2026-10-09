@@ -41,6 +41,7 @@ export const ptBR: Translations = {
       credited: 'Ideia e método creditados',
       wmoRes40: 'Acesso aberto (Resolução 40 da OMM)',
       whoCount: 'Só a contagem de alertas, com link',
+      nonCommercial: 'Uso não comercial, com crédito',
     },
   },
   signs: {
@@ -81,6 +82,7 @@ export const ptBR: Translations = {
       sea: { name: 'Bramido do mar', ref: 'Lucas 21:25', quote: 'pelo bramido do mar e das ondas', value: '{v} ciclones tropicais que chegaram à categoria 3+ em 90 dias · média sazonal desde 1981 {b}' },
       persecution: { name: 'Perseguição', ref: 'Mateus 24:9', quote: 'sereis odiados de todas as nações por causa do meu nome', value: 'A Portas Abertas publica a Lista Mundial da Perseguição uma vez por ano, sem API — ainda não dá para medir aqui.' },
       distress: { name: 'Angústia das nações', ref: 'Lucas 21:25', quote: 'sobre a terra haverá angústia das nações em perplexidade', value: 'Índice de estresse financeiro do OFR {v} ({period}; 0 = normal) · média desde 2000 {b}' },
+      gospel: { name: 'Evangelho pregado a todas as nações', ref: 'Mateus 24:14', quote: 'este evangelho do Reino será pregado em todo o mundo, em testemunho a todas as gentes', value: '{v}% da população mundial ainda vive em povos não alcançados ({groups} povos) · Data provided by Joshua Project' },
     },
   },
   sidebar: {

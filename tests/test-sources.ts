@@ -3,6 +3,7 @@
 import { strToU8, zipSync } from 'fflate';
 import { countBetween, majorStormsFromCsv, mergeRecent } from '../lib/signs/ibtracs';
 import { readXlsxSheet } from '../lib/signs/xlsx';
+import { unreachedShare } from '../lib/signs/gospel';
 
 let failures = 0;
 function check(name: string, actual: unknown, expected: unknown) {
@@ -37,6 +38,17 @@ const xlsx = zipSync({
     'xl/worksheets/sheet1.xml': strToU8('<worksheet><sheetData><row r="1"><c r="C1" t="s"><v>0</v></c></row><row r="2"><c r="A2" t="s"><v>1</v></c><c r="C2"><v>21.2</v></c></row></sheetData></worksheet>'),
 });
 check('xlsx: lê a aba pelo nome, com colunas posicionadas', readXlsxSheet(xlsx, 'Monthly Indices'), [['', '', 'Food **'], ['1960M01', '', '21.2']]);
+
+// Joshua Project: fração da população em povos não alcançados
+const jp = [
+    'Joshua Project People Group Data',
+    '',
+    'Ctry,PeopNameInCountry,Population,LeastReached',
+    'AF,"Afghan, Tajik",750,Y',
+    'BR,Brazilian,250,N',
+    'XX,Sem dado,,Y',
+].join('\n');
+check('joshua project: % não alcançados e grupos', unreachedShare(jp), { percent: 75, groups: 1 });
 
 console.log(failures ? `\n❌ ${failures} falha(s)` : '\n✅ todos os testes passaram');
 process.exit(failures ? 1 : 0);

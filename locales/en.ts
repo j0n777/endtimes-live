@@ -39,6 +39,7 @@ export const en = {
       credited: 'Idea and method credited',
       wmoRes40: 'Open access (WMO Resolution 40)',
       whoCount: 'Only the count of alerts, with a link',
+      nonCommercial: 'Non-commercial use, with attribution',
     },
   },
   signs: {
@@ -79,6 +80,7 @@ export const en = {
       sea: { name: 'Roaring sea', ref: 'Luke 21:25', quote: 'the sea and the waves roaring', value: '{v} tropical cyclones reaching category 3+ in 90 days · seasonal average since 1981 {b}' },
       persecution: { name: 'Persecution', ref: 'Matthew 24:9', quote: 'ye shall be hated of all nations for my name’s sake', value: 'Open Doors publishes the World Watch List once a year, with no API — not yet measurable here.' },
       distress: { name: 'Distress of nations', ref: 'Luke 21:25', quote: 'upon the earth distress of nations, with perplexity', value: 'OFR financial stress index {v} ({period}; 0 = normal) · average since 2000 {b}' },
+      gospel: { name: 'Gospel preached to all nations', ref: 'Matthew 24:14', quote: 'this gospel of the kingdom shall be preached in all the world for a witness unto all nations', value: '{v}% of the world population still lives in unreached people groups ({groups} groups) · Data provided by Joshua Project' },
     },
   },
   sidebar: {

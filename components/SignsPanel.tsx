@@ -106,6 +106,7 @@ export const SignsPanel: React.FC<SignsPanelProps> = ({ signs, onClose }) => {
                         v: s.value === null ? '—' : nf.format(s.value),
                         b: s.baselineMean === null ? '—' : nf.format(s.baselineMean),
                         period: s.period ?? '',
+                        ...Object.fromEntries(Object.entries(s.extra ?? {}).map(([k, n]) => [k, nf.format(n as number)])),
                       })
                     : null}
               </div>

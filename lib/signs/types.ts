@@ -10,7 +10,8 @@ export type SignId =
     | 'heavens'
     | 'sea'
     | 'persecution'
-    | 'distress';
+    | 'distress'
+    | 'gospel';
 
 export type SignTrend = 'up' | 'down' | 'flat';
 
@@ -32,6 +33,7 @@ export interface SignReading {
     sourceName: string;
     sourceUrl: string;
     error?: string;
+    extra?: Record<string, number>; // números extras para o texto do sinal
 }
 
 export type IndexLevel = 1 | 2 | 3 | 4 | 5;

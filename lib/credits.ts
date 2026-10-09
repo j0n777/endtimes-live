@@ -4,7 +4,7 @@
 export type CreditGroup = 'maps' | 'signs' | 'layers' | 'events' | 'method';
 
 /** Licenças que precisam de tradução; o resto (ODbL, CC BY…) é exibido como está. */
-export type LicenseKey = 'publicDomainUS' | 'publicDomainNASA' | 'govBR' | 'imfTerms' | 'celestrak' | 'gdelt' | 'outletTerms' | 'credited' | 'wmoRes40' | 'whoCount';
+export type LicenseKey = 'publicDomainUS' | 'publicDomainNASA' | 'govBR' | 'imfTerms' | 'celestrak' | 'gdelt' | 'outletTerms' | 'credited' | 'wmoRes40' | 'whoCount' | 'nonCommercial';
 
 export interface Credit {
     group: CreditGroup;
@@ -25,6 +25,7 @@ export const CREDITS: Credit[] = [
     { group: 'signs', name: 'GFZ Potsdam — Kp index (Matzka et al., 2021)', license: 'CC BY 4.0', url: 'https://kp.gfz-potsdam.de/' },
     { group: 'signs', name: 'NOAA IBTrACS v04r01 (Knapp et al., 2010)', license: { key: 'wmoRes40' }, url: 'https://www.ncei.noaa.gov/products/international-best-track-archive' },
     { group: 'signs', name: 'WHO Disease Outbreak News', license: { key: 'whoCount' }, url: 'https://www.who.int/emergencies/disease-outbreak-news' },
+    { group: 'signs', name: 'Data provided by Joshua Project', license: { key: 'nonCommercial' }, url: 'https://joshuaproject.net/' },
     { group: 'signs', name: 'Geopolitical Risk Index — Caldara & Iacoviello (2022), American Economic Review', license: 'CC BY', url: 'https://www.matteoiacoviello.com/gpr.htm' },
     { group: 'signs', name: 'NOAA Global Monitoring Laboratory — Mauna Loa CO₂', license: { key: 'publicDomainUS' }, url: 'https://gml.noaa.gov/ccgg/trends/' },
 
