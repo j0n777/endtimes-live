@@ -128,6 +128,15 @@ export const ptBR: Translations = {
   protocols: {
     title: 'PROTOCOLOS',
     checklistProgress: (done: number, total: number) => `${done}/${total} CONCLUÍDOS`,
+    guidesTab: 'GUIAS DE SOBREVIVÊNCIA',
+    radioTab: 'RÁDIO E FREQUÊNCIAS',
+    radioLicenseTitle: 'ANTES DE TRANSMITIR',
+    radioLicense: [
+      'Escutar (receptor, scanner ou WebSDR) costuma ser livre; transmitir exige autorização do órgão regulador do seu país, e as regras mudam de país para país.',
+      'Brasil: radioamador exige o certificado COER, emitido pela Anatel (requisitos atualizados pelo Ato 3.448/2026). Consulte a Anatel ou a LABRE sobre provas e taxas.',
+      'Estados Unidos: rádios FRS dispensam licença individual; GMRS e radioamador exigem licença da FCC.',
+      'Em emergência real, use os canais de emergência e siga a Defesa Civil local.',
+    ],
   },
   comms: {
     title: 'COMUNICAÇÕES // FREQUÊNCIAS DE RÁDIO',

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { dataUrl } from './lib/dataUrl';
-import { AlertTriangle, Radio, BookOpen, RefreshCw, Shield, Menu, X, Globe, DollarSign, Cpu, LandPlot, Rss, Settings, ChevronUp, ChevronDown, Trash2 } from 'lucide-react';
+import { AlertTriangle, BookOpen, RefreshCw, Shield, Menu, X, Globe, DollarSign, Cpu, LandPlot, Rss, Settings, ChevronUp, ChevronDown, Trash2 } from 'lucide-react';
 import { useLocale } from './lib/i18n';
 import type { SignsPayload } from './lib/signs/types';
 import { StatusBar } from './components/StatusBar';
@@ -9,8 +9,7 @@ import { ViewState, MonitorEvent, AdminConfig, DataSourceStatus, EventCategory }
 import { CATEGORY_COLORS, CATEGORY_LABELS } from './categoryColors';
 import SituationMap from './components/SituationMap';
 // import AIChat from './components/AIChat';
-import SurvivalManual from './components/SurvivalManual';
-import CommsPanel from './components/CommsPanel';
+import { ProtocolsView } from './components/ProtocolsView';
 import ProphecyIntel from './components/ProphecyIntel';
 import IntelFeed from './components/IntelFeed';
 import { LiveThreatFeed } from './components/LiveThreatFeed';
@@ -240,8 +239,8 @@ const App: React.FC = () => {
         setViewState(target);
         setMobileMenuOpen(false);
       }}
-      className={`flex items-center gap-2 px-3 py-2 text-xs font-bold tracking-widest transition-all
-              ${viewState === target
+      className={`flex items-center gap-2 px-2.5 py-1.5 text-[11px] font-bold tracking-wider transition-all
+              ${viewState === target || (target === 'SURVIVAL' && viewState === 'RADIO')
           ? 'bg-tactical-800 text-tactical-500 border-b-2 border-tactical-500'
           : 'text-gray-400 hover:text-white hover:bg-tactical-800/50'
         }`}
@@ -279,9 +278,11 @@ const App: React.FC = () => {
       case 'TIMELINE':
         return <ProphecyIntel />;
       case 'SURVIVAL':
-        return <SurvivalManual />;
       case 'RADIO':
-        return <CommsPanel />;
+        return <ProtocolsView
+          section={viewState === 'RADIO' ? 'radio' : 'guides'}
+          onSection={s => setViewState(s === 'radio' ? 'RADIO' : 'SURVIVAL')}
+        />;
       case 'AI_INTEL':
         // return <AIChat events={events} />;
         return null;
@@ -505,7 +506,7 @@ const App: React.FC = () => {
       </div>
 
       <header
-        className="h-14 bg-tactical-900 border-b border-tactical-700 flex items-center justify-between px-2 sm:px-4 z-20 shrink-0"
+        className="h-11 bg-tactical-900/80 border-b border-tactical-800 flex items-center justify-between px-2 sm:px-4 z-20 shrink-0"
         role="banner"
         aria-label="Main header"
       >
@@ -524,18 +525,18 @@ const App: React.FC = () => {
             <img
               src="/logo_etm.jpg"
               alt="ETM Logo"
-              className="h-8 w-8 sm:h-10 sm:w-10 object-contain rounded-md border border-tactical-500/50 shadow-[0_0_10px_rgba(193,154,107,0.2)]"
+              className="h-7 w-7 object-contain rounded-md border border-tactical-500/40"
             />
             <div>
               <h1 className="font-black text-[10px] sm:text-sm tracking-wider text-white leading-tight">
                 END TIMES MONITOR
               </h1>
-              <p className="text-[8px] text-gray-500 uppercase tracking-widest hidden sm:block">
+              <p className="text-[8px] text-gray-500 uppercase tracking-widest hidden xl:block">
                 {t.header.subtitle}
               </p>
             </div>
             {/* Isolated Clock Component */}
-            <div className="hidden lg:block ml-4 border-l border-tactical-800 pl-4">
+            <div className="hidden xl:block ml-4 border-l border-tactical-800 pl-4 scale-75 origin-left">
               <Clock />
             </div>
           </div>
@@ -551,7 +552,6 @@ const App: React.FC = () => {
           <NavButton target="LIVE_FEED" label={t.nav.liveFeed} />
           <NavButton target="TIMELINE" label={t.nav.prophecy} />
           <NavButton target="SURVIVAL" label={t.nav.protocols} />
-          <NavButton target="RADIO" label={t.nav.comms} />
         </nav>
 
         {/* Localized Actions: Search + Share + Online */}
@@ -623,17 +623,16 @@ const App: React.FC = () => {
 
       {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
-        <div className="absolute top-14 left-0 w-full bg-tactical-900 border-b border-tactical-700 z-50 md:hidden flex flex-col p-4 space-y-2 shadow-2xl">
+        <div className="absolute top-11 left-0 w-full bg-tactical-900 border-b border-tactical-700 z-50 md:hidden flex flex-col p-4 space-y-2 shadow-2xl">
           <NavButton target="SITUATION_MAP" label={t.nav.situation} icon={Globe} />
           <NavButton target="LIVE_FEED" label={t.nav.liveFeed} icon={Rss} />
           <NavButton target="TIMELINE" label={t.nav.prophecy} icon={BookOpen} />
           <NavButton target="SURVIVAL" label={t.nav.protocols} icon={Shield} />
-          <NavButton target="RADIO" label={t.nav.comms} icon={Radio} />
         </div>
       )}
 
       {/* Main Content Area */}
-      <div className="flex-1 relative bg-[#050505] overflow-hidden pb-8">
+      <div className="flex-1 relative bg-[#050505] overflow-hidden pb-9">
         {renderContent()}
 
         {/* LEFT OVERLAY: Live Threat Feed */}

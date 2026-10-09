@@ -51,18 +51,19 @@ export const StatusBar: React.FC<StatusBarProps> = ({
     : t.tension.none;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 h-8 bg-black/90 border-t border-tactical-800/60 flex items-center px-3 gap-0 text-[10px] font-mono select-none backdrop-blur-sm">
+    <div className="fixed bottom-0 left-0 right-0 z-40 h-9 bg-black/90 border-t border-tactical-800/60 flex items-center px-2 sm:px-3 gap-0 text-[10px] font-mono select-none backdrop-blur-sm">
 
       {/* ── Omega Index: abre o painel dos sinais ───────────────── */}
       <button
         onClick={() => setSignsOpen(open => !open)}
-        className={`flex items-center gap-1.5 pr-3 border-r border-tactical-800/50 shrink-0 hover:bg-tactical-900/40 transition-colors ${signsOpen ? 'bg-tactical-900/50' : ''}`}
+        className={`flex items-center gap-2 h-7 px-2 sm:px-2.5 mr-1 sm:mr-2 rounded-sm border shrink-0 bg-black/60 transition-colors hover:bg-tactical-900/60 ${omegaMeta ? omegaMeta.borderColor : 'border-gray-700/60'} ${signsOpen ? 'bg-tactical-900/70' : ''}`}
         title={omegaMeta ? `Omega Index ${omegaLevel} — ${omegaMeta.codename}: ${omegaMeta.desc}` : t.signs.title}
         aria-expanded={signsOpen}
       >
-        <span className="text-gray-600 font-bold">Ω</span>
-        <span className={`font-bold tracking-wider ${omegaMeta ? omegaMeta.textColor : 'text-gray-600'}`}>
-          {omegaMeta ? `${omegaLevel} · ${omegaMeta.codename}` : '—'}
+        <span className={`w-2 h-2 rounded-full shrink-0 ${omegaMeta ? omegaMeta.dotColor : 'bg-gray-600'} ${omegaMeta?.pulse ? 'animate-pulse' : ''}`} />
+        <span className="hidden md:inline text-gray-400 tracking-widest">{t.signs.title}</span>
+        <span className={`text-xs font-black tracking-wider ${omegaMeta ? omegaMeta.textColor : 'text-gray-600'}`}>
+          Ω {omegaMeta ? `${omegaLevel} · ${omegaMeta.codename}` : '—'}
         </span>
       </button>
 

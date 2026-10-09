@@ -126,6 +126,15 @@ export const en = {
   protocols: {
     title: 'PROTOCOLS',
     checklistProgress: (done: number, total: number) => `${done}/${total} COMPLETE`,
+    guidesTab: 'SURVIVAL GUIDES',
+    radioTab: 'RADIO & FREQUENCIES',
+    radioLicenseTitle: 'BEFORE YOU TRANSMIT',
+    radioLicense: [
+      'Listening (a receiver, scanner or WebSDR) is generally free; transmitting needs authorization from your country\'s regulator, and the rules change from country to country.',
+      'Brazil: amateur radio requires the COER certificate issued by Anatel (requirements updated by Act 3,448/2026). Check Anatel or LABRE for exams and fees.',
+      'United States: FRS radios need no individual license; GMRS and amateur radio require an FCC license.',
+      'In a real emergency, use the emergency channels and follow your local civil defense.',
+    ],
   },
   comms: {
     title: 'SIGNAL INTELLIGENCE // FREQUÊNCIAS',
