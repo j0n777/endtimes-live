@@ -23,7 +23,7 @@ const NEWS_FEEDS = [
     { name: 'BBC World', url: 'http://feeds.bbci.co.uk/news/world/rss.xml' },
     { name: 'France 24', url: 'https://www.france24.com/en/rss' },
     { name: 'Deutsche Welle', url: 'https://rss.dw.com/xml/rss-en-all' },
-    { name: 'Kyiv Independent', url: 'https://kyivindependent.com/feed' }, // Ukraine Focus
+    { name: 'Kyiv Independent', url: 'https://kyivindependent.com/news-archive/rss/' }, // Ukraine Focus
 
     // --- ASIA ---
     { name: 'Channel News Asia', url: 'https://www.channelnewsasia.com/api/v1/rss-feeds/rss-feed-1.xml' }, // Singapore/SE Asia

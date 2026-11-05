@@ -63,16 +63,26 @@ function isCredentialError(message: string): boolean {
         || m.includes('permission denied');
 }
 
+// Cota esgotada (05/11/2026). A chave do Gemini é do nível gratuito, sem faturamento:
+// passado o limite o Google responde 429 RESOURCE_EXHAUSTED e não cobra nada. Insistir
+// só gasta tempo da rodada, então o provedor sai na hora e volta a ser testado quando
+// o breaker expira (BREAKER_TTL_MS).
+function isQuotaError(message: string): boolean {
+    const m = message.toLowerCase();
+    return m.includes('resource_exhausted') || m.includes('quota') || m.includes('"code":429') || m.includes('status code 429');
+}
+
 function noteAIFailure(provider: AIProvider, message: string): void {
     const breaker = breakers[provider];
     breaker.failures++;
 
-    const fatal = isCredentialError(message);
-    if (!fatal && breaker.failures < MAX_CONSECUTIVE_FAILURES) return;
+    const credential = isCredentialError(message);
+    const quota = !credential && isQuotaError(message);
+    if (!credential && !quota && breaker.failures < MAX_CONSECUTIVE_FAILURES) return;
     if (breaker.openedAt) return;
 
     breaker.openedAt = Date.now();
-    const why = fatal ? 'credencial rejeitada' : `${breaker.failures} falhas seguidas`;
+    const why = credential ? 'credencial rejeitada' : quota ? 'cota esgotada (429)' : `${breaker.failures} falhas seguidas`;
     console.warn(`⛔ ${provider} desativado nesta execução (${why}). Geocoding segue pelo próximo provedor.`);
 }
 

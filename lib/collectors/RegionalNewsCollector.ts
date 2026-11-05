@@ -35,8 +35,10 @@ const REGIONAL_FEEDS: Record<MonitorRegion, { name: string, url: string }[]> = {
         { name: 'BBC World (Europe)', url: 'http://feeds.bbci.co.uk/news/world/europe/rss.xml' },
         { name: 'France 24', url: 'https://www.france24.com/en/rss' },
         { name: 'Deutsche Welle', url: 'https://rss.dw.com/xml/rss-en-all' },
-        { name: 'Kyiv Independent', url: 'https://kyivindependent.com/feed' },
-        { name: 'The Guardian (Europe)', url: 'https://www.theguardian.com/world/europe/rss' }
+        // 05/11/2026: /feed passou a dar 404; o endereço novo é o anunciado no <head> do site.
+        { name: 'Kyiv Independent', url: 'https://kyivindependent.com/news-archive/rss/' }
+        // The Guardian (Europe) saiu em 05/11/2026: /world/europe/rss deu 404 e o feed atual
+        // recusa leitores automáticos (403). Voltar só pela API oficial (open-platform.theguardian.com).
     ],
     [MonitorRegion.AFRICA]: [
         { name: 'AllAfrica', url: 'https://allafrica.com/tools/headlines/rdf/latest/headlines.rdf' },
