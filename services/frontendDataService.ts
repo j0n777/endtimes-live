@@ -2,8 +2,11 @@ import { supabase } from '../lib/supabaseClient';
 import { balanceByCategory } from '../lib/events/balance';
 import { MonitorEvent, EventCategory } from '../types';
 
-// Busca até 600 eventos do período e equilibra entre categorias (lib/events/balance).
-const FETCH_POOL = 600;
+// Busca até FETCH_POOL eventos do período e equilibra entre categorias (lib/events/balance).
+// O mapa mostrava no máximo 150 por causa da memória do markercluster; com o Supercluster
+// (05/11/2026) só os pinos visíveis viram elementos, então o teto sobe para 500.
+const FETCH_POOL = 1000;
+export const MAP_LIMIT = 500;
 
 /**
  * Frontend Data Service - Supabase Only
@@ -143,7 +146,22 @@ export async function loadEventDetails(
  * Load all events (for backwards compatibility)
  * Uses lightweight query
  */
-export async function loadAllEvents(since?: string, limit: number = 150): Promise<MonitorEvent[]> {
+/**
+ * Id do evento mais recente (05/11/2026). O polling de 1 min do App baixava a lista
+ * inteira (até FETCH_POOL linhas com texto) só para comparar o primeiro id, em cada aba
+ * aberta: tráfego de saída à toa na Supabase. Agora busca uma linha com uma coluna.
+ */
+export async function getLatestEventId(): Promise<string | null> {
+    const { data, error } = await supabase
+        .from('events')
+        .select('id')
+        .order('event_timestamp', { ascending: false })
+        .limit(1);
+    if (error) return null;
+    return data?.[0]?.id ?? null;
+}
+
+export async function loadAllEvents(since?: string, limit: number = MAP_LIMIT): Promise<MonitorEvent[]> {
     try {
         let query = supabase
             .from('events')
@@ -196,7 +214,7 @@ export async function loadAllEvents(since?: string, limit: number = 150): Promis
 export async function loadEventsByCategories(
     categories: EventCategory[],
     since?: string,
-    limit: number = 150
+    limit: number = MAP_LIMIT
 ): Promise<MonitorEvent[]> {
     if (!categories || categories.length === 0) return loadAllEvents(since, limit);
     try {

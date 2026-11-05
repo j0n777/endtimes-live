@@ -2,7 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { dataUrl } from '../lib/dataUrl';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import 'leaflet.markercluster';
+import Supercluster from 'supercluster';
+// Só o CSS do markercluster: os ícones de grupo reaproveitam as classes .marker-cluster.
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { MonitorEvent, ConflictLevel, EventCategory } from '../types';
@@ -40,8 +41,16 @@ const OPENFREEMAP_ATTRIBUTION = '<a href="https://openfreemap.org" target="_blan
 const fmt = (s: string, vars: Record<string, string | number>) =>
   s.replace(/\{(\w+)\}/g, (_, k) => (k in vars ? String(vars[k]) : `{${k}}`));
 
-// Fix for missing types for leaflet.markercluster
-const L_any = L as any;
+// Zoom mínimo (MapLibre) de cada camada de nomes do estilo escuro do OpenFreeMap.
+const LABEL_MIN_ZOOM: Record<string, number> = {
+  place_country_major: 1, place_country_minor: 3, place_country_other: 3,
+  place_state: 5, place_city_large: 4, place_city: 6, place_town: 8,
+  place_village: 10, place_suburb: 11, place_other: 11,
+  water_name: 4, highway_name_motorway: 9, highway_name_other: 11,
+};
+
+// Acima deste zoom os pinos aparecem separados; pinos no mesmo ponto viram lista.
+const CLUSTER_MAX_ZOOM = 9;
 
 // Definindo o tipo na mão aqui caso queira expandir
 export interface ConflictZone {
@@ -313,8 +322,9 @@ const SituationMap: React.FC<SituationMapProps> = ({
   const { t, locale } = useLocale();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
-  // Re-added clusterGroupRef
-  const clusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
+  const eventsLayerRef = useRef<L.LayerGroup | null>(null);
+  const markerCacheRef = useRef<Map<string, L.Marker>>(new Map());
+  const pointsRef = useRef<Map<string, { event: MonitorEvent; lat: number; lng: number }>>(new Map());
   const markersRef = useRef<L.Marker[]>([]);
   const vectorLayersRef = useRef<L.Layer[]>([]);
   const camMarkersRef = useRef<L.Marker[]>([]);
@@ -379,6 +389,17 @@ const SituationMap: React.FC<SituationMapProps> = ({
         if (mapInstanceRef.current !== map) return;
         darkTilesRef.current = maplibreGL({ style: 'https://tiles.openfreemap.org/styles/dark', attributionControl: { customAttribution: OPENFREEMAP_ATTRIBUTION } });
         if (!map.hasLayer(satTilesRef.current)) darkTilesRef.current.addTo(map);
+        // Menos nomes no mapa (05/11/2026): no estilo original cidades e mares aparecem
+        // desde a visão do mundo e disputam espaço com os eventos. Cada tipo de nome
+        // passa a surgir só a partir de um zoom (zoom do MapLibre = zoom do Leaflet − 1).
+        const gl = (darkTilesRef.current as any).getMaplibreMap?.();
+        const thinLabels = () => {
+          for (const [id, minzoom] of Object.entries(LABEL_MIN_ZOOM)) {
+            const layer = gl.getLayer(id);
+            if (layer) gl.setLayerZoomRange(id, minzoom, layer.maxzoom ?? 24);
+          }
+        };
+        if (gl) gl.isStyleLoaded() ? thinLabels() : gl.once('styledata', thinLabels);
       })
       .catch(err => console.error('Mapa base (OpenFreeMap) falhou:', err));
 
@@ -660,85 +681,34 @@ const SituationMap: React.FC<SituationMapProps> = ({
       return () => { cancelled = true; };
     }, [showChokepoints, t, locale]);
 
-  // 2. Handle Markers (WITH SMART CLUSTERING)
+  // 2. Marcadores de eventos com Supercluster (05/11/2026).
+  // Antes: leaflet.markercluster criava um marcador HTML para CADA evento, visível ou
+  // não, e o consumo de memória obrigava a limitar o mapa a 150 eventos. Agora os
+  // grupos são calculados pelo Supercluster e só o que está na tela vira marcador
+  // (cache por id para não recriar a cada movimento).
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    if (L_any.markerClusterGroup && !clusterGroupRef.current) {
-      const clusterGroup = L_any.markerClusterGroup({
-        showCoverageOnHover: false,
-        zoomToBoundsOnClick: true,
-        spiderfyOnMaxZoom: true,
-        removeOutsideVisibleBounds: true,
-        animate: true,
-        // ⭐ SMART CLUSTERING & ANTI-COLLISION: 
-        // We removed disableClusteringAtZoom so that markers sharing the exact same coordinate 
-        // will ALWAYS cluster and therefore Spiderfy when clicked, preventing stacking.
-        maxClusterRadius: 25, // Small radius: only strongly overlapping markers will cluster
-        disableClusteringAtZoom: 8, // Zoom 8+ (city level) → all pins individual
-
-        // ⭐ Spiderfy settings to forcefully separate stacked markers
-        spiderfyDistanceMultiplier: 2.5, // Expands the spider web much further out
-        spiderLegPolylineOptions: { weight: 1.5, color: '#34d399', opacity: 0.5 }, // Tactical green legs
-
-        // Custom Cluster Icon (Tactical Style)
-        iconCreateFunction: function (cluster: any) {
-          const childCount = cluster.getChildCount();
-          let c = ' marker-cluster-';
-          let size = 40;
-
-          if (childCount < 10) {
-            c += 'small';
-          } else if (childCount < 100) {
-            c += 'medium';
-            size = 50;
-          } else {
-            c += 'large';
-            size = 60;
-          }
-
-          return L.divIcon({
-            html: `<div><span>${childCount}</span></div>`,
-            className: 'marker-cluster' + c + ' tactical-cluster',
-            iconSize: new L.Point(size, size)
-          });
-        }
-      });
-
-      map.addLayer(clusterGroup);
-      clusterGroupRef.current = clusterGroup;
-    }
-
-    const clusterGroup = clusterGroupRef.current;
+    if (!eventsLayerRef.current) eventsLayerRef.current = L.layerGroup().addTo(map);
+    const layer = eventsLayerRef.current;
 
     // Clear existing vector layers
     if (vectorLayersRef.current) {
-      vectorLayersRef.current.forEach(layer => map.removeLayer(layer));
+      vectorLayersRef.current.forEach(v => map.removeLayer(v));
       vectorLayersRef.current = [];
     }
-
-    // Clear clusters
-    if (clusterGroup) {
-      clusterGroup.clearLayers();
-    }
-
-    // Also clear individual markers array (used for auto-open lookup)
+    layer.clearLayers();
+    markerCacheRef.current.clear();
     markersRef.current = [];
 
-    const newMarkers: L.Marker[] = [];
     const newVectors: L.Layer[] = [];
 
     // Identify Top 5 Recent Events for GLOW effect
     const sortedEvents = [...events].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     const recentEventIds = new Set(sortedEvents.slice(0, 5).map(e => e.id));
 
-    // Reset Jitter Cache
-    // @ts-ignore
-    window.coordCache = {};
-
-    // 1. Render Cameras (Only visible on Zoom >= 5)
-    // Clear existing cameras
+    // 1. Render Cameras (Only visible on Zoom >= 3)
     if (camMarkersRef.current) {
       camMarkersRef.current.forEach(m => map.removeLayer(m));
       camMarkersRef.current = [];
@@ -763,7 +733,6 @@ const SituationMap: React.FC<SituationMapProps> = ({
         // Merge curated ones with dynamic ones
         const allCams = [...CURATED_CAMS];
         dynamicCams.forEach(dc => {
-          // We adapt MonitorEvent format back to LiveCam format on the fly
           allCams.push({
             id: dc.id,
             name: dc.title,
@@ -789,21 +758,17 @@ const SituationMap: React.FC<SituationMapProps> = ({
           });
 
           const marker = L.marker([cam.coordinates.lat, cam.coordinates.lng], { icon: camIcon, zIndexOffset: 1000 }).addTo(map);
-
-          marker.on('click', () => {
-            setActiveCam(cam);
-          });
-
+          marker.on('click', () => setActiveCam(cam));
           camMarkersRef.current.push(marker);
         });
       }
     };
 
-    // Initial render and attach zoom event
     renderCameras();
     map.on('zoomend', renderCameras);
 
-    // JITTER LOGIC: Check for Generic Country Names to distribute better
+    // Rótulos genéricos (país/região inteiros) ganham um deslocamento fixo por id,
+    // para não empilhar dezenas de pinos no centro do país.
     const GENERIC_LOCATIONS = new Set([
       'BRAZIL', 'BRASIL', 'RUSSIA', 'RÚSSIA', 'IRAN', 'IRÃ', 'ISRAEL',
       'UKRAINE', 'UCRÂNIA', 'USA', 'UNITED STATES', 'CHINA', 'TAIWAN',
@@ -811,175 +776,198 @@ const SituationMap: React.FC<SituationMapProps> = ({
       'AFRICA', 'SOUTH AMERICA', 'EUROPE', 'NORTH AMERICA'
     ]);
 
-    // Use events directly. MarkerCluster handles optimization.
+    const byId = new Map<string, { event: MonitorEvent; lat: number; lng: number }>();
+    const features: any[] = [];
+
     events.forEach(event => {
       const color = CATEGORY_COLORS[event.category] || '#9ca3af';
 
-      // 1. Handle AREA events (Polygons)
+      // AREA events (Polygons)
       if (event.alertGeometry) {
         const polygon = L.geoJSON(event.alertGeometry as any, {
-          style: {
-            color: color,
-            weight: 1,
-            fillColor: color,
-            fillOpacity: 0.35, // "Marcador de texto" feel
-            stroke: true
-          }
+          style: { color, weight: 1, fillColor: color, fillOpacity: 0.35, stroke: true }
         });
-
-        const popupContent = createPopupContent(event, color);
-        polygon.bindPopup(popupContent, { closeButton: false, className: 'tactical-popup' });
-
+        polygon.bindPopup(createPopupContent(event, color), { closeButton: false, className: 'tactical-popup' });
         newVectors.push(polygon);
       }
 
       const baseLat = event.coordinates.lat;
       const baseLng = event.coordinates.lng;
+      if (Math.abs(baseLat) < 0.1 && Math.abs(baseLng) < 0.1) return; // Null Island
 
-      // FILTER: Skip Null Island events
-      if (Math.abs(baseLat) < 0.1 && Math.abs(baseLng) < 0.1) return;
+      let lat = baseLat;
+      let lng = baseLng;
+      const locName = (event.location || '').toUpperCase();
+      if (GENERIC_LOCATIONS.has(locName) || GENERIC_LOCATIONS.has(locName.split(',')[0])) {
+        const seed = event.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const r1 = Math.sin(seed) * 10000 - Math.floor(Math.sin(seed) * 10000);
+        const r2 = Math.cos(seed) * 10000 - Math.floor(Math.cos(seed) * 10000);
+        lat += (r1 - 0.5) * 8.0;
+        lng += (r2 - 0.5) * 8.0;
+      }
 
-      // 2. Handle POINT events (Markers)
+      byId.set(event.id, { event, lat, lng });
+      features.push({ type: 'Feature', properties: { id: event.id }, geometry: { type: 'Point', coordinates: [lng, lat] } });
 
-      const isCritical = event.severity === 'CRITICAL' || event.severity === 'HIGH' || event.category === 'PROPHETIC' || event.category === 'PERSECUTION';
+      // Flight trajectory line for aviation
+      if (event.category === EventCategory.AVIATION && event.description.includes('Origin: ')) {
+        const originMatch = event.description.match(/Origin:\s+([^.]+)/);
+        const centroid: [number, number] | undefined = originMatch ? (COUNTRY_CENTROIDS as any)[originMatch[1].trim()] : undefined;
+        if (centroid) {
+          newVectors.push(L.polyline([centroid, [lat, lng]], { color, weight: 1.5, opacity: 0.6, dashArray: '4, 6', interactive: false }));
+        }
+      }
+    });
+
+    newVectors.forEach(v => v.addTo(map));
+    vectorLayersRef.current = newVectors;
+    pointsRef.current = byId;
+
+    const index = new Supercluster({ radius: 70, maxZoom: CLUSTER_MAX_ZOOM });
+    index.load(features);
+
+    const eventMarker = (id: string): L.Marker => {
+      const { event, lat, lng } = byId.get(id)!;
+      const color = CATEGORY_COLORS[event.category] || '#9ca3af';
       const isWar = event.conflictLevel === ConflictLevel.STATE_WAR || event.conflictLevel === ConflictLevel.CIVIL_WAR;
-
       let html = getIconHtml(event.category, event.severity, isWar);
 
       // ROTATION LOGIC FOR PLANES/SHIPS
-      let heading = (event as any).heading ?? event.metadata?.heading;
-      
-      // Fallback: extract heading from description if it was stripped from the main object
+      let heading = (event as any).heading ?? (event as any).metadata?.heading;
       if (heading === undefined && event.description) {
         const match = event.description.match(/Heading:\s*([\d.-]+)/i);
         if (match) heading = parseFloat(match[1]);
       }
-
-      if ((event.category === 'TRANSPORT' || event.category === 'AVIATION') && typeof heading === 'number') {
+      if (((event.category as string) === 'TRANSPORT' || event.category === 'AVIATION') && typeof heading === 'number') {
         html = `<div style="transform: rotate(${heading}deg); transform-origin: center; transition: transform 0.5s ease-out;">${html}</div>`;
       }
 
-      const divIcon = L.divIcon({
-        className: 'bg-transparent',
-        html: html,
-        iconSize: [isWar ? 42 : 36, isWar ? 42 : 36],
-        iconAnchor: [isWar ? 21 : 18, isWar ? 21 : 18]
+      const size = isWar ? 42 : 36;
+      const marker = L.marker([lat, lng], {
+        icon: L.divIcon({
+          className: 'bg-transparent' + (recentEventIds.has(event.id) ? ' recent-event-glow' : ''),
+          html,
+          iconSize: [size, size],
+          iconAnchor: [size / 2, size / 2]
+        })
       });
-
-      // Check for Recent Glow
-      if (recentEventIds.has(event.id)) {
-        divIcon.options.className += ' recent-event-glow';
-      }
-
-      // JITTER: 
-      // 1. Group events by exact coordinates to apply spiral jitter
-      const key = `${baseLat.toFixed(4)},${baseLng.toFixed(4)}`;
-      // @ts-ignore
-      if (!window.coordCache) window.coordCache = {};
-      // @ts-ignore
-      if (!window.coordCache[key]) window.coordCache[key] = 0;
-      // @ts-ignore
-      const count = window.coordCache[key]++;
-
-      let offsetLat = 0;
-      let offsetLng = 0;
-
-      const locName = (event.location || '').toUpperCase();
-      const isGeneric = GENERIC_LOCATIONS.has(locName) || GENERIC_LOCATIONS.has(locName.split(',')[0]);
-
-      if (isGeneric) {
-        // LARGE JITTER for generic country-level tags (e.g. USA, Russia) to spread them across the country
-        const seed = event.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        const pseudoRandom1 = Math.sin(seed) * 10000 - Math.floor(Math.sin(seed) * 10000);
-        const pseudoRandom2 = Math.cos(seed) * 10000 - Math.floor(Math.cos(seed) * 10000);
-
-        offsetLat = (pseudoRandom1 - 0.5) * 8.0; // +/- 4 degrees
-        offsetLng = (pseudoRandom2 - 0.5) * 8.0; // +/- 4 degrees
-      }
-      // ⭐ If not generic, we do NOT manually jitter overlapping coordinates anymore.
-      // Exact overlapping pins will now be gracefully handled by MarkerCluster Spiderfying.
-
-      const marker = L.marker([baseLat + offsetLat, baseLng + offsetLng], { icon: divIcon });
-
-      // Bind popup - Allow MULTIPLE popups (autoClose: false)
       marker.bindPopup(createPopupContent(event, color), {
         closeButton: false,
         autoClose: false,   // Allow multiple popups
         closeOnClick: false,
         className: 'tactical-popup',
-        autoPan: false // Disable autoPan when opening multiple
+        autoPan: false
       });
-
-      // Attach ID for auto-open lookup
       (marker as any)._eventId = event.id;
+      return marker;
+    };
 
-      // START CHANGE: Add to cluster instead of map directly
-      // marker.addTo(map); 
-      if (clusterGroup) {
-        clusterGroup.addLayer(marker);
-      } else {
-        marker.addTo(map); // Fallback
-      }
-      // END CHANGE
-
-      // NEW: Draw Flight Trajectory Line if Aviation
-      if (event.category === EventCategory.AVIATION && event.description.includes('Origin: ')) {
-        const originMatch = event.description.match(/Origin:\s+([^.]+)/);
-        if (originMatch) {
-          const originCountry = originMatch[1].trim();
-          const centroid: [number, number] = (COUNTRY_CENTROIDS as any)[originCountry];
-          if (centroid) {
-            const trajectoryLine = L.polyline([centroid, [baseLat + offsetLat, baseLng + offsetLng]], {
-              color: color,
-              weight: 1.5,
-              opacity: 0.6,
-              dashArray: '4, 6',
-              interactive: false
-            });
-            newVectors.push(trajectoryLine);
-          }
+    const clusterMarker = (c: any): L.Marker => {
+      const [lng, lat] = c.geometry.coordinates;
+      const n = c.properties.point_count as number;
+      const tier = n < 10 ? ['small', 40] : n < 100 ? ['medium', 50] : ['large', 60];
+      const marker = L.marker([lat, lng], {
+        icon: L.divIcon({
+          html: `<div><span>${c.properties.point_count_abbreviated}</span></div>`,
+          className: `marker-cluster marker-cluster-${tier[0]} tactical-cluster`,
+          iconSize: new L.Point(tier[1] as number, tier[1] as number)
+        })
+      });
+      marker.on('click', () => {
+        const zoom = index.getClusterExpansionZoom(c.properties.cluster_id);
+        if (zoom <= CLUSTER_MAX_ZOOM) {
+          map.flyTo([lat, lng], zoom, { duration: 0.5 });
+          return;
         }
-      }
+        // Pinos no mesmo ponto exato: lista os eventos em vez de separar.
+        const leaves = index.getLeaves(c.properties.cluster_id, 30);
+        const items = leaves.map((f: any) => {
+          const e = byId.get(f.properties.id)?.event;
+          if (!e) return '';
+          const color = CATEGORY_COLORS[e.category] || '#9ca3af';
+          const title = e.title.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          return `<li style="border-left:2px solid ${color};padding-left:6px;margin:4px 0">${title}</li>`;
+        }).join('');
+        marker.bindPopup(`<ul style="max-height:260px;overflow:auto;font-size:11px;margin:0;padding:0;list-style:none">${items}</ul>`, { className: 'tactical-popup', maxWidth: 320 }).openPopup();
+      });
+      return marker;
+    };
 
-      newMarkers.push(marker);
-    });
+    const cache = markerCacheRef.current;
+    const render = () => {
+      const b = map.getBounds().pad(0.2);
+      const wide = b.getEast() - b.getWest() >= 360;
+      const bbox: [number, number, number, number] = [
+        wide ? -180 : Math.max(-180, b.getWest()), Math.max(-85, b.getSouth()),
+        wide ? 180 : Math.min(180, b.getEast()), Math.min(85, b.getNorth()),
+      ];
+      const items = index.getClusters(bbox, Math.round(map.getZoom()));
+      const wanted = new Set<string>();
+      const visibleEvents: L.Marker[] = [];
 
-    newVectors.forEach(v => v.addTo(map));
-    vectorLayersRef.current = newVectors;
-    markersRef.current = newMarkers;
-
-    // AUTO-OPEN POPUP for the TOP 3 EVENTS (exclude aviation)
-    setTimeout(() => {
-      const topEvents = sortedEvents.filter(e => e.category !== EventCategory.AVIATION).slice(0, 3);
-      topEvents.forEach((event, index) => {
-        const targetMarker = newMarkers.find((m: any) => (m as any)._eventId === event.id);
-        if (targetMarker) {
-          setTimeout(() => {
-            targetMarker.openPopup();
-          }, index * 400 + 1000);
+      for (const item of items) {
+        const isCluster = !!item.properties.cluster;
+        const key = isCluster ? `c${item.properties.cluster_id}` : `e${item.properties.id}`;
+        wanted.add(key);
+        let marker = cache.get(key);
+        if (!marker) {
+          marker = isCluster ? clusterMarker(item) : eventMarker(item.properties.id);
+          cache.set(key, marker);
         }
+        if (!layer.hasLayer(marker)) layer.addLayer(marker);
+        if (!isCluster) visibleEvents.push(marker);
+      }
+      // Remove o que saiu da tela, menos marcadores com popup aberto.
+      layer.eachLayer((m: any) => {
+        const key = m._eventId ? `e${m._eventId}` : [...cache.entries()].find(([, v]) => v === m)?.[0];
+        if (key && !wanted.has(key) && !m.isPopupOpen?.()) layer.removeLayer(m);
+      });
+      markersRef.current = visibleEvents;
+    };
+
+    render();
+    map.on('moveend', render);
+
+    // AUTO-OPEN POPUP for the TOP 3 visible EVENTS (exclude aviation)
+    const autoOpen = setTimeout(() => {
+      sortedEvents.filter(e => e.category !== EventCategory.AVIATION).slice(0, 3).forEach((event, i) => {
+        const m: any = markersRef.current.find((mk: any) => mk._eventId === event.id);
+        if (m) setTimeout(() => m.openPopup(), i * 400 + 1000);
       });
     }, 2000);
 
+    return () => {
+      map.off('moveend', render);
+      map.off('zoomend', renderCameras);
+      clearTimeout(autoOpen);
+    };
   }, [events]); // Only re-render when events list changes
 
-  // Destaque de um evento (05/11/2026). Os marcadores são recriados quando o mapa monta,
-  // então tenta por alguns segundos até o marcador existir.
+  // Destaque de um evento (05/11/2026): aproxima até o pino sair do grupo e abre o popup
+  // (LIVE WIRE "ver no mapa", ?event=).
   useEffect(() => {
     if (!focusEventId) return;
     let tries = 0;
+    let step = 0; // 0: ainda não moveu; 1: zoom regional; 2: zoom em que nada agrupa
     const timer = setInterval(() => {
-      const marker: any = markersRef.current.find((m: any) => m._eventId === focusEventId);
       const map = mapInstanceRef.current;
-      if (marker && map) {
+      if (!map) return;
+      const marker: any = markersRef.current.find((m: any) => m._eventId === focusEventId);
+      if (marker) {
         clearInterval(timer);
-        const open = () => marker.openPopup();
-        const cluster: any = clusterGroupRef.current;
-        if (cluster?.hasLayer(marker)) cluster.zoomToShowLayer(marker, open);
-        else { map.setView(marker.getLatLng(), Math.max(map.getZoom(), 6)); open(); }
-      } else if (++tries > 20) {
-        clearInterval(timer);
+        marker.openPopup();
+        return;
       }
+      const point = pointsRef.current.get(focusEventId);
+      tries++;
+      if (point && step === 0) {
+        step = 1;
+        map.setView([point.lat, point.lng], Math.max(map.getZoom(), 6));
+      } else if (point && step === 1 && tries > 6) {
+        step = 2; // continua dentro de um grupo: aproxima até separar
+        map.setView([point.lat, point.lng], CLUSTER_MAX_ZOOM + 1);
+      }
+      if (tries > 24) clearInterval(timer);
     }, 250);
     return () => clearInterval(timer);
   }, [focusEventId, events]);
