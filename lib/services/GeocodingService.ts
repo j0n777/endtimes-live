@@ -8,9 +8,11 @@ import { LocationData, GeocodingRequest, GeocodingResult } from '../types/Standa
  * Falls back to free geocoding APIs when AI is unavailable
  */
 
+// gemini-2.0-flash foi desativado pelo Google (404 desde 05/11/2026). O apelido
+// "latest" aponta sempre para o Flash vigente e o Google avisa 2 semanas antes de
+// trocar a versão por trás dele (ai.google.dev/gemini-api/docs/models).
 const GEMINI_MODELS = [
-    'gemini-2.0-flash',
-    'gemini-1.5-flash'
+    'gemini-flash-latest',
 ];
 
 const ZAI_MODELS = [
