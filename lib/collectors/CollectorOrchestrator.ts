@@ -14,6 +14,7 @@ import { InternetBlackoutCollector } from './InternetBlackoutCollector';
 import { MaritimeCollector } from './MaritimeCollector';
 // import { NewsRSSCollector } from './NewsRSSCollector'; // REPLACED
 import { RegionalNewsCollector, MonitorRegion } from './RegionalNewsCollector';
+import { TelegramCollector, OWN_CHANNEL } from './TelegramCollector';
 import { YouTubeLiveCollector } from './YouTubeLiveCollector';
 import { SignsCollector } from './SignsCollector';
 import { ChokepointsCollector } from './ChokepointsCollector';
@@ -52,6 +53,8 @@ export class CollectorOrchestrator {
 
             // Telegram (t.me/s) desligado em 07/10/2026: os termos do Telegram proíbem acessar
             // conteúdo de usuários para fins além do uso comum (telegram.org/tos/content-licensing).
+            // Volta só para o canal próprio (05/11/2026): conteúdo do dono do site.
+            new TelegramCollector(supabase, 'GEOPOLITICA', [OWN_CHANNEL], true),
 
             // Security/Tech
             new CyberAttacksCollector(supabase),
@@ -199,7 +202,7 @@ export class CollectorOrchestrator {
         // Group Collectors
         const groups: Record<number, string[]> = {
             0: ['NEWS_SOUTH_AMERICA', 'NEWS_BRAZIL', 'GDACS', 'INMET_WEATHER'], // Critical Local + Fast Alerts
-            3: ['NEWS_NORTH_AMERICA', 'YOUTUBE_LIVE_CAMS'], // Live cams
+            3: ['NEWS_NORTH_AMERICA', 'YOUTUBE_LIVE_CAMS', 'TELEGRAM_GEOPOLITICA'], // Live cams + canal próprio
             6: ['NEWS_EUROPE', 'MARITIME_NEWS'],
             9: ['NEWS_AFRICA', 'WHO_OUTBREAKS', 'INTERNET_SHUTDOWNS', 'INTERNET_BLACKOUT', 'WEATHER_NWS', 'EMBASSY_ALERTS'],
             12: ['NEWS_RUSSIA_ASIA', 'CYBER_ATTACKS', 'NASA_EONET', 'SOLAR_ALERTS'] // Deep intel

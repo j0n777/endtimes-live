@@ -4,7 +4,7 @@
 export type CreditGroup = 'maps' | 'signs' | 'layers' | 'events' | 'method';
 
 /** Licenças que precisam de tradução; o resto (ODbL, CC BY…) é exibido como está. */
-export type LicenseKey = 'publicDomainUS' | 'publicDomainNASA' | 'govBR' | 'imfTerms' | 'celestrak' | 'gdelt' | 'outletTerms' | 'credited' | 'wmoRes40' | 'whoCount' | 'nonCommercial';
+export type LicenseKey = 'publicDomainUS' | 'publicDomainNASA' | 'govBR' | 'imfTerms' | 'celestrak' | 'gdelt' | 'outletTerms' | 'credited' | 'wmoRes40' | 'whoCount' | 'nonCommercial' | 'gdacs';
 
 export interface Credit {
     group: CreditGroup;
@@ -34,6 +34,7 @@ export const CREDITS: Credit[] = [
     { group: 'layers', name: 'NASA FIRMS', license: { key: 'publicDomainNASA' }, url: 'https://firms.modaps.eosdis.nasa.gov/' },
     { group: 'layers', name: 'CelesTrak', license: { key: 'celestrak' }, url: 'https://celestrak.org/usage-policy.php' },
 
+    { group: 'events', name: 'GDACS — Global Disaster Alert and Coordination System (UN / European Commission JRC)', license: { key: 'gdacs' }, url: 'https://www.gdacs.org/About/termofuse.aspx' },
     { group: 'events', name: 'GDELT Project', license: { key: 'gdelt' }, url: 'https://www.gdeltproject.org/about.html' },
     { group: 'events', name: 'NOAA / National Weather Service, Space Weather Prediction Center', license: { key: 'publicDomainUS' }, url: 'https://www.weather.gov/disclaimer' },
     { group: 'events', name: 'NASA EONET', license: { key: 'publicDomainNASA' }, url: 'https://eonet.gsfc.nasa.gov/' },

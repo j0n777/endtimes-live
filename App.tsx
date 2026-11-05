@@ -256,6 +256,7 @@ const App: React.FC = () => {
       case 'SITUATION_MAP':
         return <SituationMap
           events={filteredEvents}
+          focusEventId={focusEventId}
           showAircraft={showAircraft}
           militaryAircraft={militaryAircraft}
           showConflictZones={showConflictZones}
@@ -274,7 +275,7 @@ const App: React.FC = () => {
           showChokepoints={showChokepoints}
         />;
       case 'LIVE_FEED':
-        return <IntelFeed events={events} />;
+        return <IntelFeed events={events} onShowOnMap={showOnMap} />;
       case 'TIMELINE':
         return <ProphecyIntel />;
       case 'SURVIVAL':
@@ -289,6 +290,7 @@ const App: React.FC = () => {
       default:
         return <SituationMap
           events={filteredEvents}
+          focusEventId={focusEventId}
           showAircraft={showAircraft}
           militaryAircraft={militaryAircraft}
           showConflictZones={showConflictZones}
@@ -311,6 +313,12 @@ const App: React.FC = () => {
 
   // SEO: Deep Linking & Dynamic Schema
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  // Evento a destacar no mapa: vem do "ver no mapa" do LIVE WIRE ou de ?event= no link.
+  const [focusEventId, setFocusEventId] = useState<string | null>(null);
+  const showOnMap = (id: string) => {
+    setFocusEventId(id);
+    setViewState('SITUATION_MAP');
+  };
 
   useEffect(() => {
     // Check URL for event_id and view/tab
@@ -318,6 +326,7 @@ const App: React.FC = () => {
     const eventId = params.get('event');
     if (eventId) {
       setSelectedEventId(eventId);
+      setFocusEventId(eventId);
     }
 
     const v = params.get('view') || params.get('tab');

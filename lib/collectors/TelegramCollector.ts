@@ -1,11 +1,15 @@
 
 import { BaseCollector, CollectorConfig } from './BaseCollector';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { MonitorEvent, EventCategory, Severity } from '../../types';
+import { MonitorEvent, EventCategory, Severity, SourceType } from '../../types';
 import { getGeocodingService } from '../services/GeocodingService';
 import { resolveLocation } from '../services/LocationResolver';
 
-// Priority channels for intelligence
+// Canal próprio (05/11/2026): @geopoliticaenoticias, "Notícias e Geopolítica". O conteúdo
+// é do dono do site, então a restrição de 07/10/2026 a canais de terceiros não se aplica.
+export const OWN_CHANNEL = 'geopoliticaenoticias';
+
+// Priority channels for intelligence (terceiros: não usar, ver CollectorOrchestrator)
 const DEFAULT_CHANNELS = [
     'geopolitics_live',
     'intel_republic',
@@ -34,8 +38,10 @@ export class TelegramCollector extends BaseCollector {
     private geocoder = getGeocodingService();
     private channels: string[];
     private region: string;
+    /** Canal curado: todo post entra, sem filtro de palavra-chave. */
+    private acceptAll: boolean;
 
-    constructor(supabase: SupabaseClient, region: string = 'GLOBAL', customChannels?: string[]) {
+    constructor(supabase: SupabaseClient, region: string = 'GLOBAL', customChannels?: string[], acceptAll = false) {
         const config: CollectorConfig = {
             name: `TELEGRAM_${region}`,
             cacheDurationSeconds: 300, // 5 minutes (very fast moving)
@@ -46,6 +52,7 @@ export class TelegramCollector extends BaseCollector {
         };
         super(config, supabase);
         this.region = region;
+        this.acceptAll = acceptAll;
 
         if (customChannels && customChannels.length > 0) {
             this.channels = customChannels;
@@ -106,14 +113,15 @@ export class TelegramCollector extends BaseCollector {
             const posts = await this.parseHtml(html, channelName);
 
             // Filter relevant posts
-            const relevantPosts = posts.filter(post => this.isRelevant(post.text));
+            const relevantPosts = this.acceptAll ? posts : posts.filter(post => this.isRelevant(post.text));
 
             console.log(`📱 Telegram [${channelName}]: Found ${relevantPosts.length} relevant posts`);
 
             // Convert to MonitorEvents
             const events: MonitorEvent[] = [];
 
-            for (const post of relevantPosts.slice(0, 5)) { // Limit to 5 per channel to save processing
+            // Canal próprio: os 10 mais recentes (a página mostra ~15); terceiros: 5.
+            for (const post of relevantPosts.slice(-(this.acceptAll ? 10 : 5))) {
                 const event = await this.processPost(post);
                 if (event) events.push(event);
             }
@@ -150,6 +158,8 @@ export class TelegramCollector extends BaseCollector {
         elements.forEach(element => {
             const textElement = element.querySelector('.tgme_widget_message_text');
             if (!textElement || !textElement.textContent) return;
+            // <br> vira quebra de linha: senão a manchete gruda no corpo do post.
+            textElement.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
 
             const text = textElement.textContent.trim();
             if (text.length < 20) return; // Skip very short messages
@@ -211,7 +221,9 @@ export class TelegramCollector extends BaseCollector {
         const keywords = [
             'breaking', 'urgent', 'alert', 'war', 'attack', 'explosion',
             'military', 'nuclear', 'cyber', 'crisis', 'virus', 'outbreak',
-            'earthquake', 'tsunami', 'volcano'
+            'earthquake', 'tsunami', 'volcano',
+            'urgente', 'alerta', 'guerra', 'ataque', 'explosão', 'militar',
+            'nuclear', 'crise', 'surto', 'terremoto', 'vulcão'
         ];
 
         return keywords.some(k => t.includes(k));
@@ -248,21 +260,21 @@ export class TelegramCollector extends BaseCollector {
                     text: postTitle,
                     priority: 'high',
                     context: {
-                        country: this.region !== 'GLOBAL' && !this.region.includes('_') ? this.region : undefined
+                        country: !this.acceptAll && this.region !== 'GLOBAL' && !this.region.includes('_') ? this.region : undefined
                     }
                 });
                 if (geoResult.success && geoResult.location) {
                     location = geoResult.location.city || geoResult.location.country || location;
                     coordinates = { lat: geoResult.location.lat, lng: geoResult.location.lng };
                 } else if (this.region !== 'GLOBAL') {
-                    location = this.region.replace('_', ' ');
+                    location = this.regionLabel();
                 }
             } catch (e) {
                 console.warn(`Geocoding failed for ${post.id}:`, e);
-                if (this.region !== 'GLOBAL') location = this.region.replace('_', ' ');
+                if (this.region !== 'GLOBAL') location = this.regionLabel();
             }
         } else if (this.region !== 'GLOBAL') {
-            location = this.region.replace('_', ' ');
+            location = this.regionLabel();
         }
 
         // Small delay to be nice to rate limits since we are processing more now
@@ -270,12 +282,12 @@ export class TelegramCollector extends BaseCollector {
 
         return {
             id: `tg_${post.channel}_${post.id}`,
-            title: `[${post.channel}] ${title}`,
+            title: this.acceptAll ? title : `[${post.channel}] ${title}`,
             description: post.text.substring(0, 500), // Limit length
             category,
             severity,
-            sourceType: 'SOCIAL_MEDIA',
-            sourceName: `Telegram (${post.channel})`,
+            sourceType: SourceType.TELEGRAM,
+            sourceName: this.acceptAll ? `@${post.channel}` : `Telegram (${post.channel})`,
             location,
             coordinates,
             timestamp: post.date,
@@ -286,20 +298,29 @@ export class TelegramCollector extends BaseCollector {
         };
     }
 
+    /** Local de reserva quando o post não cita lugar; o canal próprio não é uma região. */
+    private regionLabel(): string {
+        return this.acceptAll ? 'Global' : this.region.replace('_', ' ');
+    }
+
     private determineCategory(text: string): EventCategory {
         const t = text.toLowerCase();
-        if (t.includes('war') || t.includes('military') || t.includes('troops') || t.includes('strike')) return EventCategory.CONFLICT;
-        if (t.includes('earthquake') || t.includes('flood')) return EventCategory.NATURAL_DISASTER;
-        if (t.includes('protest') || t.includes('riot')) return EventCategory.POLITICAL;
-        if (t.includes('cyber') || t.includes('hacker')) return EventCategory.CYBER;
-        if (t.includes('virus') || t.includes('pandemic')) return EventCategory.EPIDEMIC;
-        return EventCategory.CONFLICT; // Default high interest
+        const has = (...words: string[]) => words.some(w => t.includes(w));
+        if (has('war', 'military', 'troops', 'strike', 'guerra', 'militar', 'tropas', 'míssil', 'missil', 'bombardeio', 'ataque')) return EventCategory.CONFLICT;
+        if (has('earthquake', 'flood', 'terremoto', 'sismo', 'enchente', 'inunda', 'chuvas intensas', 'tempestade', 'furacão', 'vulcão', 'tsunami', 'incêndio florestal')) return EventCategory.NATURAL_DISASTER;
+        if (has('cyber', 'hacker', 'ciberataque', 'ataque hacker', 'vazamento de dados')) return EventCategory.CYBER;
+        if (has('virus', 'pandemic', 'vírus', 'pandemia', 'surto', 'epidemia')) return EventCategory.EPIDEMIC;
+        if (has('protest', 'riot', 'protesto', 'manifestação', 'eleição', 'presidente', 'governo', 'congresso', 'stf')) return EventCategory.POLITICAL;
+        // Canal próprio cobre geopolítica em geral; terceiros eram de conflito.
+        return this.acceptAll ? EventCategory.POLITICAL : EventCategory.CONFLICT;
     }
 
     private determineSeverity(text: string): Severity {
         const t = text.toLowerCase();
-        if (t.includes('nuclear') || t.includes('ww3') || (t.includes('breaking') && t.includes('war'))) return 'CRITICAL';
-        if (t.includes('urgent') || t.includes('attack') || t.includes('dead')) return 'HIGH';
+        if (t.includes('nuclear') || t.includes('ww3') || (t.includes('breaking') && t.includes('war'))
+            || t.includes('terceira guerra')) return 'CRITICAL';
+        if (t.includes('urgent') || t.includes('attack') || t.includes('dead')
+            || t.includes('urgente') || t.includes('ataque') || t.includes('mortos') || t.includes('mortes')) return 'HIGH';
         return 'MEDIUM';
     }
 }

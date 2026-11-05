@@ -41,10 +41,10 @@ export class WeatherNWSCollector extends BaseCollector {
     }
 
     protected async fetchData(): Promise<MonitorEvent[]> {
-        // Fetch active alerts
-        // Fetch active alerts
-        // Limit to Extreme and Severe only to avoid map spam
-        const url = 'https://api.weather.gov/alerts/active?status=Actual&messageType=Alert&severity=Extreme,Severe&limit=50';
+        // Só Extreme e Severe, para não poluir o mapa. A API passou a rejeitar (400) o
+        // parâmetro `limit` e os nomes `status=Actual`/`messageType` (05/11/2026); o corte
+        // em 50 alertas é feito aqui.
+        const url = 'https://api.weather.gov/alerts/active?status=actual&message_type=alert&severity=Extreme,Severe';
 
         const response = await fetch(url, {
             headers: {
@@ -58,7 +58,7 @@ export class WeatherNWSCollector extends BaseCollector {
         }
 
         const data = await response.json();
-        const alerts: any[] = data.features || [];
+        const alerts: any[] = (data.features || []).slice(0, 50);
 
         console.log(`🌪️ Weather NWS: Received ${alerts.length} active severe alerts`);
 
