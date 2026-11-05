@@ -11,7 +11,23 @@ const LOCATIONS = `${BASE}/PortWatch_chokepoints_database/FeatureServer/0/query`
 const WINDOW_DAYS = 7;
 const TIMEOUT_MS = 45_000;
 
+// O ArcGIS do PortWatch às vezes responde "Invalid URL" para a mesma consulta que passa
+// pouco depois (05/11/2026: falhou na 1ª chamada após um tempo parado, mesmo repetindo em
+// 3 s; nas seguintes, nada). Repete com espera crescente antes de desistir.
+const RETRY_DELAYS_MS = [5_000, 15_000];
+
 async function query(url: string, params: Record<string, string>): Promise<any[]> {
+    for (let attempt = 0; ; attempt++) {
+        try {
+            return await queryOnce(url, params);
+        } catch (e) {
+            if (attempt >= RETRY_DELAYS_MS.length) throw e;
+            await new Promise(r => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+        }
+    }
+}
+
+async function queryOnce(url: string, params: Record<string, string>): Promise<any[]> {
     const qs = new URLSearchParams({ ...params, f: 'json' });
     const res = await fetch(`${url}?${qs}`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
     if (!res.ok) throw new Error(`PortWatch HTTP ${res.status}`);

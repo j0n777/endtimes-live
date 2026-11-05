@@ -38,8 +38,7 @@ const NEWS_FEEDS = [
 
     // --- AFRICA ---
     { name: 'AllAfrica', url: 'https://allafrica.com/tools/headlines/rdf/latest/headlines.rdf' },
-    { name: 'News24 SA', url: 'http://feeds.news24.com/articles/news24/TopStories/rss' },
-    { name: 'The Star Kenya', url: 'https://www.the-star.co.ke/rss' },
+    // 05/11/2026: saíram News24 SA (domínio do feed não resolve) e The Star Kenya (404).
 
     // --- OCEANIA ---
     { name: 'ABC News AU', url: 'https://www.abc.net.au/news/feed/52496/rss.xml' },

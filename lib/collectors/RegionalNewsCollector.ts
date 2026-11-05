@@ -19,17 +19,18 @@ export enum MonitorRegion {
 const REGIONAL_FEEDS: Record<MonitorRegion, { name: string, url: string }[]> = {
     [MonitorRegion.BRAZIL]: [
         { name: 'Folha de S.Paulo (Mundo)', url: 'https://feeds.folha.uol.com.br/mundo/rss091.xml' },
-        { name: 'Estadão (Internacional)', url: 'https://www.estadao.com.br/rss/internacional' },
         { name: 'G1 (Mundo)', url: 'https://g1.globo.com/rss/g1/mundo/' },
-        { name: 'BBC Brasil', url: 'https://www.bbc.com/portuguese/index.xml' },
-        { name: 'El País Brasil', url: 'https://brasil.elpais.com/rss/brasil/portada.xml' } // Backup/Check if active
+        { name: 'BBC Brasil', url: 'https://www.bbc.com/portuguese/index.xml' }
+        // 05/11/2026: saíram Estadão (/rss/internacional dava 404; o feed novo recusa leitores
+        // automáticos) e El País Brasil (brasil.elpais.com dava 404).
     ],
     [MonitorRegion.SOUTH_AMERICA]: [
         { name: 'MercoPress', url: 'https://en.mercopress.com/rss' },
         { name: 'Buenos Aires Times', url: 'https://www.batimes.com.ar/feed' },
-        { name: 'La Nación (Argentina)', url: 'http://servicios.lanacion.com.ar/herramientas/rss/origen=2' },
-        { name: 'El Universal (Venezuela)', url: 'https://www.eluniversal.com/rss/' },
-        { name: 'BioBioChile', url: 'https://www.biobiochile.cl/feed' }
+        // 05/11/2026: endereços antigos davam 404; os novos são os anunciados no <head> dos sites.
+        { name: 'La Nación (Argentina)', url: 'https://www.lanacion.com.ar/arc/outboundfeeds/rss/category/el-mundo/' },
+        { name: 'BioBioChile', url: 'https://feeds.feedburner.com/radiobiobio/NNeJ' }
+        // El Universal (Venezuela) saiu: /rss/ e /feed davam 404 e o site não anuncia feed.
     ],
     [MonitorRegion.EUROPE]: [
         { name: 'BBC World (Europe)', url: 'http://feeds.bbci.co.uk/news/world/europe/rss.xml' },
@@ -42,14 +43,13 @@ const REGIONAL_FEEDS: Record<MonitorRegion, { name: string, url: string }[]> = {
     ],
     [MonitorRegion.AFRICA]: [
         { name: 'AllAfrica', url: 'https://allafrica.com/tools/headlines/rdf/latest/headlines.rdf' },
-        { name: 'News24', url: 'http://feeds.news24.com/articles/news24/TopStories/rss' },
-        { name: 'The Star (Kenya)', url: 'https://www.the-star.co.ke/rss' },
+        // 05/11/2026: saíram News24 (domínio do feed não resolve mais) e The Star Kenya (404).
         { name: 'Premium Times (Nigeria)', url: 'https://www.premiumtimesng.com/feed' },
         { name: 'Al Jazeera (Africa)', url: 'https://www.aljazeera.com/xml/rss/all.xml' } // General but good coverage
     ],
     [MonitorRegion.RUSSIA_ASIA]: [
         { name: 'The Moscow Times', url: 'https://www.themoscowtimes.com/rss/news' },
-        { name: 'TASS (English)', url: 'https://tass.com/rss' }, // Might be rate limited/blocked
+        // TASS saiu em 05/11/2026: /rss dava 404 e o site recusa leitores automáticos.
         { name: 'RT (News)', url: 'https://www.rt.com/rss/news/' }, // Often blocked, robust failover needed
         { name: 'South China Morning Post', url: 'https://www.scmp.com/rss/91/feed' },
         { name: 'Times of India', url: 'https://timesofindia.indiatimes.com/rssfeeds/296589292.cms' }
