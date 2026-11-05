@@ -31,7 +31,8 @@
     "react-helmet-async": "^2.0.5",
     "recharts": "^3.6.0",
     "rss-parser": "^3.13.0",
-    "satellite.js": "^6.0.2"
+    "satellite.js": "^6.0.2",
+    "supercluster": "^9.1.0"
   },
   "devDependencies": {
     "@types/leaflet.markercluster": "^1.5.6",

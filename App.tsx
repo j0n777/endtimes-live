@@ -15,7 +15,7 @@ import IntelFeed from './components/IntelFeed';
 import { LiveThreatFeed } from './components/LiveThreatFeed';
 // REMOVED: Direct API calls - import { fetchRealTimeEvents } from './services/geminiService';
 // REMOVED: Direct API calls - import { fetchAllDataSources } from './services/data-sources';
-import { loadAllEvents, loadEventsByCategories, getCollectorStatuses, triggerDataCollection } from './services/frontendDataService';
+import { loadAllEvents, loadEventsByCategories, getCollectorStatuses, triggerDataCollection, getLatestEventId } from './services/frontendDataService';
 import { fetchMilitaryAircraft, MilitaryAircraft } from './services/militaryAircraftService';
 import { loadConflictZones, ConflictZone } from './services/conflictZoneService';
 import { loadNuclearAlerts, NuclearAlert } from './services/nuclearAlertService';
@@ -457,10 +457,9 @@ const App: React.FC = () => {
   useEffect(() => {
     const interval = setInterval(async () => {
       if (!loading) {
-        // Background refresh
-        const latestEvents = await loadAllEvents();
-        if (latestEvents.length > 0) {
-          const newestId = latestEvents[0].id;
+        // Só o id mais recente (uma linha): a lista inteira só é recarregada quando muda.
+        const newestId = await getLatestEventId();
+        if (newestId) {
 
           // Detect NEW item
           if (lastEventId && newestId !== lastEventId) {
@@ -468,14 +467,10 @@ const App: React.FC = () => {
             playNotificationSound();
             setShowNewIntelToast(true);
             setTimeout(() => setShowNewIntelToast(false), 5000);
+            handleRefreshData();
           }
 
           setLastEventId(newestId);
-
-          // Update state if different (Basic check, ideal implementation would merge)
-          if (latestEvents.length !== events.length || newestId !== events[0]?.id) {
-            handleRefreshData();
-          }
         }
       }
     }, 60000); // 1 minute
@@ -483,12 +478,9 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [loading, lastEventId, events]);
 
-  // Track initial load
-  useEffect(() => {
-    if (events.length > 0 && !lastEventId) {
-      setLastEventId(events[0].id);
-    }
-  }, [events]);
+  // A referência do "último evento" é definida pelo primeiro polling (getLatestEventId),
+  // não por events[0]: com filtro de categoria o mais recente do banco pode não estar
+  // na lista, e isso tocaria o alerta de "novo evento" sem motivo.
 
 
   return (
@@ -578,7 +570,7 @@ const App: React.FC = () => {
 
           {/* GitHub button */}
           <a
-            href="https://github.com/j0n777/End-Times-Monitor"
+            href="https://github.com/j0n777/endtimes-live"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-[10px] text-gray-500 hover:text-white transition-colors font-mono uppercase tracking-widest bg-tactical-800/20 px-2 py-1 rounded border border-tactical-800/50"
