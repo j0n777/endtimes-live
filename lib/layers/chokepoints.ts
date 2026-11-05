@@ -62,7 +62,8 @@ export async function computeChokepoints(now = new Date()): Promise<ChokepointsP
             groupByFieldsForStatistics: 'portid',
             outStatistics: JSON.stringify([{ statisticType: 'avg', onStatisticField: 'n_total', outStatisticFieldName: 'avg_total' }]),
         }),
-        query(DAILY, { where: `date >= DATE '${since}'`, outFields: 'portid,date,n_total', resultRecordCount: '2000' }),
+        // Sem orderByFields, o ArcGIS recusa resultRecordCount ("Invalid query parameters", 05/11/2026).
+        query(DAILY, { where: `date >= DATE '${since}'`, outFields: 'portid,date,n_total', resultRecordCount: '2000', orderByFields: 'date DESC' }),
     ]);
     return {
         version: 1,
