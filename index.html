@@ -7,8 +7,24 @@
   <title>End Times Monitor - Global Intelligence Platform</title>
   <!-- Metadados estáticos para robôs que não executam JavaScript. data-rh deixa o
        SEOHead (react-helmet-async) substituí-los no navegador, sem duplicar. -->
-  <meta name="description" data-rh="true" content="Live map of wars, earthquakes, disasters and news, plus the Ω index of the biblical signs of the times (Matthew 24, Luke 21) computed from public data. In English and Portuguese.">
+  <meta name="description" data-rh="true" content="Live map of wars, earthquakes, disasters and news, plus the Ω index of the biblical signs of the times (Matthew 24, Luke 21) from public data.">
   <link rel="canonical" data-rh="true" href="https://endtimes.live/">
+  <!-- Soft 404 (05/11/2026): a hospedagem devolve este arquivo com código 200 para
+       qualquer endereço. Fora da home, a página sai do índice e perde o canonical
+       antes de qualquer outro script. As páginas de /sinais/, /en/signs/ etc. são
+       arquivos próprios e não passam por aqui. -->
+  <script>
+    (function () {
+      var p = location.pathname;
+      if (p === '/' || p === '/index.html') return;
+      var c = document.querySelector('link[rel="canonical"]');
+      if (c) c.parentNode.removeChild(c);
+      var m = document.createElement('meta');
+      m.name = 'robots';
+      m.content = 'noindex, follow';
+      document.head.appendChild(m);
+    })();
+  </script>
   <meta property="og:type" data-rh="true" content="website">
   <meta property="og:site_name" content="End Times Monitor">
   <meta property="og:url" data-rh="true" content="https://endtimes.live/">
