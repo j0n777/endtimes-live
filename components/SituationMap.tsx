@@ -93,6 +93,8 @@ interface SituationMapProps {
   showQuakes?: boolean;
   period?: EventPeriod;
   showChokepoints?: boolean;
+  /** Evento a destacar: o mapa aproxima e abre o popup (LIVE WIRE "ver no mapa", ?event=). */
+  focusEventId?: string | null;
 }
 
 // Helper: format source label for popup
@@ -102,6 +104,7 @@ const formatSourceLabel = (event: MonitorEvent): string => {
 
   // Telegram channels: strip brackets/@ from title pattern [channelname]
   if (event.sourceType === 'TELEGRAM') {
+    if (name.startsWith('@')) return `Telegram ${name}`; // canal próprio: já vem como @canal
     const clean = name.replace(/^@/, '');
     // Capitalize first letter of each word
     const pretty = clean.replace(/(?:^|\s|_)(\w)/g, (_, c) => c.toUpperCase()).replace(/_/g, ' ');
@@ -305,6 +308,7 @@ const SituationMap: React.FC<SituationMapProps> = ({
   showQuakes = false,
   period = DEFAULT_PERIOD,
   showChokepoints = false,
+  focusEventId = null,
 }) => {
   const { t, locale } = useLocale();
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -958,6 +962,27 @@ const SituationMap: React.FC<SituationMapProps> = ({
     }, 2000);
 
   }, [events]); // Only re-render when events list changes
+
+  // Destaque de um evento (05/11/2026). Os marcadores são recriados quando o mapa monta,
+  // então tenta por alguns segundos até o marcador existir.
+  useEffect(() => {
+    if (!focusEventId) return;
+    let tries = 0;
+    const timer = setInterval(() => {
+      const marker: any = markersRef.current.find((m: any) => m._eventId === focusEventId);
+      const map = mapInstanceRef.current;
+      if (marker && map) {
+        clearInterval(timer);
+        const open = () => marker.openPopup();
+        const cluster: any = clusterGroupRef.current;
+        if (cluster?.hasLayer(marker)) cluster.zoomToShowLayer(marker, open);
+        else { map.setView(marker.getLatLng(), Math.max(map.getZoom(), 6)); open(); }
+      } else if (++tries > 20) {
+        clearInterval(timer);
+      }
+    }, 250);
+    return () => clearInterval(timer);
+  }, [focusEventId, events]);
 
   // Military Aircraft Layer — separate from event markers, no clustering
   useEffect(() => {

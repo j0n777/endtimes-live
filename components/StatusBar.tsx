@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layers, ExternalLink, Info } from 'lucide-react';
+import { Layers, ExternalLink, Info, Send } from 'lucide-react';
 import { OMEGA_META } from '../utils/omegaCalculator';
 import { useLocale } from '../lib/i18n';
 import { SignsPanel } from './SignsPanel';
@@ -115,6 +115,18 @@ export const StatusBar: React.FC<StatusBarProps> = ({
         <Info className="w-3 h-3" />
         <span className="hidden sm:inline">{t.credits.button}</span>
       </button>
+
+      {/* ── Canal no Telegram (some no celular: a barra já ocupa os 390 px) ── */}
+      <a
+        href="https://t.me/geopoliticaenoticias"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="hidden sm:flex items-center gap-1 px-3 border-l border-tactical-800/50 text-sky-500/80 hover:text-sky-300 transition-colors shrink-0"
+        title={t.liveWire.telegramTitle}
+      >
+        <Send className="w-2.5 h-2.5" />
+        <span>Telegram</span>
+      </a>
 
       {/* ── Creator ─────────────────────────────────────────────── */}
       <a

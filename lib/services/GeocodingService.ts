@@ -21,6 +21,7 @@ const ZAI_MODELS = [
 // Rate limiting state
 let lastZaiRequestTime = 0;
 const ZAI_BASE_URL = 'https://api.z.ai/api/paas/v4/chat/completions';
+const ZAI_MIN_INTERVAL_MS = 30000;
 
 // Circuit breakers por processo (25/09/2026).
 // Sem isto, um provedor de IA fora do ar era tentado uma vez por evento: o
@@ -77,6 +78,26 @@ function noteAISuccess(provider: AIProvider): void {
     breakers[provider].failures = 0;
 }
 
+// Orçamento de tempo de IA (05/11/2026). O breaker não basta: quando o Z.ai alterna
+// acerto e "overloaded", o contador zera a cada acerto e cada chamada ainda paga até
+// 30 s de espera + timeout. Com muitas notícias a rodada passava dos 9 min do
+// run-once (exit 2). Gasto o orçamento, o resto da janela vai direto ao Nominatim.
+const AI_BUDGET_MS = 3 * 60 * 1000;
+const aiBudget = { windowStart: 0, spentMs: 0 };
+
+function aiBudgetLeft(): number {
+    const now = Date.now();
+    if (!aiBudget.windowStart || now - aiBudget.windowStart >= BREAKER_TTL_MS) {
+        aiBudget.windowStart = now;
+        aiBudget.spentMs = 0;
+    }
+    return AI_BUDGET_MS - aiBudget.spentMs;
+}
+
+function spendAIBudget(since: number): void {
+    aiBudget.spentMs += Date.now() - since;
+}
+
 export class GeocodingService {
     private gemini: GoogleGenAI | null = null;
     private zaiKey: string | null = null;
@@ -103,8 +124,9 @@ export class GeocodingService {
 
         try {
             // 1. Try Gemini Models first
-            if (this.gemini && isProviderAvailable('gemini') && request.priority !== 'low') {
+            if (this.gemini && isProviderAvailable('gemini') && request.priority !== 'low' && aiBudgetLeft() > 0) {
                 const modelName = GEMINI_MODELS[0]; // Only try the best one to save time
+                const aiStart = Date.now();
                 try {
                     const aiResult = await Promise.race([
                         this.geocodeWithGemini(request, modelName),
@@ -118,12 +140,16 @@ export class GeocodingService {
                 } catch (e: any) {
                     console.warn(`Gemini (${modelName}) failed: ${e.message}`);
                     noteAIFailure('gemini', e?.message || String(e));
+                } finally {
+                    spendAIBudget(aiStart);
                 }
             }
 
             // 2. Try Z.ai Models as Fallback
-            if (this.zaiKey && isProviderAvailable('zai') && request.priority === 'high') { // Only for HIGH priority
+            if (this.zaiKey && isProviderAvailable('zai') && request.priority === 'high' // Only for HIGH priority
+                && aiBudgetLeft() > ZAI_MIN_INTERVAL_MS) {
                 const modelName = ZAI_MODELS[0];
+                const aiStart = Date.now();
                 try {
                     const zaiResult = await this.geocodeWithZai(request, modelName);
                     if (zaiResult.success) {
@@ -134,6 +160,8 @@ export class GeocodingService {
                 } catch (e: any) {
                     console.warn(`Z.ai (${modelName}) failed.`);
                     noteAIFailure('zai', e?.message || String(e));
+                } finally {
+                    spendAIBudget(aiStart);
                 }
             }
 
@@ -185,8 +213,8 @@ export class GeocodingService {
         // Mandatory 30s Delay
         const now = Date.now();
         const timeSinceLast = now - lastZaiRequestTime;
-        if (timeSinceLast < 30000) {
-            const waitTime = 30000 - timeSinceLast;
+        if (timeSinceLast < ZAI_MIN_INTERVAL_MS) {
+            const waitTime = ZAI_MIN_INTERVAL_MS - timeSinceLast;
             console.log(`🕒 Z.ai Rate Limit Cooling: Waiting ${Math.ceil(waitTime / 1000)}s...`);
             await this.sleep(waitTime);
         }
@@ -204,7 +232,7 @@ export class GeocodingService {
                     'Authorization': `Bearer ${this.zaiKey}`,
                     'Content-Type': 'application/json'
                 },
-                timeout: 60000 // Increased timeout further for GLM-4.5
+                timeout: 25000 // acima disso o item vai ao Nominatim (orçamento de IA)
             });
 
             const content = response.data.choices?.[0]?.message?.content || '';
