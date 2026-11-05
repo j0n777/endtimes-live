@@ -1,5 +1,11 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
+import { HOME_DESCRIPTION, clipDescription } from '../lib/seo/limits';
+
+// O app só existe em "/": a Lovable devolve este mesmo index.html (código 200) para
+// qualquer endereço. Fora da home, a página sai do índice e não aponta canonical
+// (05/11/2026). O script inline do index.html faz o mesmo para robôs sem JavaScript.
+const isHome = typeof window === 'undefined' || window.location.pathname === '/' || window.location.pathname === '/index.html';
 
 interface SEOHeadProps {
     title?: string;
@@ -13,12 +19,13 @@ interface SEOHeadProps {
 export const SEOHead: React.FC<SEOHeadProps> = (props) => {
     const {
         title = 'End Times Monitor | Global Intelligence Platform',
-        description = 'Real-time global conflict tracking, OSINT aggregation, prophetic timeline analysis, and situational awareness map. The ultimate source for end times intelligence.',
+        description: rawDescription = HOME_DESCRIPTION,
         image = 'https://endtimes.live/og-banner.jpg',
         url = 'https://endtimes.live',
         type = 'website',
         schema
     } = props;
+    const description = clipDescription(rawDescription);
     const siteTitle = title === 'End Times Monitor | Global Intelligence Platform' ? title : title + ' | End Times Monitor';
 
     return (
@@ -46,8 +53,8 @@ export const SEOHead: React.FC<SEOHeadProps> = (props) => {
             <meta property="twitter:description" content={description} />
             <meta property="twitter:image" content={image} />
 
-            {/* Canonical */}
-            <link rel="canonical" href={url} />
+            {/* Canonical (só na home; ver isHome) */}
+            {isHome ? <link rel="canonical" href={url} /> : <meta name="robots" content="noindex, follow" />}
 
             {/* Geo-tagging for "World" relevance */}
             <meta name="geo.region" content="US" />
