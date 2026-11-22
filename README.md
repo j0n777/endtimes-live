@@ -70,6 +70,25 @@ Muito mais do que um mapa, o End Times Monitor é equipado com um **Conselheiro 
 
 ---
 
+## 🔌 Servidor MCP (assistentes de IA)
+
+O projeto tem um servidor [MCP](https://modelcontextprotocol.io) para que assistentes de IA leiam os mesmos dados públicos do painel. É público, sem chave e só de leitura, e roda como uma Supabase Edge Function (`supabase/functions/mcp`).
+
+| Tool | O que devolve |
+|---|---|
+| `endtimes_get_signs` | Nível do Ω, tensão militar e os 9 sinais com valor, percentil, tendência e fonte |
+| `endtimes_get_signs_history` | Histórico diário do Ω, da tensão e dos percentis |
+| `endtimes_search_events` | Eventos do mapa por categoria, gravidade, local, texto e período: título, trecho de até 280 caracteres e link da fonte |
+| `endtimes_get_event` | Um evento pelo id |
+
+Limites: só as chamadas de tool contam (a descoberta é livre). Cada endereço pode fazer 30 chamadas por minuto e 300 por hora, e o servidor inteiro aceita 900 por minuto. Acima disso a resposta diz em quantos segundos tentar de novo. Respostas ficam em cache por 1 a 5 minutos e nenhuma passa de 25.000 caracteres.
+
+O servidor não registra argumentos nem endereços de quem chama e não expõe nada que o site já não mostre.
+
+Detalhes, configuração, publicação e testes: [docs/MCP_SERVER.md](docs/MCP_SERVER.md). Testes: `npm run test:mcp`.
+
+---
+
 ## 🤝 Como Contribuir
 
 O repositório do **End Times Monitor** agora é focado em receber desenvolvedores, pesquisadores de OSINT, e estudantes de teologia que queiram melhorar a plataforma. Você pode ajudar adicionando novas fontes de inteligência, refinando as APIs ou melhorando o Frontend.
