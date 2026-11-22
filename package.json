@@ -11,6 +11,8 @@
     "test:individual": "tsx test-individual-collectors.ts",
     "test:new": "tsx test-new-collectors.ts",
     "test:v2": "tsx test-new-collectors-v2.ts",
+    "test:mcp": "tsx tests/test-mcp.ts",
+    "mcp:smoke": "tsx scripts/mcp-smoke.ts",
     "build:dev": "vite build --mode development",
     "collect:once": "tsx scripts/run-once.ts",
     "indexnow": "node scripts/indexnow.mjs"
