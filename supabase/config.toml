@@ -1,0 +1,9 @@
+# Supabase CLI configuration. Only the MCP Edge Function is declared here.
+# This file does not describe the hosted project's database, auth or storage settings:
+# do not run "supabase config push" or "supabase db push" from it.
+project_id = "endtimes-live"
+
+# The MCP server is public and keyless (read-only tools over data the site already shows),
+# so the gateway must not require a JWT for this one function. See docs/MCP_SERVER.md.
+[functions.mcp]
+verify_jwt = false
